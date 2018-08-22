@@ -898,10 +898,10 @@ def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc"
         #h.close()
         #l.close()
 
-binary3d_to_nc('u',768,384,256,starttime=0,endtime=7200,sampletime=60)
-binary3d_to_nc('v',768,384,256,starttime=0,endtime=7200,sampletime=60)
-binary3d_to_nc('w',768,384,256,starttime=0,endtime=7200,sampletime=60)
-binary3d_to_nc('p',768,384,256,starttime=0,endtime=7200,sampletime=60)
+binary3d_to_nc('u',768,384,256,starttime=0,endtime=7200,sampletime=600)
+binary3d_to_nc('v',768,384,256,starttime=0,endtime=7200,sampletime=600)
+binary3d_to_nc('w',768,384,256,starttime=0,endtime=7200,sampletime=600)
+binary3d_to_nc('p',768,384,256,starttime=0,endtime=7200,sampletime=600)
 
 generate_training_data((32,16,64))
 
