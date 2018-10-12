@@ -53,7 +53,7 @@ def Read_namelist(namelist_file = "moser600.ini"):
 
 def binary3d_to_nc(variable,nx,ny,nz,starttime,endtime,sampletime,endian = 'little', savetype = 'double'):
 
-        # Set correct dimensions for savefil
+        # Set correct dimensions for savefile
         nxsave = nx
         nysave = ny
         nzsave = nz
@@ -138,33 +138,137 @@ def binary3d_to_nc(variable,nx,ny,nz,starttime,endtime,sampletime,endian = 'litt
                 ncfile.sync()
 
         ncfile.close()
+		
+def generate_coarsecoord_centercell(cor_edges,cor_c_middle,dist_corc,iteration,len_cor):
+    cor_c_bottom = cor_c_middle - 0.5*dist_corc
+    cor_c_top = cor_c_middle + 0.5*dist_corc
+    
+    #Find points of fine grid located just outside the coarse grid cell considered in iteration
+    cor_bottom = cor_edges[cor_edges <= cor_c_bottom].max()
+    cor_top = cor_c_top if iteration == (len_coordinate - 1) else cor_edges[cor_edges >= cor_c_top].min()
+    
+    #Select all points inside and just outside coarse grid cell
+    points_indices_cor = np.where(np.logical_and(cor_bottom <= cor_edges , cor_edges < cor_top))[0]
+    cor_points = cor_edges[points_indices_cor] #Note: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).
+    
+    #Calculate weights for cor_points. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
+    weights = np.zeros(len(points_indices_cor))
+    if len(points_indices_cor) == 1:
+        weights = np.array([1])
 
+    else:
+	    for i in range(len(points_indices_cor):
+            elif i == 0:
+                weights[0] = (cor_points[1] - cor_c_bottom)/(cor_c_top - cor_c_bottom)
+            elif i == (len(points_indices_cor) - 1):
+                weights[i] = (cor_c_top - cor_points[i])/(cor_c_top - cor_c_bottom)
+            else:
+                weights[i] = (cor_points[i+1] - cor_points[i])/(cor_c_top - cor_c_bottom)
+    
+    return weights, points_indices_cor
+	
+def generate_coarsecoord_edgecell(cor_center,cor_c_middle,dist_corc):	
+    cor_c_bottom = cor_c_middle - 0.5*dist_corc
+    cor_c_top = cor_c_middle + 0.5*dist_corc
+    
+    #Find points of fine grid located just outside the coarse grid cell considered in iteration
+    cor_bottom = cor_center[cor_center <= cor_c_bottom].max()
+    cor_top = cor_center[cor_center >= cor_c_top].min()
+    
+    #Select all points inside and just outside coarse grid cell
+    points_indices_cor = np.where(np.logical_and(cor_bottom<cor_center , cor_center<=cor_top))[0]
+    cor_points = cor_center[points_indices_cor] #Note: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).
+    
+	  
+    #Calculate weights for cor_points. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
+    weights = np.zeros(len(points_indices_cor))
+    if len(points_indices_cor) == 1:
+        weights = np.array([1])
+
+    else:
+	    for i in range(len(points_indices_cor):
+            elif i == 0:
+                weights[0] = (cor_points[0] - cor_c_bottom)/(cor_c_top - cor_c_bottom)
+            elif i == (len(points_indices_cor) - 1):
+                weights[i] = (cor_c_top - cor_points[i-1])/(cor_c_top - cor_c_bottom)
+            else:
+                weights[i] = (cor_points[i] - cor_points[i-1])/(cor_c_top - cor_c_bottom)
+    
+	return weights, points_indices_cor
+	
+#Function to generate coarse grid for creation training data. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates.
+#Variable_name specifies the variable to calculate on the coarse grid.
+#Variable_filename specifies the file in which the variable specified 
+#Timesteps is the number of time steps present in the fine resolution data.
+#Coordinates should contain a tuple with the three spatial dimensions from the fine resolution (x,y,z).
+#Len_coordinates should contain a tuple indicating the spatial distance for each coordinate (x,y,z).
+#Edge coordinates should contain a tuple with the coordinates that form the edges of the top-hat filter applied for the variable specified by variable_name.
+#Bool_edge grid cell indicates for each coordinate (x,y,z) whether the weights should be aligned at the center of the grid cells (False) or the edges (True)
+
+def generate_weights(timestep,variable_name, variable_filename, coordinates, len_coordinates, edge_coordinates, dim_new_grid, bool_edge_gridcell = (False,False,False)):
+    xcor,ycor,zcor = coordinates
+    xcor_edges,ycor_edges,zcor_edges = edge_coordinates
+    nxc,nyc,nzc = dim_new_grid
+    xsize,ysize,zsize = len_coordinates
+
+    #Define grid distance coarse grid, assuming it is uniform for all coordinates
+    dist_xc = xsize / nxc
+    dist_yc = ysize / nyc
+    dist_zc = zsize / nzc
+
+    #Define coordinates for coarse grid depending on alignment specified by bool_edge_gridcell. Note: does not include grid edges
+    xcor_c = np.linspace(dist_xc,xsize-dist_xc,nxc-1,True) if bool_edge_gridcell[0] else np.linspace(0.5*dist_xc,xsize-0.5*dist_xc,nxc,True)
+    ycor_c = np.linspace(dist_yc,ysize-dist_yc,nyc-1,True) if bool_edge_gridcell[1] else np.linspace(0.5*dist_yc,ysize-0.5*dist_yc,nyc,True)
+    zcor_c = np.linspace(dist_zc,zsize-dist_zc,nzc-1,True) if bool_edge_gridcell[2] else np.linspace(0.5*dist_zc,zsize-0.5*dist_zc,nzc,True)
+	coord_c = (zcor_c,ycor_c,xcor_c)
+    
+	izc = izc - 1 if bool_edge_gridcell[2]
+    iyc = iyc - 1 if bool_edge_gridcell[1]
+    ixc = ixc - 1 if bool_edge_gridcell[0]
+
+    #Define a numpy array containing numpy arrays to store all weights (z,y,x) of the fine grid for all coarse grid cells. 
+    #Furthermore, the indices of the fine grid cells contained are stored for each coarse grid cell.
+    weights = np.empty((nzc,nyc,nxc),dtype=(ojbect,object,object))
+    points_indices = np.empty((nzc,nyc,nxc),dtype=(object,object,object))
+
+    izc = 0
+    for zcor_c_middle in zcor_c:
+        if bool_edge_gridcell[2]:
+            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = zcor, cor_c_middle = zcor_c_middle, dist_corc = dist_zc)
+        else:
+            weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = zcor_edges, cor_c_middle = zcor_c_middle, dist_corc = dist_zc, iteration = izc, len_cor = nzc)
+
+        izc += 1
+        iyc = 0
+	
+        for ycor_c_middle in ycor_c:
+            if bool_edge_gridcell[1]:
+                weights_y, points_indices_y = generate_coarsecoord_edgecell(cor_center = ycor, cor_c_middle = ycor_c_middle, dist_corc = dist_yc)
+            else:
+                weights_y, points_indices_y = generate_coarsecoord_centercell(cor_edges = ycor_edges, cor_c_middle = ycor_c_middle, dist_corc = dist_yc, iteration = iyc, len_cor = nyc)
+   
+            iyc += 1
+            ixc = 0
+				
+            for xcor_c_middle in xcor_c:
+                if bool_edge_gridcell[0]:
+                    weights_x, points_indices_x = generate_coarsecoord_edgecell(cor_center = xcor, cor_c_middle = xcor_c_middle, dist_corc = dist_xc)
+                else:
+                    weights_x, points_indices_x = generate_coarsecoord_centercell(cor_edges = xcor_edges, cor_c_middle = xcor_c_middle, dist_corc = dist_xc, iteration = ixc, len_cor = nxc)
+		        
+                ixc += 1
+	
+                #Calculate weights and points_indices
+                #weights =  weights_x[np.newaxis,np.newaxis,:]*weights_y[np.newaxis,:,np.newaxis]*weights_z[:,np.newaxis,np.newaxis]
+                weights[izc,iyc,ixc] = (weights_z,weights_y,weights_x)
+                points_indices[izc,iyc,ixc] = (points_indices_z,points_indices_y,points_indices_x)
+	    
+    return weights, points_indices, coord_c
+    
+		
 #Boundary condition: fine grid must have a smaller resolution than the coarse grid
 def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc", w_file_dns = "w.nc",p_file_dns = "p.nc" ,grid_file = "grid.{:07d}".format(0) ,name_output_file = 'training_data.nc',namelist_file = 'moser600.ini',endian = 'little',training=True): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts
     if training:
-        #dim_new_grid = (32,16,64)
-        #u_file_dns = "u.nc"
-        #v_file_dns = "v.nc"
-        #w_file_dns = "w.nc"
-        #p_file_dns = "p.nc"
-        #name_output_file = "training_data.nc"
-        #grid_file = "grid.{:07d}".format(0)
-        #namelist_file = "moser600.ini"
-        #endian = "little"
-    
-    
-        nxc,nyc,nzc = dim_new_grid # Tuple with dimensions of new grid
-        
-        f = nc.Dataset(u_file_dns, 'r+')
-        g = nc.Dataset(v_file_dns, 'r+')
-        h = nc.Dataset(w_file_dns, 'r+')
-        l = nc.Dataset(p_file_dns, 'r+')
-        
-        #u = np.array(f.variables['u'])
-        #v = np.array(g.variables['v'])
-        #w = np.array(h.variables['w'])
-        #p = np.array(l.variables['p'])
-        
         #Read settings simulation
         settings = Read_namelist()
         nx = settings['grid']['itot']
@@ -205,25 +309,13 @@ def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc"
         raw = fin.read(nz*8)
         zh  = np.array(st.unpack('{0}{1}d'.format(en, nz), raw))
         fin.close()
-        
-        dist_xc = xsize / nxc
-        dist_yc = ysize / nyc
-        dist_zc = zsize / nzc
-        xc = np.linspace(0.5*dist_xc,xsize-0.5*dist_xc,nxc,True) #Note: does not include edges
-        xhc = np.linspace(dist_xc,xsize-dist_xc,nxc-1,True)
-        yc = np.linspace(0.5*dist_yc,ysize-0.5*dist_yc,nyc,True)
-        yhc = np.linspace(dist_yc,ysize-dist_yc,nyc-1,True)
-        zc = np.linspace(0.5*dist_zc,zsize-0.5*dist_zc,nzc,True)
-        zhc = np.linspace(dist_zc,zsize-dist_zc,nzc-1,True)
-        dist_midchannel = np.absolute((zsize/2)-zc)
     
         create_variables = True
         create_file = True
     
      
         #Loop over timesteps
-        #for t in range(nt): #Only works correctly in this script when whole simulation is saved with a constant time interval
-        for t in range(nt):
+        for t in range(nt): #Only works correctly in this script when whole simulation is saved with a constant time interval
     
             ##Downsampling from fine DNS data to user specified coarse grid and calculation total transport momentum ##
             ###########################################################################################################
@@ -243,438 +335,66 @@ def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc"
             total_tau_yw = np.zeros((nzc,nyc-1,nxc),dtype=float)
             total_tau_zw = np.zeros((nzc-1,nyc,nxc),dtype=float)
            
-            #Extract variables from netCDF file for timestep
-            u = np.array(f.variables['u'][t,:,:,:])
-            v = np.array(g.variables['v'][t,:,:,:])
-            w = np.array(h.variables['w'][t,:,:,:])
-            p = np.array(l.variables['p'][t,:,:,:])
-    
-            #sample u on coarse grid
-            izc=0
-            for zc_cell_middle in zc:
-                zhc_cell_bottom = zc_cell_middle - 0.5*dist_zc
-                zhc_cell_top = zc_cell_middle + 0.5*dist_zc
-    
-                #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                zh_cell_bottom = zh[zh<=zhc_cell_bottom].max()
-                if izc == (nzc - 1):
-                    zh_cell_top = zhc_cell_top
-                else:
-                    zh_cell_top = zh[zh>=zhc_cell_top].min()
-    
-                #Select all points inside and just outside coarse grid cell
-                points_indices_z = np.where(np.logical_and(zh_cell_bottom<=zh , zh<zh_cell_top))[0]
-                zh_points = zh[points_indices_z] #Note: zh_points includes the bottom boundary (zh_cell_bottom), but not the top boundary (zh_cell_top).
-    
-                #Calculate weights for zh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                if len(points_indices_z) == 1:
-                    weights_zu = np.array([1])
-                else:
-                    weights_zu = np.ones(len(points_indices_z))
-                    weights_zu[0] = 1-((zhc_cell_bottom - zh_points[0])/(zh_points[1]-zh_points[0])) #Should always be between 0 and 1
-                    weights_zu[-1] = 1-((zh_cell_top-zhc_cell_top)/(zh_cell_top-zh_points[-1])) #Should always be between 0 and 1
-    
-                #Extract corresponding u_points
-                u_points_z = u[points_indices_z,:,:]
-    
-                iyc=0
-                for yc_cell_middle in yc:
-                    yhc_cell_bottom = yc_cell_middle - 0.5*dist_yc
-                    yhc_cell_top = yc_cell_middle + 0.5*dist_yc
-    
-                    #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                    yh_cell_bottom = yh[yh<=yhc_cell_bottom].max() #Note:sometimes influenced by small rounding errors
-                    if iyc == (nyc -1):
-                        yh_cell_top = yhc_cell_top
-                    else:
-                        yh_cell_top = yh[yh>=yhc_cell_top].min()
-    
-                    #Select all points inside and jdust outside coarse grid cell
-                    points_indices_y = np.where(np.logical_and(yh_cell_bottom<=yh , yh<yh_cell_top))[0]
-                    yh_points = yh[points_indices_y] #Note: yh_points includes the bottom boundary (yh_cell_bottom), but not the top boundary (yh_cell_top).
-    
-                    #Calculate weights for yh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                    if len(points_indices_y) == 1:
-                        weights_yu = np.array([1])
-                    else:
-                        weights_yu = np.ones(len(points_indices_y))
-                        weights_yu[0] = 1-(yhc_cell_bottom - yh_points[0])/(yh_points[1]-yh_points[0]) #Should always be between 0 and 1
-                        weights_yu[-1] = 1-((yh_cell_top-yhc_cell_top)/(yh_cell_top-yh_points[-1])) #Should always be between 0 and 1
-    
-                    #Extract corresponding u_points
-                    u_points_zy = u_points_z[:,points_indices_y,:]
-    
-                    ixc=0
-                    for xhc_cell_middle in xhc:
-                        xc_cell_bottom = xhc_cell_middle - 0.5*dist_xc
-                        xc_cell_top = xhc_cell_middle + 0.5*dist_xc
-    
-                        #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                        x_cell_bottom = x[x<=xc_cell_bottom].max()
-                        x_cell_top = x[x>=xc_cell_top].min()
-    
-                        #Select all points inside and just outside coarse grid cell
-                        points_indices_x = np.where(np.logical_and(x_cell_bottom<x , x<=x_cell_top))[0]
-                        x_points = x[points_indices_x] #Note: x_points includes the bottom boundary (x_cell_bottom), but not the top boundary (x_cell_top).
-    
-                        #Calculate weights for x_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                        if len(points_indices_x) == 1:
-                            weights_xu = np.array([1])
-                        else:
-                            weights_xu = np.ones(len(points_indices_x))
-                            weights_xu[0] = 1-(xc_cell_bottom - x_cell_bottom)/(x_points[0]-x_cell_bottom) #Should always be between 0 and 1
-                            weights_xu[-1] = 1-((x_cell_top - xc_cell_top)/(x_cell_top-x_points[-2])) #Should always be between 0 and 1
-    
-                        #Calculate representative u on coarse grid from fine grid
-                        u_points_zyx = u_points_zy[:,:,points_indices_x]
-                        #weights_xu_points = np.tile(weights_xu,(len(weights_zu),len(weights_yu),1))
-                        #weights_yu_points =  np.tile(weights_yu,(len(weights_zu),1,len(weights_xu)))
-                        #weights_zu_points = np.tile(weights_zu,(1,len(weights_yu),len(weights_xu)))
-                        #weights_u = weights_zu_points*weights_yu_points*weights_xu_points
-                        weights_u =  weights_xu[np.newaxis,np.newaxis,:]*weights_yu[np.newaxis,:,np.newaxis]*weights_zu[:,np.newaxis,np.newaxis]
-                        u_c[izc,iyc,ixc] = np.average(u_points_zyx,weights=weights_u)
-    
-                        ixc+=1
-                    iyc+=1
-                izc+=1
-    
-            #Calculate TOTAL transport from fine grid in user-specified coarse grid cell. As a first step, fine grid-velocities interpolated to walls coarse grid cell.
-            zc_int = np.ravel(np.broadcast_to(zc[:,np.newaxis,np.newaxis],(len(zc),len(yc),len(xhc))))
-            yc_int = np.ravel(np.broadcast_to(yc[np.newaxis,:,np.newaxis],(len(zc),len(yc),len(xhc))))
-            xhc_int = np.ravel(np.broadcast_to(xhc[np.newaxis,np.newaxis,:],(len(zc),len(yc),len(xhc))))
-    
-            #zh_int = np.broadcast_to(zh[:,np.newaxis,np.newaxis],(len(zh),len(y),len(x)))
-    
-            #z_int = np.ravel(np.broadcast_to(z[:,np.newaxis,np.newaxis],(len(z),len(y),len(xh))))
-            #y_int = np.ravel(np.broadcast_to(y[np.newaxis,:,np.newaxis],(len(z),len(y),len(xh))))
-            #xh_int = np.ravel(np.broadcast_to(xh[np.newaxis,np.newaxis,:],(len(z),len(y),len(xh))))
-            #u_1d = np.ravel(u)
-            #wifjwepoifjef
-            #u_int = scipy.interpolate.griddata((z_int,y_int,xh_int),u_1d,(zc_int,yc_int,xhc_int),method='linear')
-    
-            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((z,y,xh),u,method='linear',bounds_error=False,fill_value=None)((zc_int,yc_int,xhc_int)),(len(zc),len(yc),len(xhc)))
-            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((z,yh,x),v,method='linear',bounds_error=False,fill_value=None)((zc_int,yc_int,xhc_int)),(len(zc),len(yc),len(xhc)))
-            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zh,y,x),w,method='linear',bounds_error=False,fill_value=None)((zc_int,yc_int,xhc_int)),(len(zc),len(yc),len(xhc)))
-            #v_int = scipy.interpolate.griddata((z,yh,x),v,(zc,yc,xhc),method='linear')
-            #w_int = scipy.interpolate.griddata((zh,y,x),w,(zc,yc,xhc),method='linear')
-    
-            total_tau_xu[:,:,:] = u_int ** 2
-            total_tau_xv[:,:,:] = u_int * v_int
-            total_tau_xw[:,:,:] = u_int * w_int
-    
-            ##Sample v on coarse grid
-            izc=0
-            for zc_cell_middle in zc:
-                zhc_cell_bottom = zc_cell_middle - 0.5*dist_zc
-                zhc_cell_top = zc_cell_middle + 0.5*dist_zc
-    
-                #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                zh_cell_bottom = zh[zh<=zhc_cell_bottom].max()
-                if izc == (nzc - 1):
-                    zh_cell_top = zhc_cell_top
-                else:
-                    zh_cell_top = zh[zh>=zhc_cell_top].min()
-    
-                #Select all points inside and just outside coarse grid cell
-                points_indices_z = np.where(np.logical_and(zh_cell_bottom<=zh , zh<zh_cell_top))[0]
-                zh_points = zh[points_indices_z] #Note: zh_points includes the bottom boundary (zh_cell_bottom), but not the top boundary (zh_cell_top).
-    
-                #Calculate weights for zh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                if len(points_indices_z) == 1:
-                    weights_zv = np.array([1])
-                else:
-                    weights_zv = np.ones(len(points_indices_z))
-                    weights_zv[0] = 1-((zhc_cell_bottom - zh_points[0])/(zh_points[1]-zh_points[0])) #Should always be between 0 and 1
-                    weights_zv[-1] = 1-((zh_cell_top-zhc_cell_top)/(zh_cell_top-zh_points[-1])) #Should always be between 0 and 1
-    
-                #Extract corresponding v_points
-                v_points_z = v[points_indices_z,:,:]
-    
-                iyc=0
-                for yhc_cell_middle in yhc:
-                    yc_cell_bottom = yhc_cell_middle - 0.5*dist_yc
-                    yc_cell_top = yhc_cell_middle + 0.5*dist_yc
-    
-                    #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                    y_cell_bottom = y[y<=yc_cell_bottom].max() #Note:sometimes influenced by small rounding errors
-                    y_cell_top = y[y>=yc_cell_top].min()
-    
-                    #Select all points inside and just outside coarse grid cell
-                    points_indices_y = np.where(np.logical_and(y_cell_bottom<y , y<=y_cell_top))[0]
-                    y_points = y[points_indices_y] #Note: y_points includes the bottom boundary (y_cell_bottom), but not the top boundary (y_cell_top).
-    
-                    #Calculate weights for y_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                    if len(points_indices_y) == 1:
-                        weights_yv = np.array([1])
-                    else:
-                        weights_yv = np.ones(len(points_indices_y))
-                        weights_yv[0] = 1-(yc_cell_bottom - y_cell_bottom)/(y_points[0]-y_cell_bottom) #Should always be between 0 and 1
-                        weights_yv[-1] = 1-((y_cell_top - yc_cell_top)/(y_cell_top-y_points[-2])) #Should always be between 0 and 1
-    
-    
-                    #Extract corresponding v_points
-                    v_points_zy = v_points_z[:,points_indices_y,:]
-    
-                    ixc=0
-                    for xc_cell_middle in xc:
-                        xhc_cell_bottom = xc_cell_middle - 0.5*dist_xc
-                        xhc_cell_top = xc_cell_middle + 0.5*dist_xc
-    
-                        #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                        xh_cell_bottom = xh[xh<=xhc_cell_bottom].max()
-                        if ixc == (nxc -1):
-                            xh_cell_top = xhc_cell_top
-                        else:
-                            xh_cell_top = xh[xh>=xhc_cell_top].min()
-    
-                        #Select all points inside and just outside coarse grid cell
-                        points_indices_x = np.where(np.logical_and(xh_cell_bottom<=xh , xh<xh_cell_top))[0]
-                        xh_points = xh[points_indices_x] #Note: xh_points includes the bottom boundary (xh_cell_bottom), but not the top boundary (xh_cell_top).
-    
-                        #Calculate weights for xh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                        if len(points_indices_x) == 1:
-                            weights_xv = np.array([1])
-                        else:
-                            weights_xv = np.ones(len(points_indices_x))
-                            weights_xv[0] = 1-(xhc_cell_bottom - xh_points[0])/(xh_points[1]-xh_points[0]) #Should always be between 0 and 1
-                            weights_xv[-1] = 1-((xh_cell_top - xhc_cell_top)/(xh_cell_top-xh_points[-1])) #Should always be between 0 and 1
-    
-                        #Calculate representative v on coarse grid from fine grid
-                        v_points_zyx = v_points_zy[:,:,points_indices_x]
-                        #weights_xu_points = np.tile(weights_xu,(len(weights_zu),len(weights_yu),1))
-                        #weights_yu_points =  np.tile(weights_yu,(len(weights_zu),1,len(weights_xu)))
-                        #weights_zu_points = np.tile(weights_zu,(1,len(weights_yu),len(weights_xu)))
-                        #weights_u = weights_zu_points*weights_yu_points*weights_xu_points
-                        weights_v =  weights_xv[np.newaxis,np.newaxis,:]*weights_yv[np.newaxis,:,np.newaxis]*weights_zv[:,np.newaxis,np.newaxis]
-                        v_c[izc,iyc,ixc] = np.average(v_points_zyx,weights=weights_v)
-    
-                        ixc+=1
-                    iyc+=1
-                izc+=1
-    
-            #Calculate TOTAL transport from fine grid in user-specified coarse grid cell. As a first step, fine grid-velocities interpolated to walls coarse grid cell.
-            zc_int = np.ravel(np.broadcast_to(zc[:,np.newaxis,np.newaxis],(len(zc),len(yhc),len(xc))))
-            yhc_int = np.ravel(np.broadcast_to(yhc[np.newaxis,:,np.newaxis],(len(zc),len(yhc),len(xc))))
-            xc_int = np.ravel(np.broadcast_to(xc[np.newaxis,np.newaxis,:],(len(zc),len(yhc),len(xc))))
-    
-            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((z,y,xh),u,method='linear',bounds_error=False,fill_value=None)((zc_int,yhc_int,xc_int)),(len(zc),len(yhc),len(xc)))
-            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((z,yh,x),v,method='linear',bounds_error=False,fill_value=None)((zc_int,yhc_int,xc_int)),(len(zc),len(yhc),len(xc)))
-            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zh,y,x),w,method='linear',bounds_error=False,fill_value=None)((zc_int,yhc_int,xc_int)),(len(zc),len(yhc),len(xc)))
-    
-            #u_int = scipy.interpolate.griddata((z,y,xh),u,(zc,yhc,xc),method='linear')
-            #v_int = scipy.interpolate.griddata((z,yh,x),v,(zc,yhc,xc),method='linear')
-            #w_int = scipy.interpolate.griddata((zh,y,x),w,(zc,yhc,xc),method='linear')
-    
-            total_tau_yu[:,:,:] = v_int * u_int
-            total_tau_yv[:,:,:] = v_int ** 2
-            total_tau_yw[:,:,:] = v_int * w_int
-    
-            ##Sample w on coarse grid
-            izc=0
-            for zhc_cell_middle in zhc:
-                zc_cell_bottom = zhc_cell_middle - 0.5*dist_zc
-                zc_cell_top = zhc_cell_middle + 0.5*dist_zc
-    
-                #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                z_cell_bottom = z[z<=zc_cell_bottom].max()
-                z_cell_top = z[z>=zc_cell_top].min()
-    
-                #Select all points inside and just outside coarse grid cell
-                points_indices_z = np.where(np.logical_and(z_cell_bottom<z , z<=z_cell_top))[0]
-                z_points = z[points_indices_z] #Note: z_points includes the bottom boundary (z_cell_bottom), but not the top boundary (z_cell_top).
-    
-                #Calculate weights for z_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                if len(points_indices_z) == 1:
-                    weights_zw = np.array([1])
-                else:
-                    weights_zw = np.ones(len(points_indices_z))
-                    weights_zw[0] = 1-(zc_cell_bottom - z_cell_bottom)/(z_points[0]-z_cell_bottom) #Should always be between 0 and 1
-                    weights_zw[-1] = 1-((z_cell_top - zc_cell_top)/(z_cell_top-z_points[-2])) #Should always be between 0 and 1
-    
-                #Extract corresponding w_points
-                w_points_z = w[points_indices_z,:,:]
-    
-                iyc=0
-    
-    
-                for yc_cell_middle in yc:
-                    yhc_cell_bottom = yc_cell_middle - 0.5*dist_yc
-                    yhc_cell_top = yc_cell_middle + 0.5*dist_yc
-    
-                    #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                    yh_cell_bottom = yh[yh<=yhc_cell_bottom].max() #Note:sometimes influenced by small rounding errors
-                    if iyc == (nyc -1):
-                        yh_cell_top = yhc_cell_top
-                    else:
-                        yh_cell_top = yh[yh>=yhc_cell_top].min()
-    
-                    #Select all points inside and just outside coarse grid cell
-                    points_indices_y = np.where(np.logical_and(yh_cell_bottom<=yh , yh<yh_cell_top))[0]
-                    yh_points = yh[points_indices_y] #Note: yh_points includes the bottom boundary (yh_cell_bottom), but not the top boundary (yh_cell_top).
-    
-                    #Calculate weights for yh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                    if len(points_indices_y) == 1:
-                        weights_yw = np.array([1])
-                    else:
-                        weights_yw = np.ones(len(points_indices_y))
-                        weights_yw[0] = 1-(yhc_cell_bottom - yh_points[0])/(yh_points[1]-yh_points[0]) #Should always be between 0 and 1
-                        weights_yw[-1] = 1-((yh_cell_top-yhc_cell_top)/(yh_cell_top-yh_points[-1])) #Should always be between 0 and 1
-    
-                    #Extract corresponding w_points
-                    w_points_zy = w_points_z[:,points_indices_y,:]
-    
-                    ixc=0
-    
-                    for xc_cell_middle in xc:
-                        xhc_cell_bottom = xc_cell_middle - 0.5*dist_xc
-                        xhc_cell_top = xc_cell_middle + 0.5*dist_xc
-    
-                        #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                        xh_cell_bottom = xh[xh<=xhc_cell_bottom].max()
-                        if ixc == (nxc -1):
-                            xh_cell_top = xhc_cell_top
-                        else:
-                            xh_cell_top = xh[xh>=xhc_cell_top].min()
-    
-                        #Select all points inside and just outside coarse grid cell
-                        points_indices_x = np.where(np.logical_and(xh_cell_bottom<=xh , xh<xh_cell_top))[0]
-                        xh_points = xh[points_indices_x] #Note: xh_points includes the bottom boundary (xh_cell_bottom), but not the top boundary (xh_cell_top).
-    
-                        #Calculate weights for xh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                        if len(points_indices_x) == 1:
-                            weights_xw = np.array([1])
-                        else:
-                            weights_xw = np.ones(len(points_indices_x))
-                            weights_xw[0] = 1-(xhc_cell_bottom - xh_points[0])/(xh_points[1]-xh_points[0]) #Should always be between 0 and 1
-                            weights_xw[-1] = 1-((xh_cell_top - xhc_cell_top)/(xh_cell_top-xh_points[-1])) #Should always be between 0 and 1
-    
-                        #Calculate representative w on coarse grid from fine grid
-                        w_points_zyx = w_points_zy[:,:,points_indices_x]
-                        #weights_xu_points = np.tile(weights_xu,(len(weights_zu),len(weights_yu),1))
-                        #weights_yu_points =  np.tile(weights_yu,(len(weights_zu),1,len(weights_xu)))
-                        #weights_zu_points = np.tile(weights_zu,(1,len(weights_yu),len(weights_xu)))
-                        #weights_u = weights_zu_points*weights_yu_points*weights_xu_points
-                        weights_w =  weights_xw[np.newaxis,np.newaxis,:]*weights_yw[np.newaxis,:,np.newaxis]*weights_zw[:,np.newaxis,np.newaxis]
-                        w_c[izc,iyc,ixc] = np.average(w_points_zyx,weights=weights_w)
-    
-                        ixc+=1
-                    iyc+=1
-                izc+=1
-    
-            #Calculate TOTAL transport from fine grid in user-specified coarse grid cell. As a first step, fine grid-velocities interpolated to walls coarse grid cell.
-            zhc_int = np.ravel(np.broadcast_to(zhc[:,np.newaxis,np.newaxis],(len(zhc),len(yc),len(xc))))
-            yc_int = np.ravel(np.broadcast_to(yc[np.newaxis,:,np.newaxis],(len(zhc),len(yc),len(xc))))
-            xc_int = np.ravel(np.broadcast_to(xc[np.newaxis,np.newaxis,:],(len(zhc),len(yc),len(xc))))
-    
-            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((z,y,xh),u,method='linear',bounds_error=False,fill_value=None)((zhc_int,yc_int,xc_int)),(len(zhc),len(yc),len(xc)))
-            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((z,yh,x),v,method='linear',bounds_error=False,fill_value=None)((zhc_int,yc_int,xc_int)),(len(zhc),len(yc),len(xc)))
-            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zh,y,x),w,method='linear',bounds_error=False,fill_value=None)((zhc_int,yc_int,xc_int)),(len(zhc),len(yc),len(xc)))
-    
-           # u_int = scipy.interpolate.griddata((z,y,xh),u,(zhc,yc,xc),method='linear')
-           # v_int = scipy.interpolate.griddata((z,yh,x),v,(zhc,yc,xc),method='linear')
-           # w_int = scipy.interpolate.griddata((zh,y,x),w,(zhc,yc,xc),method='linear')
-    
-            total_tau_zu[:,:,:] = w_int * u_int
-            total_tau_zv[:,:,:] = w_int * v_int
-            total_tau_zw[:,:,:] = w_int **2
-    
-            ##Sample p on coarse grid
-            izc=0
-            for zc_cell_middle in zc:
-                zhc_cell_bottom = zc_cell_middle - 0.5*dist_zc
-                zhc_cell_top = zc_cell_middle + 0.5*dist_zc
-    
-                #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                zh_cell_bottom = zh[zh<=zhc_cell_bottom].max()
-                if izc == (nzc - 1):
-                    zh_cell_top = zhc_cell_top
-                else:
-                    zh_cell_top = zh[zh>=zhc_cell_top].min()
-    
-                #Select all points inside and just outside coarse grid cell
-                points_indices_z = np.where(np.logical_and(zh_cell_bottom<=zh , zh<zh_cell_top))[0]
-                zh_points = zh[points_indices_z] #Note: zh_points includes the bottom boundary (zh_cell_bottom), but not the top boundary (zh_cell_top).
-    
-                #Calculate weights for zh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                if len(points_indices_z) == 1:
-                    weights_zp = np.array([1])
-                else:
-                    weights_zp = np.ones(len(points_indices_z))
-                    weights_zp[0] = 1-((zhc_cell_bottom - zh_points[0])/(zh_points[1]-zh_points[0])) #Should always be between 0 and 1
-                    weights_zp[-1] = 1-((zh_cell_top-zhc_cell_top)/(zh_cell_top-zh_points[-1])) #Should always be between 0 and 1
-    
-                #Extract corresponding p_points
-                p_points_z = p[points_indices_z,:,:]
-    
-                iyc=0
-    
-                for yc_cell_middle in yc:
-                    yhc_cell_bottom = yc_cell_middle - 0.5*dist_yc
-                    yhc_cell_top = yc_cell_middle + 0.5*dist_yc
-    
-                    #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                    yh_cell_bottom = yh[yh<=yhc_cell_bottom].max() #Note:sometimes influenced by small rounding errors
-                    if iyc == (nyc -1):
-                        yh_cell_top = yhc_cell_top
-                    else:
-                        yh_cell_top = yh[yh>=yhc_cell_top].min()
-    
-                    #Select all points inside and just outside coarse grid cell
-                    points_indices_y = np.where(np.logical_and(yh_cell_bottom<=yh , yh<yh_cell_top))[0]
-                    yh_points = yh[points_indices_y] #Note: yh_points includes the bottom boundary (yh_cell_bottom), but not the top boundary (yh_cell_top).
-    
-                    #Calculate weights for yh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                    if len(points_indices_y) == 1:
-                        weights_yp = np.array([1])
-                    else:
-                        weights_yp = np.ones(len(points_indices_y))
-                        weights_yp[0] = 1-(yhc_cell_bottom - yh_points[0])/(yh_points[1]-yh_points[0]) #Should always be between 0 and 1
-                        weights_yp[-1] = 1-((yh_cell_top-yhc_cell_top)/(yh_cell_top-yh_points[-1])) #Should always be between 0 and 1
-    
-                    #Extract corresponding p_points
-                    p_points_zy = p_points_z[:,points_indices_y,:]
-    
-                    ixc=0
-    
-                    for xc_cell_middle in xc:
-                        xhc_cell_bottom = xc_cell_middle - 0.5*dist_xc
-                        xhc_cell_top = xc_cell_middle + 0.5*dist_xc
-    
-                        #Find points of fine grid located just outside the coarse grid cell considered in iteration
-                        xh_cell_bottom = xh[xh<=xhc_cell_bottom].max()
-                        if ixc == (nxc -1):
-                            xh_cell_top = xhc_cell_top
-                        else:
-                            xh_cell_top = xh[xh>=xhc_cell_top].min()
-    
-                        #Select all points inside and just outside coarse grid cell
-                        points_indices_x = np.where(np.logical_and(xh_cell_bottom<=xh , xh<xh_cell_top))[0]
-                        xh_points = xh[points_indices_x] #Note: xh_points includes the bottom boundary (xh_cell_bottom), but not the top boundary (xh_cell_top).
-    
-                        #Calculate weights for xh_points in calculation representative velocity. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-                        if len(points_indices_x) == 1:
-                            weights_xp = np.array([1])
-                        else:
-                            weights_xp = np.ones(len(points_indices_x))
-                            weights_xp[0] = 1-(xhc_cell_bottom - xh_points[0])/(xh_points[1]-xh_points[0]) #Should always be between 0 and 1
-                            weights_xp[-1] = 1-((xh_cell_top - xhc_cell_top)/(xh_cell_top-xh_points[-1])) #Should always be between 0 and 1
-    
-                        #Calculate representative p on coarse grid from fine grid
-                        p_points_zyx = p_points_zy[:,:,points_indices_x]
-                        #weights_xu_points = np.tile(weights_xu,(len(weights_zu),len(weights_yu),1))
-                        #weights_yu_points =  np.tile(weights_yu,(len(weights_zu),1,len(weights_xu)))
-                        #weights_zu_points = np.tile(weights_zu,(1,len(weights_yu),len(weights_xu)))
-                        #weights_u = weights_zu_points*weights_yu_points*weights_xu_points
-                        weights_p =  weights_xp[np.newaxis,np.newaxis,:]*weights_yp[np.newaxis,:,np.newaxis]*weights_zp[:,np.newaxis,np.newaxis]
-                        p_c[izc,iyc,ixc] = np.average(p_points_zyx,weights=weights_p)
-    
-                        ixc+=1
-                    iyc+=1
-                izc+=1
-    
+            #Calculate weights and points_indices for each coarse grid cell
+            weights_u, points_indices_u, coord_c_u = generate_weights(timestep = t, variable_name = 'u',variable_filename = u_file_dns,coordinates = (xh,y,z), len_coordinates = (xsize,ysize,zsize), edge_coordinates = (x,yh,zh), dim_new_grid = dim_new_grid, bool_edge_gridcell = (True,False,False))
+            weights_v, points_indices_v, coord_c_v = generate_weights(timestep = t, variable_name = 'v',variable_filename = v_file_dns,coordinates = (x,yh,z), len_coordinates = (xsize,ysize,zsize), edge_coordinates = (xh,y,zh), dim_new_grid = dim_new_grid, bool_edge_gridcell = (False,True,False))
+            weights_w, points_indices_w, coord_c_w = generate_weights(timestep = t, variable_name = 'w',variable_filename = w_file_dns,coordinates = (x,y,zh), len_coordinates = (xsize,ysize,zsize), edge_coordinates = (xh,yh,z), dim_new_grid = dim_new_grid, bool_edge_gridcell = (False,False,True))
+            weights_p, points_indices_p, coord_c_p = generate_weights(timestep = t, variable_name = 'p',variable_filename = p_file_dns,coordinates = (x,y,z), len_coordinates = (xsize,ysize,zsize), edge_coordinates = (xh,yh,zh), dim_new_grid = dim_new_grid, bool_edge_gridcell = (False,False,False))
+
+            #Calculate representative velocities on coarse grid from fine grid
+            nzc,nyc,nxc = dim_new_grid
+            for izc in range(nzc):
+                for iyc in range(nyc):
+                    for ixc in range(nxc):
+                        u_finegrid_indexz, u_finegrid_indexy, u_finegrid_indexx = points_indices_u[izc,iyc,ixc]
+                        u_finegrid_points = u[u_finegrid_indexz,:,:][:, u_finegrid_indexy, :][:, :, u_finegrid_indexx]
+                        u_finegrid_weightsz, u_finegrid_weightsy, u_finegrid_weightsx = weights_u[izc,iyc,ixc]
+                        u_finegrid_weights = u_finegrid_weightsx[np.newaxis,np.newaxis,:]*u_finegrid_weightsy[np.newaxis,:,np.newaxis]*u_finegrid_weightsz[:,np.newaxis,np.newaxis]
+                        if not ixc == (nxc - 1):
+                            u_c[izc,iyc,ixc] = np.sum(np.multiply(u_finegrid_weights, u_finegrid_points))
+
+                        v_finegrid_indexz, v_finegrid_indexy, v_finegrid_indexx = points_indices_v[izc,iyc,ixc]
+                        v_finegrid_points = v[v_finegrid_indexz,:,:][:, v_finegrid_indexy, :][:, :, v_finegrid_indexx]
+                        v_finegrid_weightsz, v_finegrid_weightsy, v_finegrid_weightsx = weights_v[izc,iyc,ixc]
+                        v_finegrid_weights = v_finegrid_weightsx[np.newaxis,np.newaxis,:]*v_finegrid_weightsy[np.newaxis,:,np.newaxis]*v_finegrid_weightsz[:,np.newaxis,np.newaxis]
+                        if not iyc == (nyc - 1):
+                            v_c[izc,iyc,ixc] = np.sum(np.multiply(v_finegrid_weights, v_finegrid_points))
+
+                        w_finegrid_indexz, w_finegrid_indexy, w_finegrid_indexx = points_indices_w[izc,iyc,ixc]
+                        w_finegrid_points = w[w_finegrid_indexz,:,:][:, w_finegrid_indexy, :][:, :, w_finegrid_indexx]
+                        w_finegrid_weightsz, w_finegrid_weightsy, w_finegrid_weightsx = weights_w[izc,iyc,ixc]
+                        w_finegrid_weights = w_finegrid_weightsx[np.newaxis,np.newaxis,:]*w_finegrid_weightsy[np.newaxis,:,np.newaxis]*w_finegrid_weightsz[:,np.newaxis,np.newaxis]
+                        if not izc == (nzc - 1):
+                            w_c[izc,iyc,ixc] = np.sum(np.multiply(w_finegrid_weights, w_finegrid_points))
+
+                        p_finegrid_indexz, p_finegrid_indexy, p_finegrid_indexx = points_indices_p[izc,iyc,ixc]
+                        p_finegrid_points = p[p_finegrid_indexz,:,:][:, p_finegrid_indexy, :][:, :, p_finegrid_indexx]
+                        p_finegrid_weightsz, p_finegrid_weightsy, p_finegrid_weightsx = weights_p[izc,iyc,ixc]
+                        p_finegrid_weights = p_finegrid_weightsx[np.newaxis,np.newaxis,:]*p_finegrid_weightsy[np.newaxis,:,np.newaxis]*p_finegrid_weightsz[:,np.newaxis,np.newaxis]
+                        p_c[izc,iyc,ixc] = np.sum(np.multiply(p_finegrid_weights, p_finegrid_points))
+
+                        #Calculate TOTAL transport from fine grid in user-specified coarse grid cell.
+                        #yz-side boundary
+                        if not ixc == (nxc - 1):
+                            ~,~, coord_c_u_x = coord_c_u
+                            coord_c_u_x_point = coord_c_u_x[ixc]
+
+                            x_int = np.ravel(np.broadcast_to(coord_c_u_x_point[np.newaxis,np.newaxis,:],(len(u_finegrid_indexz),len(u_finegrid_indexy),len(coord_c_u_x_point))))
+                            y_int = np.ravel(np.broadcast_to(u_finegrid_indexy[np.newaxis,:,np.newaxis],(len(u_finegrid_indexz),len(u_finegrid_indexy),len(coord_c_u_x_point))))
+                            z_int = np.ravel(np.broadcast_to(u_finegrid_indexx[:,np.newaxis,np.newaxis],(len(u_finegrid_indexz),len(u_finegrid_indexy),len(coord_c_u_x_point))))
+
+                            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((u_finegrid_indexz,u_finegrid_indexy,u_finegrid_indexx),u_finegrid_points[:,:,:],method='linear',bounds_error=False,fill_value=None)((z_int,y_int,x_int)),(len(z_int),len(y_int),len(x_int)))
+                            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((v_finegrid_indexz,v_finegrid_indexy,v_finegrid_indexx),v_finegrid_points[:,:,:],method='linear',bounds_error=False,fill_value=None)((z_int,y_int,x_int)),(len(z_int),len(y_int),len(x_int)))
+                            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((w_finegrid_indexz,w_finegrid_indexy,w_finegrid_indexx),w_finegrid_points[:,:,:],method='linear',bounds_error=False,fill_value=None)((z_int,y_int,x_int)),(len(z_int),len(y_int),len(x_int)))
+
+                            weights_u_yz = (u_finegrid_weightsy[np.newaxis,:]*u_finegrid_weightsz[:,np.newaxis])[:,:,np.newaxis]
+							total_tau_xu[izc,iyc,ixc] = np.sum(np.multiply(weights_u_yz, u_int**2))
+							total_tau_xv[izc,iyc,ixc] = np.sum(np.multiply(weights_u_yz, np.multiply(u_int,v_int))
+							total_tau_xw[izc,iyc,ixc] = np.sum(np.multiply(weights_u_yz, np.multiply(u_int,w_int))
+
             ##Calculate resolved and unresolved transport user specified coarse grid ##
             ###########################################################################
-    
+
             #Define empty variables for storage
     
             res_tau_xu = np.zeros((nzc,nyc,nxc-1),dtype=float)
@@ -696,6 +416,8 @@ def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc"
             unres_tau_xw = np.zeros((nzc,nyc,nxc-1),dtype=float)
             unres_tau_yw = np.zeros((nzc,nyc-1,nxc),dtype=float)
             unres_tau_zw = np.zeros((nzc-1,nyc,nxc),dtype=float)
+			
+            #Calculate velocities on coarse grid
     
             #Calculate RESOLVED and UNRESOLVED transport of u-momentum for user-specified coarse grid. As a first step, the coarse grid-velocities are interpolated to the walls of the coarse grid cell.
             zc_int = np.ravel(np.broadcast_to(zc[:,np.newaxis,np.newaxis],(len(zc),len(yc),len(xhc))))

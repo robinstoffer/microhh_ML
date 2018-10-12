@@ -17,9 +17,9 @@ import glob
 hvd.init()
 
 #Define settingsi
-batch_size = 100
+batch_size = 5000 #With 120 fields approximately 400 batches per epoch
 #batch_size = 10000 #Number of samples selected in each batch
-num_steps = 10000 #Number of steps, i.e. number of batches times number of epochs
+num_steps = 400 #Number of steps, i.e. number of batches times number of epochs
 output_variable = 'unres_tau_xu_sample'
 num_labels = 1
 
@@ -170,7 +170,7 @@ my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_ran
 #Instantiate an Estimator with model defined by model_fn
 hyperparams =  {
 #'feature_columns':feature_columns,
-'n_conv1':10,
+'n_conv1':40,
 'kernelsize_conv1':5,
 'stride_conv1':1,
 'activation_function':tf.nn.relu,
