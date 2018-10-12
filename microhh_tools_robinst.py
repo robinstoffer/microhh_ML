@@ -174,12 +174,30 @@ class Finegrid:
             self.read_grid_flag = False
             self.define_grid_flag = False
             try:
+                if not (np.all(kwargs['coordx'][1:] > kwargs['coordx'][:-1]) and np.all(kwargs['coordx'][:] > 0) and (len(kwargs['coordx'][:].shape) == 1)):
+                    raise ValueError("The coordinates in the x-direction should be 1-dimensional, strictly increase, and consist of positive values only.") 
                 self.var['grid']['x'] = kwargs['coordx']
+
+                if not (np.all(kwargs['coordy'][1:] > kwargs['coordy'][:-1]) and np.all(kwargs['coordy'][:] > 0) and (len(kwargs['coordy'][:].shape) == 1)):
+                    raise ValueError("The coordinates in the y-direction should be 1-dimensional, strictly increase, and consist of positive values only.")
                 self.var['grid']['y'] = kwargs['coordy']
+
+                if not (np.all(kwargs['coordz'][1:] > kwargs['coordz'][:-1]) and np.all(kwargs['coordz'][:] > 0) and (len(kwargs['coordz'][:].shape) == 1)):
+                    raise ValueError("The coordinates in the z-direction should be 1-dimensional, strictly increase, and consist of positive values only.")
                 self.var['grid']['z'] = kwargs['coordz']
+
+                if not kwargs['sizex'] > kwargs['coordx'][-1]:
+                    raise ValueError("The length of the x-coordinate should be larger than the last coordinate.")
                 self.var['grid']['xsize'] = kwargs['sizex']
+
+                if not kwargs['sizey'] > kwargs['coordy'][-1]:
+                    raise ValueError("The length of the y-coordinate should be larger than the last coordinate.")
                 self.var['grid']['ysize'] = kwargs['sizey']
+
+                if not kwargs['sizez'] > kwargs['coordz'][-1]:
+                    raise ValueError("The length of the z-coordinate should be larger than the last coordinate.")
                 self.var['grid']['zsize'] = kwargs['sizez']
+
             except KeyError:
                 print("The needed arguments were not correctly specified. Make sure that coordx, coordy and coordz are assinged to a 1d numpy array.")
                 raise
