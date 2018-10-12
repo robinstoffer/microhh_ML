@@ -175,15 +175,15 @@ class Finegrid:
             self.define_grid_flag = False
             try:
                 if not (np.all(kwargs['coordx'][1:] > kwargs['coordx'][:-1]) and np.all(kwargs['coordx'][:] > 0) and (len(kwargs['coordx'][:].shape) == 1)):
-                    raise ValueError("The coordinates in the x-direction should be 1-dimensional, strictly increase, and consist of positive values only.") 
+                    raise ValueError("The coordinates in the x-direction should be 1-dimensional, strictly increaing, and consist of positive values only.") 
                 self.var['grid']['x'] = kwargs['coordx']
 
                 if not (np.all(kwargs['coordy'][1:] > kwargs['coordy'][:-1]) and np.all(kwargs['coordy'][:] > 0) and (len(kwargs['coordy'][:].shape) == 1)):
-                    raise ValueError("The coordinates in the y-direction should be 1-dimensional, strictly increase, and consist of positive values only.")
+                    raise ValueError("The coordinates in the y-direction should be 1-dimensional, strictly increasing, and consist of positive values only.")
                 self.var['grid']['y'] = kwargs['coordy']
 
                 if not (np.all(kwargs['coordz'][1:] > kwargs['coordz'][:-1]) and np.all(kwargs['coordz'][:] > 0) and (len(kwargs['coordz'][:].shape) == 1)):
-                    raise ValueError("The coordinates in the z-direction should be 1-dimensional, strictly increase, and consist of positive values only.")
+                    raise ValueError("The coordinates in the z-direction should be 1-dimensional, strictly increasing, and consist of positive values only.")
                 self.var['grid']['z'] = kwargs['coordz']
 
                 if not kwargs['sizex'] > kwargs['coordx'][-1]:
@@ -204,107 +204,138 @@ class Finegrid:
             self.__define_grid(self.var['grid']['x'],self.var['grid']['y'],self.var['grid']['z'], self.var['grid']['xsize'], self.var['grid']['ysize'], self.var['grid']['zsize'])
 
     def __read_settings(self,settings_filename = None):
-        if self.read_grid_flag:
-            #Read settings of MicroHH simulation from specified settings_filename. 
-            #If None, a .ini file should be present in the current directory to read.
-            settings = Read_namelist(settings_filename)
-
-            self.var['grid']['itot'] = settings['grid']['itot']
-            self.var['grid']['jtot'] = settings['grid']['jtot']
-            self.var['grid']['ktot'] = settings['grid']['ktot']
-            self.var['grid']['xsize'] = settings['grid']['xsize']
-            self.var['grid']['ysize'] = settings['grid']['ysize']
-            self.var['grid']['zsize'] = settings['grid']['zsize']
-    
-            #self.var['time']['starttime'] = settings['time']['starttime']
-            self.var['time']['starttime'] = 0
-            #self.var['time']['endtime'] = settings['time']['endtime']
-            self.var['time']['endtime'] = 7200
-            #self.var['time']['savetime'] = settings['time']['savetime']
-            self.var['time']['savetime'] = 600
-            #self.var['time']['timesteps'] = (self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']
-            self.var['time']['timesteps'] = 13
-
-        else:
+        if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing settings file.")
 
+        #Read settings of MicroHH simulation from specified settings_filename. 
+        #If None, a .ini file should be present in the current directory to read.
+        settings = Read_namelist(settings_filename)
+
+        self.var['grid']['itot'] = settings['grid']['itot']
+        self.var['grid']['jtot'] = settings['grid']['jtot']
+        self.var['grid']['ktot'] = settings['grid']['ktot']
+        self.var['grid']['xsize'] = settings['grid']['xsize']
+        self.var['grid']['ysize'] = settings['grid']['ysize']
+        self.var['grid']['zsize'] = settings['grid']['zsize']
+
+        #self.var['time']['starttime'] = settings['time']['starttime']
+        self.var['time']['starttime'] = 0
+        #self.var['time']['endtime'] = settings['time']['endtime']
+        self.var['time']['endtime'] = 7200
+        #self.var['time']['savetime'] = settings['time']['savetime']
+        self.var['time']['savetime'] = 600
+        #self.var['time']['timesteps'] = (self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']
+        self.var['time']['timesteps'] = 13
+
     def __read_binary_grid(self, grid_filename):
-        if self.read_grid_flag:
-            self.fin = open(grid_filename,'rb')
-            self.var['grid']['x'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['itot']), self.fin.read(self.var['grid']['itot']*8)))
-            self.var['grid']['xh'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['itot']), self.fin.read(self.var['grid']['itot']*8)))
-            self.var['grid']['y'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['jtot']), self.fin.read(self.var['grid']['jtot']*8)))
-            self.var['grid']['yh'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['jtot']), self.fin.read(self.var['grid']['jtot']*8)))
-            self.var['grid']['z'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['ktot']), self.fin.read(self.var['grid']['ktot']*8)))
-            self.var['grid']['zh'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['ktot']), self.fin.read(self.var['grid']['ktot']*8)))
-            self.fin.close()
-        else:
+        if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read the grid from an already existing binary grid file.")
 
+        self.fin = open(grid_filename,'rb')
+        self.var['grid']['x'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['itot']), self.fin.read(self.var['grid']['itot']*8)))
+        self.var['grid']['xh'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['itot']), self.fin.read(self.var['grid']['itot']*8)))
+        self.var['grid']['y'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['jtot']), self.fin.read(self.var['grid']['jtot']*8)))
+        self.var['grid']['yh'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['jtot']), self.fin.read(self.var['grid']['jtot']*8)))
+        self.var['grid']['z'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['ktot']), self.fin.read(self.var['grid']['ktot']*8)))
+        self.var['grid']['zh'] = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['ktot']), self.fin.read(self.var['grid']['ktot']*8)))
+        self.fin.close()
 
     def read_binary_variables(self, variable_name, timestep):
-        if self.read_grid_flag:
-            #Check wheter timestep is present in data
-            if timestep > (self.var['time']['timesteps'] - 1):
-                raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
-
-            #Open binary file to read variable at timestep
-            var_t = int(self.var['time']['starttime']  + timestep*self.var['time']['savetime'] )
-            fin = open("%s.%07i"%(variable_name, var_t),"rb")
-            self.var['output'][variable_name] = np.empty((self.var['grid']['ktot'],self.var['grid']['jtot'],self.var['grid']['itot'] ))
-            for k in range(self.var['grid']['ktot']):
-                raw = fin.read(self.var['grid']['jtot']*self.var['grid']['itot']*8)
-                tmp = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['jtot']*self.var['grid']['itot']), raw))
-                self.var['output'][variable_name][k,:,:] = tmp.reshape((self.var['grid']['jtot'], self.var['grid']['itot']))
-            fin.close()
-        else:
+        if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing binary file.")
 
+        #Check wheter timestep is present in data
+        if timestep > (self.var['time']['timesteps'] - 1):
+            raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
+
+        #Open binary file to read variable at timestep
+        var_t = int(self.var['time']['starttime']  + timestep*self.var['time']['savetime'] )
+        fin = open("%s.%07i"%(variable_name, var_t),"rb")
+        self.var['output'][variable_name] = np.empty((self.var['grid']['ktot'],self.var['grid']['jtot'],self.var['grid']['itot'] ))
+        for k in range(self.var['grid']['ktot']):
+            raw = fin.read(self.var['grid']['jtot']*self.var['grid']['itot']*8)
+            tmp = np.array(st.unpack('{0}{1}d'.format(self.en, self.var['grid']['jtot']*self.var['grid']['itot']), raw))
+            self.var['output'][variable_name][k,:,:] = tmp.reshape((self.var['grid']['jtot'], self.var['grid']['itot']))
+        fin.close()
+
     def read_nc_variables(self,variable_name,timestep): #Note: is made only for netcdf files from MicroHH binary files using the function binary_to_3d (see below)
-        if self.read_grid_flag:
-            #Check wheter timestep is present in data
-            if timestep > (self.var['time']['timesteps'] - 1):
-                raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
-            
-            nc_file = nc.Dataset("%s.nc"%(variable_name),"r")
-            self.var['output'][variable_name] =  nc_file[variable_name][timestep,:,:,:]
-        else:
+        if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing netcdf file.")
 
+        #Check wheter timestep is present in data
+        if timestep > (self.var['time']['timesteps'] - 1):
+            raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
+            
+        nc_file = nc.Dataset("%s.nc"%(variable_name),"r")
+        self.var['output'][variable_name] =  nc_file[variable_name][timestep,:,:,:]
+
     def __define_grid(self,coordx,coordy,coordz,sizex,sizey,sizez):
-        if not self.read_grid_flag:
-
-            #define lengths of specified grid
-            self.var['grid']['itot'] = len(coordx)
-            self.var['grid']['jtot'] = len(coordy)
-            self.var['grid']['ktot'] = len(coordz)
-
-            #create coordinates corresponding to edges grid cell
-            self.var['grid']['xh'] = self.__edgegrid_from_centergrid(self.var['grid']['x'], self.var['grid']['itot'])
-            self.var['grid']['yh'] = self.__edgegrid_from_centergrid(self.var['grid']['y'], self.var['grid']['jtot'])
-            self.var['grid']['zh'] = self.__edgegrid_from_centergrid(self.var['grid']['z'], self.var['grid']['ktot'])
-        
-            #Set define_grid_flag to True, such that the create_variables method can be executed
-            self.define_grid_flag = True
-
-        else:
+        if self.read_grid_flag:
             raise RuntimeError("Object defined to read the grid from binary files (via the read_binary_grid method). Create a new Finegrid object with read_grid_flag = False to manually define the settings of the grid.")
 
+        #define lengths of specified grid
+        self.var['grid']['itot'] = len(coordx)
+        self.var['grid']['jtot'] = len(coordy)
+        self.var['grid']['ktot'] = len(coordz)
+
+        #create coordinates corresponding to edges grid cell
+        self.var['grid']['xh'] = self.__edgegrid_from_centergrid(self.var['grid']['x'], self.var['grid']['itot'])
+        self.var['grid']['yh'] = self.__edgegrid_from_centergrid(self.var['grid']['y'], self.var['grid']['jtot'])
+        self.var['grid']['zh'] = self.__edgegrid_from_centergrid(self.var['grid']['z'], self.var['grid']['ktot'])
+        
+        #Set define_grid_flag to True, such that the create_variables method can be executed
+        self.define_grid_flag = True
+
     def create_variables(self,variable_name, output_field):
-        if not self.read_grid_flag:
-
-            #Check that grid is already defined.
-            if not self.define_grid_flag:
-                raise RuntimeError("Object does not yet contain the coordinates for the output variable. Define them explicitly first via the define_grid method") 
-            #Check that shape output field is correct according to the coordinates specified via the define_grid method.
-            if not (output_field.shape == (self.var['grid']['ktot'],self.var['grid']['jtot'],self.var['grid']['itot'])):
-                raise RuntimeError("The shape corresponding to the specified coordinates (z,y,x) is not the same as the shape of the specified output field.")
-
-            #Store output_field in object
-            self.var['output'][variable_name] = output_field
-
-        else:
+        if self.read_grid_flag:
             raise RuntimeError("Object defined to read variables from binary files (via the read_binary_variables method). Create a new Finegrid object with read_grid_flag = False to manually define the settings of the grid.")
+
+
+        #Check that grid is already defined.
+        if not self.define_grid_flag:
+            raise RuntimeError("Object does not yet contain the coordinates for the output variable. Define them explicitly first via the __define_grid method") 
+        #Check that shape output field is correct according to the coordinates specified via the define_grid method.
+        if not (output_field.shape == (self.var['grid']['ktot'],self.var['grid']['jtot'],self.var['grid']['itot'])):
+            raise RuntimeError("The shape corresponding to the specified coordinates (z,y,x) is not the same as the shape of the specified output field.")
+
+        #Store output_field in object
+        self.var['output'][variable_name] = output_field
+
+    def add_ghostcells(self,variable_name,number_ghostcells_hor, number_ghostcells_ver):
+        """ Add ghostcells to coarse grid for variable_name when specified in object. In the horizontal direction (number_ghostcells_hor) the samples at the end of the array are repeated at the beginning and vice versa (adding an equal number of ghostcells at both sides of the domain i.e. number_ghostcells_hor should be even), in the vertical direction zeros are added at the top and bottom of the domain (but always one more at the top, so number_ghostcells_ver should be odd).  Note: since grid is defined when object is initialized, no checks are needed to ensure that the grid is present. """
+        
+        #Check whether variable specified via variable_name is defined in object
+        if not variable_name in self.var['output'].keys():
+            raise RuntimeError("Specified variable_name not defined in object.")
+
+        #Check that number_ghostcells_hor is even
+        if number_ghostcells_hor % 2 != 0 or number_ghostcells_hor <= 0:
+            raise ValueError("Specified number of ghost cells in the horizontal direction is not even or not larger than 0.")
+
+        #Check that number_ghostcells_ver is odd
+        if number_ghostcells_ver % 2 == 0 or number_ghostcells_ver <= 0:
+            raise ValueError("Specified number of ghost cells in the vertical direction is not odd or not larger than 0.")
+
+       pass
+
+       # #Add specified ghostcells in horizontal direction
+       # for i in range(int(number_ghostcells_hor * 0.5)):
+       #     #Insert ghostcellls at the upstream sides of the domain
+       #     self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, self.var['output'][variable_name][:,-1-i,:], axis = 1)
+       #     self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, self.var['output'][variable_name][:,:,-1-i], axis = 2)
+
+       #     #Insert ghostcells at the downstream sides of the domain
+       #     self.var['output'][variable_name] = np.append(self.var['output'][variable_name],self.var['output'][variable_name][:,i,:], axis = 1)
+       #     self.var['output'][variable_name] = np.append(self.var['output'][variable_name],self.var['output'][variable_name][:,:,i], axis = 2)
+
+       # #Add specified ghostcells in horizontal direction
+       # self.var['output'][variable_name] = np.append(self.var['output'][variable_name],0)
+       # for i in range(int((number_ghostcells_ver-1) * 0.5)):
+       #     #Insert ghostcellls at the bottom of the domain
+       #     self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], [0,:,:], 0, axis = 0)
+
+       #     #Insert ghostcells at the top of the domain
+       #     self.var['output'][variable_name] = np.append(self.var['output'][variable_name],0, axis = 0)
 
     def __edgegrid_from_centergrid(self, coord_center, len_coord):
         dcoord = coord_center[1:] - coord_center[:-1]
