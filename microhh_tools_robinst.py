@@ -316,26 +316,39 @@ class Finegrid:
         if number_ghostcells_ver % 2 == 0 or number_ghostcells_ver <= 0:
             raise ValueError("Specified number of ghost cells in the vertical direction is not odd or not larger than 0.")
 
-       pass
+        #Store original field
+        org_field = self.var['output'][variable_name][:,:,:]
 
-       # #Add specified ghostcells in horizontal direction
-       # for i in range(int(number_ghostcells_hor * 0.5)):
-       #     #Insert ghostcellls at the upstream sides of the domain
-       #     self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, self.var['output'][variable_name][:,-1-i,:], axis = 1)
-       #     self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, self.var['output'][variable_name][:,:,-1-i], axis = 2)
+        #Add specified ghostcells in x-direction
+        for i in range(int(number_ghostcells_hor * 0.5)):
+            #Insert ghostcellls at the upstream sides of the domain
+            self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, org_field[:,:,-1-i], axis = 2)
 
-       #     #Insert ghostcells at the downstream sides of the domain
-       #     self.var['output'][variable_name] = np.append(self.var['output'][variable_name],self.var['output'][variable_name][:,i,:], axis = 1)
-       #     self.var['output'][variable_name] = np.append(self.var['output'][variable_name],self.var['output'][variable_name][:,:,i], axis = 2)
+            #Insert ghostcells at the downstream sides of the domain
+            self.var['output'][variable_name] = np.append(self.var['output'][variable_name],org_field[:,:,np.newaxis,i], axis = 2) #Trick with np.newaxis ensures org_field retains the number of dimensions present in self.var['output'][variable_name], which is a requirement for np.append when axis is specified.
 
-       # #Add specified ghostcells in horizontal direction
-       # self.var['output'][variable_name] = np.append(self.var['output'][variable_name],0)
-       # for i in range(int((number_ghostcells_ver-1) * 0.5)):
-       #     #Insert ghostcellls at the bottom of the domain
-       #     self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], [0,:,:], 0, axis = 0)
+        #Store field again with ghostcells added in x-direction
+        org_field = self.var['output'][variable_name][:,:,:]        
+        
+        #Add specified ghostcells in y-direction
+        for i in range(int(number_ghostcells_hor * 0.5)):
+            #Insert ghostcellls at the upstream sides of the domain
+            self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, org_field[:,-1-i,:], axis = 1)
 
-       #     #Insert ghostcells at the top of the domain
-       #     self.var['output'][variable_name] = np.append(self.var['output'][variable_name],0, axis = 0)
+            #Insert ghostcells at the downstream sides of the domain
+            self.var['output'][variable_name] = np.append(self.var['output'][variable_name],org_field[:,np.newaxis,i,:], axis = 1) #Trick with np.newaxis ensures org_field retains the number of dimensions present in self.var['output'][variable_name], which is a requirement for np.append when axis is specified.
+
+        #Store original field again with ghostcells added in both x- and y-direction
+        org_field = self.var['output'][variable_name][:,:,:]
+
+        #Add specified ghostcells in z-direction
+        self.var['output'][variable_name] = np.append(self.var['output'][variable_name],np.zeros(org_field[np.newaxis,0,:,:].shape), axis = 0)
+        for i in range(int((number_ghostcells_ver-1) * 0.5)):
+            #Insert ghostcellls at the bottom of the domain
+            self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, np.zeros(org_field[np.newaxis,0,:,:].shape), axis = 0)
+
+            #Insert ghostcells at the top of the domain
+            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], np.zeros(org_field[np.newaxis,0,:,:].shape), axis = 0)
 
     def __edgegrid_from_centergrid(self, coord_center, len_coord):
         dcoord = coord_center[1:] - coord_center[:-1]
