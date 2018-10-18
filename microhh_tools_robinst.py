@@ -315,9 +315,6 @@ class Finegrid:
         self.var['time'] = {}
         self.var['ghost'] = {}
 
-        #Flag to indicate whether ghostcells are already defined (prevent that this can happen twice)
-        self.ghostcell_defined_flag = False
-
         #Read or define the grid depending on read_grid_flag
         if read_grid_flag:
             self.read_grid_flag = True
@@ -526,7 +523,7 @@ class Finegrid:
             raise KeyError("Specified variable_name not defined in object.")
 
         #Make sure ghostcells can not be defined two times
-        if self.ghostcell_defined_flag:
+        if variable_name in self.var['ghost'].keys():
             raise RuntimeError("Ghostcells already defined in object. To redefine the ghostcells, create new object.")
 
         #Check that ghost cells are not negative
@@ -559,6 +556,15 @@ class Finegrid:
             z = self.var['grid'][zcoord]
             y = self.var['grid'][ycoord]
             x = self.var['grid'][xcoord][:-1]
+
+        elif variable_name == 'w':
+            s = self.var['output'][variable_name][:,:,:]
+            zcoord = 'zh'
+            ycoord = 'y'
+            xcoord = 'x'
+            z = self.var['grid'][zcoord]
+            y = self.var['grid'][ycoord]
+            x = self.var['grid'][xcoord]
 
         else:
             s = self.var['output'][variable_name][:,:,:]
@@ -610,40 +616,6 @@ class Finegrid:
         self.var['ghost'][variable_name][ycoord] = ygc
         self.var['ghost'][variable_name][xcoord] = xgc
 
-        #Prevent that ghostcells are added twice
-        self.ghostcell_defined_flag = True
-
-      #  #Add specified ghostcells in x-direction
-      #  for i in range(number_ghostcells_hor // 2):
-      #      #Insert ghostcellls at the upstream sides of the domain
-      #      self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, org_field[:,:,-1-i], axis = 2)
-
-      #      #Insert ghostcells at the downstream sides of the domain
-      #      self.var['output'][variable_name] = np.append(self.var['output'][variable_name],org_field[:,:,np.newaxis,i], axis = 2) #Trick with np.newaxis ensures org_field retains the number of dimensions present in self.var['output'][variable_name], which is a requirement for np.append when axis is specified.
-
-      #  #Store field again with ghostcells added in x-direction
-      #  org_field = self.var['output'][variable_name][:,:,:]        
-      #  
-      #  #Add specified ghostcells in y-direction
-      #  for i in range(number_ghostcells_hor // 2):
-      #      #Insert ghostcellls at the upstream sides of the domain
-      #      self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, org_field[:,-1-i,:], axis = 1)
-
-      #      #Insert ghostcells at the downstream sides of the domain
-      #      self.var['output'][variable_name] = np.append(self.var['output'][variable_name],org_field[:,np.newaxis,i,:], axis = 1) #Trick with np.newaxis ensures org_field retains the number of dimensions present in self.var['output'][variable_name], which is a requirement for np.append when axis is specified.
-
-      #  #Store original field again with ghostcells added in both x- and y-direction
-      #  org_field = self.var['output'][variable_name][:,:,:]
-
-      #  #Add specified ghostcells in z-direction
-      #  self.var['output'][variable_name] = np.append(self.var['output'][variable_name],np.zeros(org_field[np.newaxis,0,:,:].shape), axis = 0)
-      #  for i in range((number_ghostcells_ver-1) // 2):
-      #      #Insert ghostcellls at the bottom of the domain
-      #      self.var['output'][variable_name] = np.insert(self.var['output'][variable_name], 0, np.zeros(org_field[np.newaxis,0,:,:].shape), axis = 0)
-
-      #      #Insert ghostcells at the top of the domain
-      #      self.var['output'][variable_name] = np.append(self.var['output'][variable_name], np.zeros(org_field[np.newaxis,0,:,:].shape), axis = 0)
-
     def __edgegrid_from_centergrid(self, coord_center, len_coord, size_coord):
         """ Define coordinates corresponding to the grid walls from coordinates corresponding to the centers of the grid. """
 
@@ -692,7 +664,7 @@ class Coarsegrid:
     def __define_coarsegrid(self,number_gridcells,gridsize,center_cell):
         """ Manually define the coarse grid. Note that the size of the domain is determined by the finegrid object used to initialize the coarsegrid object. """        
 
-        dist_coarsecoord = gridsize / number_gridcell
+        dist_coarsecoord = gridsize / number_gridcells
         if center_cell:
             coarsecoord = np.linspace(0.5*dist_coarsecoord,gridsize-0.5*dist_coarsecoord,number_gridcells,True)
         else:
