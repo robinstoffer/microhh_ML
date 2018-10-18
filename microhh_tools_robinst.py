@@ -642,6 +642,11 @@ class Coarsegrid:
         #Store relevant settings from finegrid_object and dim_new_grid into coarsegrid_object
         self.var = {}
         self.var['grid'] = {}
+
+        #Boundary condition: the resolution of the coarse grid should indeed be coarser than the fine resolution
+        if not (nz < finegrid_object['grid']['ktot'] and ny < finegrid_object['grid']['jtot'] and nx < finegrid_object['grid']['itot']):
+            raise ValueError("The resolution of the coarse grid should be coarser than the fine resolution contained in the Finegrid object.")        
+
         self.var['grid']['ktot'] = nz
         self.var['grid']['jtot'] = ny
         self.var['grid']['itot'] = nx
@@ -650,16 +655,17 @@ class Coarsegrid:
             self.var['grid']['xsize'] = finegrid_object['grid']['xsize']
             self.var['grid']['ysize'] = finegrid_object['grid']['ysize']
             self.var['grid']['zsize'] = finegrid_object['grid']['zsize']
+
         except KeyError:
             raise KeyError("At least one of the needed settings was not contained in the finegrid_object. Check that the relevant methods have been called to initialize the grid.")
 
         #Calculate new grid using the information stored above, assuming the grid is uniform
-        self.var['grid']['x'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = True) 
-        self.var['grid']['xh'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'],center_cell = False)
-        self.var['grid']['y'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'],center_cell = True)
-        self.var['grid']['yh'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'],center_cell = False)
-        self.var['grid']['z'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'],center_cell = True)
-        self.var['grid']['zh'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'],center_cell = False)
+        self.var['grid']['x']  = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = True) 
+        self.var['grid']['xh'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = False)
+        self.var['grid']['y']  = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = True)
+        self.var['grid']['yh'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = False)
+        self.var['grid']['z']  = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = True)
+        self.var['grid']['zh'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = False)
 
     def __define_coarsegrid(self,number_gridcells,gridsize,center_cell):
         """ Manually define the coarse grid. Note that the size of the domain is determined by the finegrid object used to initialize the coarsegrid object. """        
