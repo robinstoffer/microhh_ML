@@ -220,9 +220,9 @@ def generate_weights(timestep,variable_name, variable_filename, coordinates, len
     xcor_c = np.linspace(dist_xc,xsize-dist_xc,nxc-1,True) if bool_edge_gridcell[0] else np.linspace(0.5*dist_xc,xsize-0.5*dist_xc,nxc,True)
     ycor_c = np.linspace(dist_yc,ysize-dist_yc,nyc-1,True) if bool_edge_gridcell[1] else np.linspace(0.5*dist_yc,ysize-0.5*dist_yc,nyc,True)
     zcor_c = np.linspace(dist_zc,zsize-dist_zc,nzc-1,True) if bool_edge_gridcell[2] else np.linspace(0.5*dist_zc,zsize-0.5*dist_zc,nzc,True)
-	coord_c = (zcor_c,ycor_c,xcor_c)
+    coord_c = (zcor_c,ycor_c,xcor_c)
     
-	izc = izc - 1 if bool_edge_gridcell[2]
+    izc = izc - 1 if bool_edge_gridcell[2]
     iyc = iyc - 1 if bool_edge_gridcell[1]
     ixc = ixc - 1 if bool_edge_gridcell[0]
 
