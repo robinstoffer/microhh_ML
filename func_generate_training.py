@@ -2,143 +2,21 @@
 import numpy   as np
 import netCDF4 as nc
 import struct as st
+import glob
+import re
 import matplotlib as mpl
 mpl.use('Agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 import matplotlib.pyplot as plt
 import scipy.interpolate
-#from microhh_tools_robins import *
+from microhh_tools_robins import *
 
-def _int_or_float_or_str(value):
-    """ Helper function: convert a string to int/float/str """
-    try:
-        if ('.' in value):
-            return float(value)
-        else:
-            return int(float(value))
-    except:
-        return value.rstrip()
+#This scripts generates the training data for a developed NN, 
+#which is subsequently sampled and stored in tfrecord-files using sample_training_data_tfrecord.py
 
-def _convert_value(value):
-    """ Helper function: convert namelist value or list """
-    if ',' in value:
-        value = value.split(',')
-        return [_int_or_float_or_str(val) for val in value]
-    else:
-        return _int_or_float_or_str(value)
+##############################################
+#Helper functions for generation training data
+##############################################
 
-
-def Read_namelist(namelist_file = "moser600.ini"):
-    """ Reads a MicroHH .ini file to memory
-        All available variables are accessible as e.g.:
-            nl = Read_namelist()    # with no name specified, it searches for a .ini file in the current dir
-            itot = nl['grid']['itot']
-            endtime = nl['time']['endtime']
-            printing e.g. nl['grid'] provides an overview of the available variables in a group
-    """
-
-    output = {}   # Dictionary holding all the data
-    with open(namelist_file) as f:
-        for line in f:
-            lstrip = line.strip()
-            if (len(lstrip) > 0 and lstrip[0] != "#"):
-                if lstrip[0] == '[' and lstrip[-1] == ']':
-                    curr_group_name = lstrip[1:-1]
-                    output[curr_group_name] = {}
-                elif ("=" in line):
-                    var_name = lstrip.split('=')[0]
-                    value = _convert_value(lstrip.split('=')[1])
-                    output[curr_group_name][var_name] = value
-        return output
-
-
-def binary3d_to_nc(variable,nx,ny,nz,starttime,endtime,sampletime,endian = 'little', savetype = 'double'):
-
-        # Set correct dimensions for savefile
-        nxsave = nx
-        nysave = ny
-        nzsave = nz
-
-        # Set the correct string for the endianness
-        if (endian == 'little'):
-                en = '<'
-        elif (endian == 'big'):
-                en = '>'
-        else:
-                raise RuntimeError("Endianness has to be little or big")
-
-        # Set the correct string for the savetype
-        if (savetype == 'double'):
-                sa = 'f8'
-        elif (savetype == 'float'):
-                sa = 'f4'
-        else:
-                raise RuntimeError("The savetype has to be float or double")
-
-        # Calculate the number of time steps
-        nt = int((endtime - starttime) / sampletime + 1)
-
-        # Read grid properties from grid.0000000
-        n   = nx*ny*nz
-        fin = open("grid.{:07d}".format(0),"rb")
-        raw = fin.read(nx*8)
-        x   = np.array(st.unpack('{0}{1}d'.format(en, nx), raw))
-        raw = fin.read(nx*8)
-        xh  = np.array(st.unpack('{0}{1}d'.format(en, nx), raw))
-        raw = fin.read(ny*8)
-        y   = np.array(st.unpack('{0}{1}d'.format(en, ny), raw))
-        raw = fin.read(ny*8)
-        yh  = np.array(st.unpack('{0}{1}d'.format(en, ny), raw))
-        raw = fin.read(nz*8)
-        z   = np.array(st.unpack('{0}{1}d'.format(en, nz), raw))
-        raw = fin.read(nz*8)
-        zh  = np.array(st.unpack('{0}{1}d'.format(en, nz), raw))
-        fin.close()
-
-        # Create netCDF file
-        ncfile = nc.Dataset("%s.nc"%variable, "w")
-
-        if  (variable=='u'): loc = [1,0,0]
-        elif(variable=='v'): loc = [0,1,0]
-        elif(variable=='w'): loc = [0,0,1]
-        else:                loc = [0,0,0]
-
-        locx = 'x' if loc[0] == 0 else 'xh'
-        locy = 'y' if loc[1] == 0 else 'yh'
-        locz = 'z' if loc[2] == 0 else 'zh'
-
-        dim_x  = ncfile.createDimension(locx,  nxsave)
-        dim_y  = ncfile.createDimension(locy,  nysave)
-        dim_z  = ncfile.createDimension(locz,  nzsave)
-        dim_t  = ncfile.createDimension('time', nt)
-
-        var_x  = ncfile.createVariable(locx, sa, (locx,))
-        var_y  = ncfile.createVariable(locy, sa, (locy,))
-        var_z  = ncfile.createVariable(locz, sa, (locz,))
-        var_t  = ncfile.createVariable('time', 'i4', ('time',))
-        var_3d = ncfile.createVariable(variable, sa, ('time',locz, locy, locx,))
-
-        var_t.units = "time units since start"
-
-        # Write grid properties to netCDF
-        var_x[:] = x[:nxsave] if locx=='x' else xh[:nxsave]
-        var_y[:] = y[:nysave] if locy=='y' else yh[:nysave]
-        var_z[:] = z[:nzsave] if locz=='z' else zh[:nzsave]
-
-        # Loop through the files and read 3d field
-        for t in range(nt):
-                var_t[t] = int((starttime + t*sampletime))
-                print("Processing t={:07d}".format(var_t[t]))
-
-                fin = open("%s.%07i"%(variable, var_t[t]),"rb")
-                for k in range(nzsave):
-                        raw = fin.read(nx*ny*8)
-                        tmp = np.array(st.unpack('{0}{1}d'.format(en, nx*ny), raw))
-                        var_3d[t,k,:,:] = tmp.reshape((ny, nx))[:nysave,:nxsave]
-                fin.close()
-                ncfile.sync()
-
-        ncfile.close()
-		
 def generate_coarsecoord_centercell(cor_edges,cor_c_middle,dist_corc,iteration,len_cor):
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
@@ -157,8 +35,8 @@ def generate_coarsecoord_centercell(cor_edges,cor_c_middle,dist_corc,iteration,l
         weights = np.array([1])
 
     else:
-	    for i in range(len(points_indices_cor):
-            elif i == 0:
+        for i in range(len(points_indices_cor):
+            if i == 0:
                 weights[0] = (cor_points[1] - cor_c_bottom)/(cor_c_top - cor_c_bottom)
             elif i == (len(points_indices_cor) - 1):
                 weights[i] = (cor_c_top - cor_points[i])/(cor_c_top - cor_c_bottom)
@@ -178,7 +56,6 @@ def generate_coarsecoord_edgecell(cor_center,cor_c_middle,dist_corc):
     #Select all points inside and just outside coarse grid cell
     points_indices_cor = np.where(np.logical_and(cor_bottom<cor_center , cor_center<=cor_top))[0]
     cor_points = cor_center[points_indices_cor] #Note: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).
-    
 	  
     #Calculate weights for cor_points. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
     weights = np.zeros(len(points_indices_cor))
@@ -186,26 +63,29 @@ def generate_coarsecoord_edgecell(cor_center,cor_c_middle,dist_corc):
         weights = np.array([1])
 
     else:
-	    for i in range(len(points_indices_cor):
-            elif i == 0:
+        for i in range(len(points_indices_cor):
+            if i == 0:
                 weights[0] = (cor_points[0] - cor_c_bottom)/(cor_c_top - cor_c_bottom)
             elif i == (len(points_indices_cor) - 1):
                 weights[i] = (cor_c_top - cor_points[i-1])/(cor_c_top - cor_c_bottom)
             else:
                 weights[i] = (cor_points[i] - cor_points[i-1])/(cor_c_top - cor_c_bottom)
     
-	return weights, points_indices_cor
-	
-#Function to generate coarse grid for creation training data. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates.
-#Variable_name specifies the variable to calculate on the coarse grid.
-#Variable_filename specifies the file in which the variable specified 
-#Timesteps is the number of time steps present in the fine resolution data.
-#Coordinates should contain a tuple with the three spatial dimensions from the fine resolution (x,y,z).
-#Len_coordinates should contain a tuple indicating the spatial distance for each coordinate (x,y,z).
-#Edge coordinates should contain a tuple with the coordinates that form the edges of the top-hat filter applied for the variable specified by variable_name.
-#Bool_edge grid cell indicates for each coordinate (x,y,z) whether the weights should be aligned at the center of the grid cells (False) or the edges (True)
+    return weights, points_indices_cor
+
+##############################################
+#Actual function to generate the training data
+##############################################
 
 def generate_weights(timestep,variable_name, variable_filename, coordinates, len_coordinates, edge_coordinates, dim_new_grid, bool_edge_gridcell = (False,False,False)):
+    """Function to generate coarse grid for creation training data. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates.
+    Variable_name specifies the variable to calculate on the coarse grid.
+    Variable_filename specifies the file in which the variable specified 
+    Timesteps is the number of time steps present in the fine resolution data.
+    Coordinates should contain a tuple with the three spatial dimensions from the fine resolution (x,y,z).
+    Len_coordinates should contain a tuple indicating the spatial distance for each coordinate (x,y,z).
+    Edge coordinates should contain a tuple with the coordinates that form the edges of the top-hat filter applied for the variable specified by variable_name.
+    Bool_edge grid cell indicates for each coordinate (x,y,z) whether the weights should be aligned at the center of the grid cells (False) or the edges (True). """
     xcor,ycor,zcor = coordinates
     xcor_edges,ycor_edges,zcor_edges = edge_coordinates
     nxc,nyc,nzc = dim_new_grid
@@ -228,8 +108,8 @@ def generate_weights(timestep,variable_name, variable_filename, coordinates, len
 
     #Define a numpy array containing numpy arrays to store all weights (z,y,x) of the fine grid for all coarse grid cells. 
     #Furthermore, the indices of the fine grid cells contained are stored for each coarse grid cell.
-    weights = np.empty((nzc,nyc,nxc),dtype=(ojbect,object,object))
-    points_indices = np.empty((nzc,nyc,nxc),dtype=(object,object,object))
+    weights = np.empty((nzc,nyc,nxc),dtype = (object,object,object))
+    points_indices = np.empty((nzc,nyc,nxc),dtype = (object,object,object))
 
     izc = 0
     for zcor_c_middle in zcor_c:
@@ -265,10 +145,12 @@ def generate_weights(timestep,variable_name, variable_filename, coordinates, len
 	    
     return weights, points_indices, coord_c
     
-		
+	
 #Boundary condition: fine grid must have a smaller resolution than the coarse grid
-def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc", w_file_dns = "w.nc",p_file_dns = "p.nc" ,grid_file = "grid.{:07d}".format(0) ,name_output_file = 'training_data.nc',namelist_file = 'moser600.ini',endian = 'little',training=True): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts
+
+def generate_training_data(finegrid, coarsegrid, name_output_file = 'training_data.nc', training=True): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts
     if training:
+
         #Read settings simulation
         settings = Read_namelist()
         nx = settings['grid']['itot']
@@ -620,10 +502,12 @@ def generate_training_data(dim_new_grid,u_file_dns = "u.nc", v_file_dns = "v.nc"
         #h.close()
         #l.close()
 
-binary3d_to_nc('u',768,384,256,starttime=0,endtime=7200,sampletime=600)
-binary3d_to_nc('v',768,384,256,starttime=0,endtime=7200,sampletime=600)
-binary3d_to_nc('w',768,384,256,starttime=0,endtime=7200,sampletime=600)
-binary3d_to_nc('p',768,384,256,starttime=0,endtime=7200,sampletime=600)
+# binary3d_to_nc('u',768,384,256,starttime=0,endtime=7200,sampletime=600)
+# binary3d_to_nc('v',768,384,256,starttime=0,endtime=7200,sampletime=600)
+# binary3d_to_nc('w',768,384,256,starttime=0,endtime=7200,sampletime=600)
+# binary3d_to_nc('p',768,384,256,starttime=0,endtime=7200,sampletime=600)
 
-generate_training_data((32,16,64))
+finegrid = Finegrid()
+coarsegrid = Coarsegrid((32,16,64), finegrid)
+generate_training_data(finegrid, coarsegrid)
 
