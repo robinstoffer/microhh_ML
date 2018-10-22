@@ -410,7 +410,7 @@ class Finegrid:
         self.var['grid']['yh'] = np.append(self.var['grid']['yh'], self.var['grid']['ysize'])
         self.var['grid']['xh'] = np.append(self.var['grid']['xh'], self.var['grid']['xsize'])
 
-    def read_binary_variables(self, variable_name, timestep):
+    def read_binary_variables(self, variable_name, timestep, bool_edge_gridcell = (False, False, False)):
         """ Read specified variable at a certain time step from binary files of a MicroHH simulation. Furthermore, the boundaries are added for the wind velocities consistent with the staggered grid."""
         if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing binary file.")
@@ -419,25 +419,19 @@ class Finegrid:
         if timestep > (self.var['time']['timesteps'] - 1):
             raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
 
+        #Remove ghostcells for this variable_name of it was stored before (most likely for another timestep)
+        if variable_name in self.var['ghost'].keys():
+            del self.var['ghost'][variable_name]
+
         #Open binary file to read variable at timestep
         time = self.var['time']['starttime'] + timestep*self.var['time']['savetime']
         var_filename = '{0}.{1:07d}'.format(variable_name,time)
         self.var['output'][variable_name] = np.fromfile(var_filename, dtype = self.prec).reshape((self.var['grid']['ktot'], self.var['grid']['jtot'], self.var['grid']['itot']))
 
         #Add boundaries for wind velocities. Trick with np.newaxis makes sure that the values being appended have the same number of dimensions as the input array.
-        if variable_name == 'w':
-            org_field = self.var['output'][variable_name][0,:,:]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[np.newaxis,:,:],axis=0)
+        self.add_boundaries_variable(self, variable_name, bool_edge_gridcell)
 
-        elif variable_name == 'v':
-            org_field = self.var['output'][variable_name][:,0,:]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,np.newaxis,:],axis=1)
-
-        elif variable_name == 'u':
-            org_field = self.var['output'][variable_name][:,:,0]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,:,np.newaxis],axis=2)
-
-    def read_nc_variables(self,variable_name,timestep): #Note: is made only for netcdf files from MicroHH binary files using the function binary_to_3d (see below)
+    def read_nc_variables(self, variable_name, timestep, bool_edge_gridcell = (False, False, False)): #Note: is made only for netcdf files from MicroHH binary files using the function binary_to_3d (see below)
         """ Read specified variable at a certain time step from netCDF file of a MicroHH simulation generated with the function binary_to_3d. """
 
         if not self.read_grid_flag:
@@ -446,24 +440,18 @@ class Finegrid:
         #Check wheter timestep is present in data
         if timestep > (self.var['time']['timesteps'] - 1):
             raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
-            
+
+        #Remove ghostcells for this variable_name of it was stored before (most likely for another timestep)
+        if variable_name in self.var['ghost'].keys():
+            del self.var['ghost'][variable_name]
+
         nc_file = nc.Dataset("{0}.nc".format(variable_name),"r")
         self.var['output'][variable_name] =  nc_file[variable_name][timestep,:,:,:]
 
         #Add boundaries for wind velocities. Trick with np.newaxis makes sure that the values being appended have the same number of dimensions as the input array.
-        if variable_name == 'w':
-            org_field = self.var['output'][variable_name][0,:,:]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[np.newaxis,:,:],axis=0)
+        self.add_boundaries_variable(self, variable_name, bool_edge_gridcell)
 
-        elif variable_name == 'v':
-            org_field = self.var['output'][variable_name][:,0,:]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,np.newaxis,:],axis=1)
-
-        elif variable_name == 'u':
-            org_field = self.var['output'][variable_name][:,:,0]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,:,np.newaxis],axis=2)
-
-    def __define_grid(self,coordz,coordy,coordx,sizez,sizey,sizex):
+    def __define_grid(self, coordz, coordy, coordx, sizez, sizey, sizex):
         """ Manually define grid stored in object. """
 
         if self.read_grid_flag:
@@ -482,8 +470,8 @@ class Finegrid:
         #Set define_grid_flag to True, such that the create_variables method can be executed
         self.define_grid_flag = True
 
-    def create_variables(self,variable_name, output_field):
-        """ Manually define outputvariables for a manually defined grid. """
+    def create_variables(self,variable_name, output_field, bool_edge_gridcell = (False, False, False)):
+        """ Manually define output variables for a manually defined grid. """
 
         if self.read_grid_flag:
             raise RuntimeError("Object defined to read variables from binary files (via the read_binary_variables method). Create a new Finegrid object with read_grid_flag = False to manually define the settings of the grid.")
@@ -497,23 +485,17 @@ class Finegrid:
         if not (output_field.shape == (self.var['grid']['ktot'],self.var['grid']['jtot'],self.var['grid']['itot'])):
             raise RuntimeError("The shape corresponding to the specified coordinates (z,y,x) is not the same as the shape of the specified output field. Note that for the staggered grid the top/downstream boundaries do not have to be included, these are automatically added.")
 
+        #Remove ghostcells for this variable_name of it was stored before (most likely for another timestep)
+        if variable_name in self.var['ghost'].keys():
+            del self.var['ghost'][variable_name]
+
         #Store output_field in object
         self.var['output'][variable_name] = output_field
 
         #Add boundaries for wind velocities. Trick with np.newaxis makes sure that the values being appended have the same number of dimensions as the input array.
-        if variable_name == 'w':
-            org_field = self.var['output'][variable_name][0,:,:]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[np.newaxis,:,:],axis=0)
+        self.add_boundaries_variable(self, variable_name, bool_edge_gridcell)
 
-        elif variable_name == 'v':
-            org_field = self.var['output'][variable_name][:,0,:]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,np.newaxis,:],axis=1)
-
-        elif variable_name == 'u':
-            org_field = self.var['output'][variable_name][:,:,0]
-            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,:,np.newaxis],axis=2)
-
-    def add_ghostcells_hor(self,variable_name, jgc, igc):
+    def add_ghostcells_hor(self,variable_name, jgc, igc, bool_edge_gridcell = (False, False, False)):
         """ Add ghostcells (defined as grid cells located at the downstream boundary and outside the domain) in horizontal directions to fine grid for variable_name when it is present in the object. 
             igc, jgc should be integers specifying the number of ghostcells to be added at each horizontal side in the domain (e.g. if igc = 3, 3 ghostcells are added at both the upstream and downstream boundary of the domain).
             The samples at the end of the array are repeated at the beginning and vice versa. Furthermore, the ghostcells are added to the coordinates as well."""
@@ -538,43 +520,20 @@ class Finegrid:
       #  if  variable_name == 'w':
       #      s = self.var['output'][variable_name][:-1,:,:]
 
-        #Get original field, remove samples at the top/downstream boundaries added in object for the wind velocities to prevent they are sampled multiple times
-        if variable_name == 'v':
-            s = self.var['output'][variable_name][:,:-1,:]
-            zcoord = 'z'
-            ycoord = 'yh'
-            xcoord = 'x'
-            z = self.var['grid'][zcoord]
-            y = self.var['grid'][ycoord][:-1]
-            x = self.var['grid'][xcoord]
+        #Get original coordinates, remove samples at the downstream boundaries added in object for the wind velocities to prevent they are sampled multiple times
+        s = self.var['output'][variable_name]
+        z = self.var['grid']['z']
+        zh = self.var['grid']['zh']
+        y = self.var['grid']['y']
+        yh = self.var['grid']['yh'][:-1]
+        x = self.var['grid']['x']
+        xh = self.var['grid']['xh'][:-1]
 
-        elif variable_name == 'u':
-            s = self.var['output'][variable_name][:,:,:-1]
-            zcoord = 'z'
-            ycoord = 'y'
-            xcoord = 'xh'
-            z = self.var['grid'][zcoord]
-            y = self.var['grid'][ycoord]
-            x = self.var['grid'][xcoord][:-1]
-
-        elif variable_name == 'w':
-            s = self.var['output'][variable_name][:,:,:]
-            zcoord = 'zh'
-            ycoord = 'y'
-            xcoord = 'x'
-            z = self.var['grid'][zcoord]
-            y = self.var['grid'][ycoord]
-            x = self.var['grid'][xcoord]
-
-        else:
-            s = self.var['output'][variable_name][:,:,:]
-            zcoord = 'z'
-            ycoord = 'y'
-            xcoord = 'x'
-            z = self.var['grid'][zcoord]
-            y = self.var['grid'][ycoord]
-            x = self.var['grid'][xcoord]
-
+        if bool_edge_gridcell[1]:
+            s = s[:,:-1,:]
+        if bool_edge_gridcell[2]:
+            s = s[:,:,:-1]
+        
         #Initialize new arrays including ghostcells
         icells = s.shape[2] + 2*igc
         jcells = s.shape[1] + 2*jgc
@@ -582,8 +541,9 @@ class Finegrid:
         kcells = s.shape[0]
         sgc = np.zeros((kcells, jcells, icells))
         xgc = np.zeros(icells)
+        xhgc = np.zeros(icells)
         ygc = np.zeros(jcells)
-        zgc = np.zeros(kcells)
+        yhgc = np.zeros(jcells)
 
         #Add ghostcells in horizontal directions to new initialized arrays
         iend = igc + s.shape[2]
@@ -597,24 +557,27 @@ class Finegrid:
         sgc[:,0:jgc,:] = sgc[:,jend-jgc:jend,:] #Add ghostcell upstream y-direction
         sgc[:,jend:jend+jgc,:] = sgc[:,jgc:jgc+jgc,:] #Add ghostcell downstream y-direction
 
-        xgc[igc:iend] = x[:]
-        if igc != 0:
-            xgc[0:igc] = 0 - (self.var['grid']['xsize'] - xgc[iend-igc:iend])
-            xgc[iend:iend+igc] = self.var['grid']['xsize'] + xgc[igc:igc+igc]
+        def __add_ghostcells_cor(corgc, indexgc, endindex, cor, size):
+            corgc[indexgc:endindex] = cor[:]
+            if igc != 0:
+                corgc[0:indexgc] = 0 - (size - corgc[endindex-indexgc:endindex])
+                corgc[indexgc:endindex+indexgc] = size + corgc[indexgc:indexgc+indexgc]
+            return xgc
 
-        ygc[jgc:jend] = y[:]
-        if jgc != 0:
-            ygc[0:jgc] = 0 - (self.var['grid']['ysize'] - ygc[jend-jgc:jend])
-            ygc[jend:jend+jgc] = self.var['grid']['ysize'] + ygc[jgc:jgc+jgc]
-
-        zgc[:] = z[:]
+        xgc  = __add_ghostcells_cor(xgc, igc, iend, x, self.var['grid']['xsize'])
+        xhgc = __add_ghostcells_cor(xhgc, igc, iend, xh, self.var['grid']['xsize'])
+        ygc  = __add_ghostcells_cor(ygc, jgc, jend, y, self.var['grid']['ysize'])
+        yhgc = __add_ghostcells_cor(yhgc, jgc, jend, yh, self.var['grid']['ysize']) 
 
         #Store new fields in object
         self.var['ghost'][variable_name] = {}
         self.var['ghost'][variable_name]['variable'] = sgc
-        self.var['ghost'][variable_name][zcoord] = zgc
-        self.var['ghost'][variable_name][ycoord] = ygc
-        self.var['ghost'][variable_name][xcoord] = xgc
+        self.var['ghost'][variable_name]['z'] = z
+        self.var['ghost'][variable_name]['zh'] = zh
+        self.var['ghost'][variable_name]['y'] = ygc
+        self.var['ghost'][variable_name]['yh'] = yhgc
+        self.var['ghost'][variable_name]['x'] = xgc
+        self.var['ghost'][variable_name]['xh'] = xhgc
 
     def __edgegrid_from_centergrid(self, coord_center, len_coord, size_coord):
         """ Define coordinates corresponding to the grid walls from coordinates corresponding to the centers of the grid. """
@@ -627,6 +590,21 @@ class Finegrid:
         coord_edge[len_coord] = float(size_coord)
         return coord_edge
 
+    def __add_boundaries_variable(self, variable_name, bool_edge_gridcell):
+        """ Add top/downstream boundaries to specified variable."""
+
+        if bool_edge_gridcell[0]:
+            org_field = self.var['output'][variable_name][0,:,:]
+            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[np.newaxis,:,:],axis=0)
+
+        elif bool_edge_gridcell[1]:
+            org_field = self.var['output'][variable_name][:,0,:]
+            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,np.newaxis,:],axis=1)
+
+        elif bool_edge_gridcell[2]:
+            org_field = self.var['output'][variable_name][:,:,0]
+            self.var['output'][variable_name] = np.append(self.var['output'][variable_name], org_field[:,:,np.newaxis],axis=2)
+
     def __getitem__(self, name):
         if name in self.var.keys():
             return self.var[name]
@@ -638,10 +616,11 @@ class Coarsegrid:
 
     def __init__(self,dim_new_grid,finegrid_object):
         nz,ny,nx = dim_new_grid
-        
+
         #Store relevant settings from finegrid_object and dim_new_grid into coarsegrid_object
         self.var = {}
         self.var['grid'] = {}
+        self.var['output'] = {} #After the coarsegrid object is created, output can be stored here.
 
         #Boundary condition: the resolution of the coarse grid should indeed be coarser than the fine resolution
         if not (nz < finegrid_object['grid']['ktot'] and ny < finegrid_object['grid']['jtot'] and nx < finegrid_object['grid']['itot']):
@@ -660,22 +639,22 @@ class Coarsegrid:
             raise KeyError("At least one of the needed settings was not contained in the finegrid_object. Check that the relevant methods have been called to initialize the grid.")
 
         #Calculate new grid using the information stored above, assuming the grid is uniform
-        self.var['grid']['x']  = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = True) 
-        self.var['grid']['xh'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = False)
-        self.var['grid']['y']  = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = True)
-        self.var['grid']['yh'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = False)
-        self.var['grid']['z']  = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = True)
-        self.var['grid']['zh'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = False)
+        self.var['grid']['x'] , self.var['grid']['xdist']  = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = True) 
+        self.var['grid']['xh'], self.var['grid']['xhdist'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = False)
+        self.var['grid']['y'] , self.var['grid']['ydist']  = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = True)
+        self.var['grid']['yh'], self.var['grid']['yhdist'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = False)
+        self.var['grid']['z'] , self.var['grid']['zdist']  = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = True)
+        self.var['grid']['zh'], self.var['grid']['zhdist'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = False)
 
     def __define_coarsegrid(self,number_gridcells,gridsize,center_cell):
         """ Manually define the coarse grid. Note that the size of the domain is determined by the finegrid object used to initialize the coarsegrid object. """        
 
         dist_coarsecoord = gridsize / number_gridcells
         if center_cell:
-            coarsecoord = np.linspace(0.5*dist_coarsecoord,gridsize-0.5*dist_coarsecoord,number_gridcells,True)
+            coarsecoord, step = np.linspace(0.5*dist_coarsecoord, gridsize-0.5*dist_coarsecoord, number_gridcells, endpoint=True, retstep=True)
         else:
-            coarsecoord = np.linspace(0,gridsize,number_gridcells+1,True)
-        return coarsecoord
+            coarsecoord, step = np.linspace(0, gridsize, number_gridcells+1, endpoint=True, retstep=True)
+        return coarsecoord, step
 
        
     def __getitem__(self, name):
