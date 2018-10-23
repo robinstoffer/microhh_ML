@@ -193,7 +193,9 @@ def generate_coarse_data(finegrid, coarsegrid, variable_name, timestep, bool_edg
         xcor_c     = coarsegrid['grid']['x']
         dist_xc    = coarsegrid['grid']['xdist']
 
-    finegrid.read_binary_variables(variable_name, timestep, bool_edge_gridcell)
+    if variable_name not in self.var['output'].keys(): #Read only when variable_name is not defined. Allows for testing with previously defined arrays.
+        finegrid.read_binary_variables(variable_name, timestep, bool_edge_gridcell)
+
     var_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=float)
     #weights_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=(object, object, object))
     #points_indices_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=(object, object, object))
@@ -205,14 +207,13 @@ def generate_coarse_data(finegrid, coarsegrid, variable_name, timestep, bool_edg
     izc = 0
     for zcor_c_middle in zcor_c:
     #for izc in range(coarsegrid['grid']['ktot'])
-        if bool_edge_gridcell[2]:
+        if bool_edge_gridcell[0]:
             weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['ghost'][variable_name]['z'], cor_c_middle = zcor_c_middle, dist_corc = dist_zc[izc], vert_flag = True, size = finegrid['grid']['zsize'])
         else:
             weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['ghost'][variable_name]['zh'], cor_c_middle = zcor_c_middle, dist_corc = dist_zc[izc], vert_flag = True, size = finegrid['grid']['zsize'])
 
         var_finez = finegrid['ghost'][variable_name]['variable'][points_indices_z,:,:].copy()
 
-        izc += 1
         iyc = 0
 	
         for ycor_c_middle in ycor_c:
@@ -223,381 +224,330 @@ def generate_coarse_data(finegrid, coarsegrid, variable_name, timestep, bool_edg
    
             var_finezy = var_finez[:,points_indices_y,:].copy()
 
-            iyc += 1
             ixc = 0
 				
             for xcor_c_middle in xcor_c:
-                if bool_edge_gridcell[0]:
+                if bool_edge_gridcell[2]:
                     weights_x, points_indices_x = generate_coarsecoord_edgecell(cor_center = finegrid['ghost'][variable_name]['x'], cor_c_middle = xcor_c_middle, dist_corc = dist_xc[ixc])
                 else:
                     weights_x, points_indices_x = generate_coarsecoord_centercell(cor_edges = finegrid['ghost'][variable_name]['xh'], cor_c_middle = xcor_c_middle, dist_corc = dist_xc[ixc])
 
                 var_finezyx = var_finezy[:,:,points_indices_x].copy()
 
-                ixc += 1
-	
                 #Calculate downsampled variable on coarse grid using the selected points in var_finezyx and the fractions defined in the weights variables
                 weights =  weights_x[np.newaxis,np.newaxis,:]*weights_y[np.newaxis,:,np.newaxis]*weights_z[:,np.newaxis,np.newaxis]
                 var_c[izc,iyc,ixc] = np.sum(np.multiply(weights, var_finezyx)
  
                 #weights_c[izc,iyc,ixc] = (weights_z,weights_y,weights_x)
                 #points_indices_c[izc,iyc,ixc] = (points_indices_z,points_indices_y,points_indices_x)
-	    
-    return var_c, finegrid, coarsegrid
+
+                ixc += 1
+            iyc += 1
+        izc += 1
+    
+    #Store downsampled variable in coarsegrid object
+    coarsegrid['output'][variable_name] = var_c
+    
+    return finegrid, coarsegrid
     
 	
 #Boundary condition: fine grid must have a smaller resolution than the coarse grid
 
-def generate_training_data(finegrid, coarsegrid, name_output_file = 'training_data.nc', training = True): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts
-    if training:
+def generate_training_data(finegrid, coarsegrid, name_output_file = 'training_data.nc'): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts
  
-        create_variables = True
-        create_file = True
+    create_variables = True
+    create_file = True
+ 
+    #Loop over timesteps
+    for t in range(finegrid['grid']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval
+ 
+        ##Downsampling from fine DNS data to user specified coarse grid and calculation total transport momentum ##
+        ###########################################################################################################
+ 
+        #Calculate representative velocities for each coarse grid cell
+        finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'u', timestep = t, bool_edge_gridcell = (False, False, True))
+        finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'v', timestep = t, bool_edge_gridcell = (False, True, False))
+        finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'w', timestep = t, bool_edge_gridcell = (True, False, False))
+        finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'p', timestep = t, bool_edge_gridcell = (False, False, False))
+ 
+        #Calculate total transport on coarse grid from fine grid, initialize first arrays
+        total_tau_xu = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_yu = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_zu = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_xv = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_yv = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_zv = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_xw = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_yw = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_zw = np.zeros((nzc,nyc,nxc), dtype=float)
+ 
+        #Interpolate to side boundaries coarse gridcell
+        def _interpolate_side_cell(variable_name, coord_variable_ghost, coord_boundary):
+ 
+            #define variables
+            zghost, yghost, xghost = coord_variable_ghost
+            zbound, ybound, xbound = coord_boundary
+ 
+            #Interpolate to boundary
+            z_int = np.ravel(np.broadcast_to(zbound[:,np.newaxis,np.newaxis],(len(zbound),len(ybound),len(xbound))))
+            y_int = np.ravel(np.broadcast_to(ybound[np.newaxis,:,np.newaxis],(len(zbound),len(ybound),len(xbound))))
+            x_int = np.ravel(np.broadcast_to(xbound[np.newaxis,np.newaxis,:],(len(zbound),len(ybound,len(xbound))))
+ 
+            var_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zghost, yghost, xghost), finegrid['ghost'][variable_name]['variable'], method='linear')((z_int, y_int ,x_int)),(len(z_int),len(y_int),len(x_int)))
+ 
+            return var_int
 
-        #Loop over timesteps
-        for t in range(finegrid['grid']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval
-    
-            ##Downsampling from fine DNS data to user specified coarse grid and calculation total transport momentum ##
-            ###########################################################################################################
-    
-            #Define short-hand notations for the relevant variables and create empty arrays for storage
-            nzc = coarsegrid['grid']['ktot']
-            nyc = coarsegrid['grid']['jtot']
-            nxc = coarsegrid['grid']['itot']
-            xc  = coarsegrid['grid']['x']
-            xhc = coarsegrid['grid']['xh']
-            yc  = coarsegrid['grid']['y']
-            yhc = coarsegrid['grid']['yh']
-            zc  = coarsegrid['grid']['z']
-            zhc = coarsegrid['grid']['zh']
+        #xz-boundary
+        u_xzint = _interpolate_side_cell('u', (finegrid['ghost']['u']['z'], finegrid['ghost']['u']['y'], finegrid['ghost']['u']['xh']), (finegrid['grid']['z'], coarsegrid['grid']['yh'], finegrid['grid']['x']))
+        v_xzint = _interpolate_side_cell('v', (finegrid['ghost']['v']['z'], finegrid['ghost']['v']['yh'], finegrid['ghost']['v']['x']), (finegrid['grid']['z'], coarsegrid['grid']['yh'], finegrid['grid']['x']))
+        w_xzint = _interpolate_side_cell('w', (finegrid['ghost']['w']['zh'], finegrid['ghost']['w']['y'], finegrid['ghost']['w']['x']), (finegrid['grid']['z'], coarsegrid['grid']['yh'], finegrid['grid']['x']))
+ 
+        #yz-boundary
+        u_yzint = _interpolate_side_cell('u', (finegrid['ghost']['u']['z'], finegrid['ghost']['u']['y'], finegrid['ghost']['u']['xh']), (finegrid['grid']['z'], finegrid['grid']['y'], coarsegrid['grid']['xh']))
+        v_yzint = _interpolate_side_cell('v', (finegrid['ghost']['v']['z'], finegrid['ghost']['v']['yh'], finegrid['ghost']['v']['x']), (finegrid['grid']['z'], finegrid['grid']['y'], coarsegrid['grid']['xh']))
+        w_yzint = _interpolate_side_cell('w', (finegrid['ghost']['w']['zh'], finegrid['ghost']['w']['y'], finegrid['ghost']['w']['x']), (finegrid['grid']['z'], finegrid['grid']['y'], coarsegrid['grid']['xh']))
+ 
+        #xy-boundary
+        u_xyint = _interpolate_side_cell('u', (finegrid['ghost']['u']['z'], finegrid['ghost']['u']['y'], finegrid['ghost']['u']['xh']), (coarsegrid['grid']['zh'], finegrid['grid']['y'], finegrid['grid']['x']))
+        v_xyint = _interpolate_side_cell('v', (finegrid['ghost']['v']['z'], finegrid['ghost']['v']['yh'], finegrid['ghost']['v']['x']), (coarsegrid['grid']['zh'], finegrid['grid']['y'], finegrid['grid']['x']))
+        w_xyint = _interpolate_side_cell('w', (finegrid['ghost']['w']['zh'], finegrid['ghost']['w']['y'], finegrid['ghost']['w']['x']), (coarsegrid['grid']['zh'], finegrid['grid']['y'], finegrid['grid']['x']))
 
-            nz  = finegrid['grid']['ktot']
-            ny  = finegrid['grid']['jtot']
-            nx  = finegrid['grid']['itot']
-            x   = finegrid['grid']['x']
-            xh  = finegrid['grid']['xh']
-            y   = finegrid['grid']['y']
-            yh  = finegrid['grid']['yh']
-            z   = finegrid['grid']['z']
-            zh  = finegrid['grid']['zh']
-            xsize = finegrid['grid']['xsize'] #The size of the coarse grid should be the same
-            ysize = finegrid['grid']['ysize']
-            zsize = finegrid['grid']['zsize']
+        #Calculate TOTAL transport of momentum over xz-, yz-, and xy-boundary. 
+        #Note: only centercell functions needed because the boundaries are always located on the grid centers along the two directions over which the values have to be integrated
+        izc = 0
+        for zcor_c_middle in coarsegrid['grid']['z']:
+            weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'], cor_c_middle = zcor_c_middle, dist_corc = coarsegrid['zdist'][izc])
+ 
+            iyc = 0
+            for ycor_c_middle in coarsegrid['grid']['y']:
+                weights_y, points_indices_y = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['yh'], cor_c_middle = ycor_c_middle, dist_corc = coarsegrid['ydist'][iyc])
+ 
+                ixc = 0
+                for xcor_c_middle in coarsegrid['grid']['x']:
+                    weights_x, points_indices_x = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'], cor_c_middle = xcor_c_middle, dist_corc = coarsegrid['xdist'][ixc])
+ 
+                    #xz-boundary
+                    weights_xz = weights_x[np.newaxis,;]*weights_z[:,np.newaxis]
+                    total_transport_yu[izc,iyc,ixc] = np.sum(weights_xz * v_xzint[:,iyc,:][points_indices_z,:,:][:,:,points_indices_x] * u_xzint[:,iyc,:][points_indices_z,:,:][:,:,points_indices_x])
+                    total_transport_yv[izc,iyc,ixc] = np.sum(weights_xz * v_xzint[:,iyc,:][points_indices_z,:,:][:,:,points_indices_x] ** 2)
+                    total_transport_yw[izc,iyc,ixc] = np.sum(weights_xz * v_xzint[:,iyc,:][points_indices_z,:,:][:,:,points_indices_x] * w_xzint[:,iyc,:][points_indices_z,:,:][:,:,points_indices_x])
+ 
+                    #yz-boundary
+                    weights_yz = weights_y[np.newaxis,:]*weights_z[:,np.newaxis]
+                    total_transport_xu[izc,iyc,ixc] = np.sum(weights_yz * u_yzint[:,:,ixc][points_indices_z,:,:][:,points_indices_y,:] ** 2)
+                    total_transport_xv[izc,iyc,ixc] = np.sum(weights_yz * u_yzint[:,:,ixc][points_indices_z,:,:][:,points_indices_y,:] * v_yzint[:,:,ixc][points_indices_z,:,:][:,points_indices_y,:])
+                    total_transport_xw[izc,iyc,ixc] = np.sum(weights_yz * u_yzint[:,:,ixc][points_indices_z,:,:][:,points_indices_y,:] * w_yzint[:,:,ixc][points_indices_z,:,:][:,points_indices_y,:])
+ 
+                    #xy-boundary
+                    weights_xy = weights_x[np.newaxis,:]*weights_y[:,np.newaxis]
+                    total_transport_zu[izc,iyc,ixc] = np.sum(weights_xy * w_xyint[izc,:,:][:,points_indices_y,:][:,:,points_indices_x] * u_xyint[izc,:,:][:,points_indices_y,:][:,:,points_indices_x])
+                    total_transport_zv[izc,iyc,ixc] = np.sum(weights_xy * w_xyint[izc,:,:][:,points_indices_y,:][:,:,points_indices_x] * v_xyint[izc,:,:][:,points_indices_y,:][:,:,points_indices_x])
+                    total_transport_zw[izc,iyc,ixc] = np.sum(weights_xy * w_xyint[izc,:,:][:,points_indices_y,:][:,:,points_indices_x] ** 2)
+ 
+                    ixc +=1
+                iyc += 1
+            izc += 1
+ 
+ 
+        ##Calculate resolved and unresolved transport user specified coarse grid ##
+        ###########################################################################
+ 
+        #Define empty variables for storage
+ 
+        res_tau_xu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_yu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_zu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_xv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_yv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_zv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_xw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_yw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        res_tau_zw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+ 
+        unres_tau_xu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_yu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_zu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_xv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_yv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_zv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_xw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_yw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+        unres_tau_zw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']),dtype=float)
+	
+        #Add ghostcells to wind velocities on coarse grid, define short-hand notations
+        coarsegrid.add_ghostcells_hor('u', jgc=1, igc=1, bool_edge_gridcell = (False, False, True))
+        coarsegrid.add_ghostcells_hor('v', jgc=1, igc=1, bool_edge_gridcell = (False, True, False))
+        coarsegrid.add_ghostcells_hor('w', jgc=1, igc=1, bool_edge_gridcell = (True, False, False))
+        #coarsegrid.add_ghostcells_hor('p', jgc=1, igc=1, bool_edge_gridcell = (False, False, False))
 
-            u_c = np.zeros((nzc,nyc,nxc), dtype=float)
-            v_c = np.zeros((nzc,nyc,nxc), dtype=float)
-            w_c = np.zeros((nzc,nyc,nxc), dtype=float)
-            p_c = np.zeros((nzc,nyc,nxc), dtype=float)
+        #Calculate RESOLVED and UNRESOLVED transport
+        
+        #xz-boundary
+        uc_xzint = _interpolate_side_cell('u', (coarsegrid['ghost']['u']['z'], coarsegrid['ghost']['u']['y'], coarsegrid['ghost']['u']['xh']), (coarsegrid['grid']['z'], coarsegrid['grid']['yh'], coarsegrid['grid']['x']))
+        vc_xzint = _interpolate_side_cell('v', (coarsegrid['ghost']['v']['z'], coarsegrid['ghost']['v']['yh'], coarsegrid['ghost']['v']['x']), (coarsegrid['grid']['z'], coarsegrid['grid']['yh'], coarsegrid['grid']['x']))
+        wc_xzint = _interpolate_side_cell('w', (coarsegrid['ghost']['w']['zh'], coarsegrid['ghost']['w']['y'], coarsegrid['ghost']['w']['x']), (coarsegrid['grid']['z'], coarsegrid['grid']['yh'], coarsegrid['grid']['x']))
 
-            finegrid.read_binary_variables('u', t)
-            finegrid.read_binary_variables('v', t)
-            finegrid.read_binary_variables('w', t)
-            finegrid.read_binary_variables('p', t)
-            u   = finegrid['output']['u']
-            v   = finegrid['output']['v']
-            w   = finegrid['output']['w']
-            p   = finegrid['output']['p']
+        res_tau_yu = vc_xzint * uc_xzint
+        res_tau_yv = vc_xzint ** 2
+        res_tau_yw = vc_xzint * wc_xzint
+ 
+        unres_tau_yu = total_tau_yu - res_tau_yu
+        unres_tau_yv = total_tau_yv - res_tau_yv
+        unres_tau_yw = total_tau_yw - res_tau_yw
 
-            total_tau_xu = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_yu = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_zu = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_xv = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_yv = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_zv = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_xw = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_yw = np.zeros((nzc,nyc,nxc), dtype=float)
-            total_tau_zw = np.zeros((nzc,nyc,nxc), dtype=float)
-           
-            #Calculate representative velocities for each coarse grid cell
-            u_c, finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'u', timestep = t, bool_edge_gridcell = (True, False, False))
-            v_c, finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'v', timestep = t, bool_edge_gridcell = (False, True, False))
-            w_c, finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'w', timestep = t, bool_edge_gridcell = (False, False, True))
-            p_c, finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'p', timestep = t, bool_edge_gridcell = (False, False, False))
+        #yz-boundary
+        uc_yzint = _interpolate_side_cell('u', (coarsegrid['ghost']['u']['z'], coarsegrid['ghost']['u']['y'], coarsegrid['ghost']['u']['xh']), (coarsegrid['grid']['z'], coarsegrid['grid']['y'], coarsegrid['grid']['xh']))
+        vc_yzint = _interpolate_side_cell('v', (coarsegrid['ghost']['v']['z'], coarsegrid['ghost']['v']['yh'], coarsegrid['ghost']['v']['x']), (coarsegrid['grid']['z'], coarsegrid['grid']['y'], coarsegrid['grid']['xh']))
+        wc_yzint = _interpolate_side_cell('w', (coarsegrid['ghost']['w']['zh'], coarsegrid['ghost']['w']['y'], coarsegrid['ghost']['w']['x']), (coarsegrid['grid']['z'], coarsegrid['grid']['y'], coarsegrid['grid']['xh']))
 
-            #Calculate representative velocities on coarse grid from fine grid
-            for izc in range(nzc):
-                for iyc in range(nyc):
-                    for ixc in range(nxc):
-                        u_finegrid_indexz, u_finegrid_indexy, u_finegrid_indexx = points_indices_u[izc,iyc,ixc]
-                        u_finegrid_points = u[u_finegrid_indexz,:,:][:, u_finegrid_indexy, :][:, :, u_finegrid_indexx]
-                        u_finegrid_weightsz, u_finegrid_weightsy, u_finegrid_weightsx = weights_u[izc,iyc,ixc]
-                        u_finegrid_weights = u_finegrid_weightsx[np.newaxis,np.newaxis,:]*u_finegrid_weightsy[np.newaxis,:,np.newaxis]*u_finegrid_weightsz[:,np.newaxis,np.newaxis]
-                        if not ixc == (nxc - 1):
-                            u_c[izc,iyc,ixc] = np.sum(np.multiply(u_finegrid_weights, u_finegrid_points))
+        res_tau_xu = uc_yzint ** 2
+        res_tau_xv = uc_yzint * vc_yzint
+        res_tau_xw = uc_yzint * wc_yzint
 
-                        v_finegrid_indexz, v_finegrid_indexy, v_finegrid_indexx = points_indices_v[izc,iyc,ixc]
-                        v_finegrid_points = v[v_finegrid_indexz,:,:][:, v_finegrid_indexy, :][:, :, v_finegrid_indexx]
-                        v_finegrid_weightsz, v_finegrid_weightsy, v_finegrid_weightsx = weights_v[izc,iyc,ixc]
-                        v_finegrid_weights = v_finegrid_weightsx[np.newaxis,np.newaxis,:]*v_finegrid_weightsy[np.newaxis,:,np.newaxis]*v_finegrid_weightsz[:,np.newaxis,np.newaxis]
-                        if not iyc == (nyc - 1):
-                            v_c[izc,iyc,ixc] = np.sum(np.multiply(v_finegrid_weights, v_finegrid_points))
+        unres_tau_xu = total_tau_xu - res_tau_xu
+        unres_tau_xv = total_tau_xv - res_tau_xv
+        unres_tau_xw = total_tau_xw - res_tau_xw
 
-                        w_finegrid_indexz, w_finegrid_indexy, w_finegrid_indexx = points_indices_w[izc,iyc,ixc]
-                        w_finegrid_points = w[w_finegrid_indexz,:,:][:, w_finegrid_indexy, :][:, :, w_finegrid_indexx]
-                        w_finegrid_weightsz, w_finegrid_weightsy, w_finegrid_weightsx = weights_w[izc,iyc,ixc]
-                        w_finegrid_weights = w_finegrid_weightsx[np.newaxis,np.newaxis,:]*w_finegrid_weightsy[np.newaxis,:,np.newaxis]*w_finegrid_weightsz[:,np.newaxis,np.newaxis]
-                        if not izc == (nzc - 1):
-                            w_c[izc,iyc,ixc] = np.sum(np.multiply(w_finegrid_weights, w_finegrid_points))
+        #xy-boundary
+        uc_xyint = _interpolate_side_cell('u', (coarsegrid['ghost']['u']['z'], coarsegrid['ghost']['u']['y'], coarsegrid['ghost']['u']['xh']), (coarsegrid['grid']['zh'], coarsegrid['grid']['y'], coarsegrid['grid']['x']))
+        vc_xyint = _interpolate_side_cell('v', (coarsegrid['ghost']['v']['z'], coarsegrid['ghost']['v']['yh'], coarsegrid['ghost']['v']['x']), (coarsegrid['grid']['zh'], coarsegrid['grid']['y'], coarsegrid['grid']['x']))
+        wc_xyint = _interpolate_side_cell('w', (coarsegrid['ghost']['w']['zh'], coarsegrid['ghost']['w']['y'], coarsegrid['ghost']['w']['x']), (coarsegrid['grid']['zh'], coarsegrid['grid']['y'], coarsegrid['grid']['x']))
 
-                        p_finegrid_indexz, p_finegrid_indexy, p_finegrid_indexx = points_indices_p[izc,iyc,ixc]
-                        p_finegrid_points = p[p_finegrid_indexz,:,:][:, p_finegrid_indexy, :][:, :, p_finegrid_indexx]
-                        p_finegrid_weightsz, p_finegrid_weightsy, p_finegrid_weightsx = weights_p[izc,iyc,ixc]
-                        p_finegrid_weights = p_finegrid_weightsx[np.newaxis,np.newaxis,:]*p_finegrid_weightsy[np.newaxis,:,np.newaxis]*p_finegrid_weightsz[:,np.newaxis,np.newaxis]
-                        p_c[izc,iyc,ixc] = np.sum(np.multiply(p_finegrid_weights, p_finegrid_points))
+        res_tau_zu = wc_xyint * uc_xyint
+        res_tau_zv = wc_xyint * vc_xyint
+        res_tau_zw = wc_xyint ** 2
 
-                        #Calculate TOTAL transport from fine grid in user-specified coarse grid cell.
-                        #yz-side boundary
-                        if not ixc == (nxc - 1):
-                            ~,~, coord_c_u_x = coord_c_u
-                            coord_c_u_x_point = coord_c_u_x[ixc]
+        unres_tau_zu = total_tau_zu - res_tau_zu
+        unres_tau_zv = total_tau_zv - res_tau_zv
+        unres_tau_zw = total_tau_zw - res_tau_zw
 
-                            x_int = np.ravel(np.broadcast_to(coord_c_u_x_point[np.newaxis,np.newaxis,:],(len(u_finegrid_indexz),len(u_finegrid_indexy),len(coord_c_u_x_point))))
-                            y_int = np.ravel(np.broadcast_to(u_finegrid_indexy[np.newaxis,:,np.newaxis],(len(u_finegrid_indexz),len(u_finegrid_indexy),len(coord_c_u_x_point))))
-                            z_int = np.ravel(np.broadcast_to(u_finegrid_indexx[:,np.newaxis,np.newaxis],(len(u_finegrid_indexz),len(u_finegrid_indexy),len(coord_c_u_x_point))))
-
-                            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((u_finegrid_indexz,u_finegrid_indexy,u_finegrid_indexx),u_finegrid_points[:,:,:],method='linear',bounds_error=False,fill_value=None)((z_int,y_int,x_int)),(len(z_int),len(y_int),len(x_int)))
-                            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((v_finegrid_indexz,v_finegrid_indexy,v_finegrid_indexx),v_finegrid_points[:,:,:],method='linear',bounds_error=False,fill_value=None)((z_int,y_int,x_int)),(len(z_int),len(y_int),len(x_int)))
-                            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((w_finegrid_indexz,w_finegrid_indexy,w_finegrid_indexx),w_finegrid_points[:,:,:],method='linear',bounds_error=False,fill_value=None)((z_int,y_int,x_int)),(len(z_int),len(y_int),len(x_int)))
-
-                            weights_u_yz = (u_finegrid_weightsy[np.newaxis,:]*u_finegrid_weightsz[:,np.newaxis])[:,:,np.newaxis]
-                            total_tau_xu[izc,iyc,ixc] = np.sum(np.multiply(weights_u_yz, u_int**2))
-                            total_tau_xv[izc,iyc,ixc] = np.sum(np.multiply(weights_u_yz, np.multiply(u_int,v_int))
-                            total_tau_xw[izc,iyc,ixc] = np.sum(np.multiply(weights_u_yz, np.multiply(u_int,w_int))
-
-            ##Calculate resolved and unresolved transport user specified coarse grid ##
-            ###########################################################################
-
-            #Define empty variables for storage
-    
-            res_tau_xu = np.zeros((nzc,nyc,nxc-1),dtype=float)
-            res_tau_yu = np.zeros((nzc,nyc-1,nxc),dtype=float)
-            res_tau_zu = np.zeros((nzc-1,nyc,nxc),dtype=float)
-            res_tau_xv = np.zeros((nzc,nyc,nxc-1),dtype=float)
-            res_tau_yv = np.zeros((nzc,nyc-1,nxc),dtype=float)
-            res_tau_zv = np.zeros((nzc-1,nyc,nxc),dtype=float)
-            res_tau_xw = np.zeros((nzc,nyc,nxc-1),dtype=float)
-            res_tau_yw = np.zeros((nzc,nyc-1,nxc),dtype=float)
-            res_tau_zw = np.zeros((nzc-1,nyc,nxc),dtype=float)
-    
-            unres_tau_xu = np.zeros((nzc,nyc,nxc-1),dtype=float)
-            unres_tau_yu = np.zeros((nzc,nyc-1,nxc),dtype=float)
-            unres_tau_zu = np.zeros((nzc-1,nyc,nxc),dtype=float)
-            unres_tau_xv = np.zeros((nzc,nyc,nxc-1),dtype=float)
-            unres_tau_yv = np.zeros((nzc,nyc-1,nxc),dtype=float)
-            unres_tau_zv = np.zeros((nzc-1,nyc,nxc),dtype=float)
-            unres_tau_xw = np.zeros((nzc,nyc,nxc-1),dtype=float)
-            unres_tau_yw = np.zeros((nzc,nyc-1,nxc),dtype=float)
-            unres_tau_zw = np.zeros((nzc-1,nyc,nxc),dtype=float)
-			
-            #Calculate velocities on coarse grid
-    
-            #Calculate RESOLVED and UNRESOLVED transport of u-momentum for user-specified coarse grid. As a first step, the coarse grid-velocities are interpolated to the walls of the coarse grid cell.
-            zc_int = np.ravel(np.broadcast_to(zc[:,np.newaxis,np.newaxis],(len(zc),len(yc),len(xhc))))
-            yc_int = np.ravel(np.broadcast_to(yc[np.newaxis,:,np.newaxis],(len(zc),len(yc),len(xhc))))
-            xhc_int = np.ravel(np.broadcast_to(xhc[np.newaxis,np.newaxis,:],(len(zc),len(yc),len(xhc))))
-    
-            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zc,yc,xhc),u_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zc_int,yc_int,xhc_int)),(len(zc),len(yc),len(xhc)))
-            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zc,yhc,xc),v_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zc_int,yc_int,xhc_int)),(len(zc),len(yc),len(xhc)))
-            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zhc,yc,xc),w_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zc_int,yc_int,xhc_int)),(len(zc),len(yc),len(xhc)))
-    
-            #u_int = scipy.interpolate.griddata((zc,yc,xhc),u_c[t,:,:,:],(zc,yc,xhc),method='linear')
-            #v_int = scipy.interpolate.griddata((zc,yhc,xc),v_c[t,:,:,:],(zc,yc,xhc),method='linear')
-            #w_int = scipy.interpolate.griddata((zhc,yc,xc),w_c[t,:,:,:],(zc,yc,xhc),method='linear')
-    
-            res_tau_xu[:,:,:] = u_int **2
-            res_tau_xv[:,:,:] = u_int * v_int
-            res_tau_xw[:,:,:] = u_int * w_int
-    
-            unres_tau_xu[:,:,:] = total_tau_xu[:,:,:]-res_tau_xu[:,:,:]
-            unres_tau_xv[:,:,:] = total_tau_xv[:,:,:]-res_tau_xv[:,:,:]
-            unres_tau_xw[:,:,:] = total_tau_xw[:,:,:]-res_tau_xw[:,:,:]
-    
-            #Calculate RESOLVED and UNRESOLVED transport of v-momentum for user-specified coarse grid. As a first step, the coarse grid-velocities are interpolated to the walls of the coarse grid cell.
-            zc_int = np.ravel(np.broadcast_to(zc[:,np.newaxis,np.newaxis],(len(zc),len(yhc),len(xc))))
-            yhc_int = np.ravel(np.broadcast_to(yhc[np.newaxis,:,np.newaxis],(len(zc),len(yhc),len(xc))))
-            xc_int = np.ravel(np.broadcast_to(xc[np.newaxis,np.newaxis,:],(len(zc),len(yhc),len(xc))))
-    
-            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zc,yc,xhc),u_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zc_int,yhc_int,xc_int)),(len(zc),len(yhc),len(xc)))
-            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zc,yhc,xc),v_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zc_int,yhc_int,xc_int)),(len(zc),len(yhc),len(xc)))
-            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zhc,yc,xc),w_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zc_int,yhc_int,xc_int)),(len(zc),len(yhc),len(xc)))
-    
-            #u_int = scipy.interpolate.griddata((zc,yc,xhc),u_c[t,:,:,:],(zc,yhc,xc),method='linear')
-            #v_int = scipy.interpolate.griddata((zc,yhc,xc),v_c[t,:,:,:],(zc,yhc,xc),method='linear')
-            #w_int = scipy.interpolate.griddata((zhc,yc,xc),w_c[t,:,:,:],(zc,yhc,xc),method='linear')
-    
-            res_tau_yu[:,:,:] = v_int * u_int
-            res_tau_yv[:,:,:] = v_int **2
-            res_tau_yw[:,:,:] = v_int * w_int
-    
-            unres_tau_yu[:,:,:] = total_tau_yu[:,:,:]-res_tau_yu[:,:,:]
-            unres_tau_yv[:,:,:] = total_tau_yv[:,:,:]-res_tau_yv[:,:,:]
-            unres_tau_yw[:,:,:] = total_tau_yw[:,:,:]-res_tau_yw[:,:,:]
-    
-            #Calculate RESOLVED and UNRESOLVED transport of w-momentum for user-specified coarse grid. As a first step, the coarse grid-velocities are interpolated to the walls of the coarse grid cell.
-            zhc_int = np.ravel(np.broadcast_to(zhc[:,np.newaxis,np.newaxis],(len(zhc),len(yc),len(xc))))
-            yc_int = np.ravel(np.broadcast_to(yc[np.newaxis,:,np.newaxis],(len(zhc),len(yc),len(xc))))
-            xc_int = np.ravel(np.broadcast_to(xc[np.newaxis,np.newaxis,:],(len(zhc),len(yc),len(xc))))
-    
-            u_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zc,yc,xhc),u_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zhc_int,yc_int,xc_int)),(len(zhc),len(yc),len(xc)))
-            v_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zc,yhc,xc),v_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zhc_int,yc_int,xc_int)),(len(zhc),len(yc),len(xc)))
-            w_int = np.reshape(scipy.interpolate.RegularGridInterpolator((zhc,yc,xc),w_c[:,:,:],method='linear',bounds_error=False,fill_value=None)((zhc_int,yc_int,xc_int)),(len(zhc),len(yc),len(xc)))
-    
-            #u_int = scipy.interpolate.griddata((zc,yc,xhc),u_c[t,:,:,:],(zhc,yc,xc),method='linear')
-            #v_int = scipy.interpolate.griddata((zc,yhc,xc),v_c[t,:,:,:],(zhc,yc,xc),method='linear')
-            #w_int = scipy.interpolate.griddata((zhc,yc,xc),w_c[t,:,:,:],(zhc,yc,xc),method='linear')
-    
-            res_tau_zu[:,:,:] = w_int * u_int
-            res_tau_zv[:,:,:] = w_int * v_int
-            res_tau_zw[:,:,:] = w_int **2
-    
-            unres_tau_zu[:,:,:] = total_tau_zu[:,:,:]-res_tau_zu[:,:,:]
-            unres_tau_zv[:,:,:] = total_tau_zv[:,:,:]-res_tau_zv[:,:,:]
-            unres_tau_zw[:,:,:] = total_tau_zw[:,:,:]-res_tau_zv[:,:,:]
-    
-            ##Store flow fields coarse grid and unresolved transport ##
-            ###########################################################
-    
-            #Create/open netCDF file
-            if create_file:
-                a = nc.Dataset(name_output_file, 'w')
-                create_file = False
-            else:
-                a = nc.Dataset(name_output_file, 'r+')
-    
-            if create_variables:
-                ##Extract time variable from u-file (should be identical to the one from v-,w-,or p-file)
-                #time = np.array(f.variables['time'])
-    
-                #Create new dimensions
-                dim_time = a.createDimension("time",None)
-                dim_xh = a.createDimension("xhc",xhc.shape[0])
-                dim_x = a.createDimension("xc",xc.shape[0])
-                dim_yh = a.createDimension("yhc",yhc.shape[0])
-                dim_y = a.createDimension("yc",yc.shape[0])
-                dim_zh = a.createDimension("zhc",zhc.shape[0])
-                dim_z = a.createDimension("zc",zc.shape[0])
-    
-                #Create coordinate variables and store values
-                var_xhc = a.createVariable("xhc","f8",("xhc",))
-                var_xc = a.createVariable("xc","f8",("xc",))
-                var_yhc = a.createVariable("yhc","f8",("yhc",))
-                var_yc = a.createVariable("yc","f8",("yc",))
-                var_zhc = a.createVariable("zhc","f8",("zhc",))
-                var_zc = a.createVariable("zc","f8",("zc",))
-                var_dist_midchannel = a.createVariable("dist_midchannel","f8",("zc",))
-    
-                var_xhc[:] = xhc[:]
-                var_xc[:] = xc[:]
-                var_yhc[:] = yhc[:]
-                var_yc[:] = yc[:]
-                var_zhc[:] = zhc[:]
-                var_zc[:] = zc[:]
-                var_dist_midchannel[:] = dist_midchannel[:]
-    
-                #Create variables for coarse fields
-                var_uc = a.createVariable("uc","f8",("time","zc","yc","xhc"))
-                var_vc = a.createVariable("vc","f8",("time","zc","yhc","xc"))
-                var_wc = a.createVariable("wc","f8",("time","zhc","yc","xc"))
-                var_pc = a.createVariable("pc","f8",("time","zc","yc","xc"))
-    
-                var_total_tau_xu = a.createVariable("total_tau_xu","f8",("time","zc","yc","xhc"))
-                var_res_tau_xu = a.createVariable("res_tau_xu","f8",("time","zc","yc","xhc"))
-                var_unres_tau_xu = a.createVariable("unres_tau_xu","f8",("time","zc","yc","xhc"))
-    
-                var_total_tau_xv = a.createVariable("total_tau_xv","f8",("time","zc","yc","xhc"))
-                var_res_tau_xv = a.createVariable("res_tau_xv","f8",("time","zc","yc","xhc"))
-                var_unres_tau_xv = a.createVariable("unres_tau_xv","f8",("time","zc","yc","xhc"))
-    
-                var_total_tau_xw = a.createVariable("total_tau_xw","f8",("time","zc","yc","xhc"))
-                var_res_tau_xw = a.createVariable("res_tau_xw","f8",("time","zc","yc","xhc"))
-                var_unres_tau_xw = a.createVariable("unres_tau_xw","f8",("time","zc","yc","xhc"))
-    
-                var_total_tau_yu = a.createVariable("total_tau_yu","f8",("time","zc","yhc","xc"))
-                var_res_tau_yu = a.createVariable("res_tau_yu","f8",("time","zc","yhc","xc"))
-                var_unres_tau_yu = a.createVariable("unres_tau_yu","f8",("time","zc","yhc","xc"))
-    
-                var_total_tau_yv = a.createVariable("total_tau_yv","f8",("time","zc","yhc","xc"))
-                var_res_tau_yv = a.createVariable("res_tau_yv","f8",("time","zc","yhc","xc"))
-                var_unres_tau_yv = a.createVariable("unres_tau_yv","f8",("time","zc","yhc","xc"))
-    
-                var_total_tau_yw = a.createVariable("total_tau_yw","f8",("time","zc","yhc","xc"))
-                var_res_tau_yw = a.createVariable("res_tau_yw","f8",("time","zc","yhc","xc"))
-                var_unres_tau_yw = a.createVariable("unres_tau_yw","f8",("time","zc","yhc","xc"))
-    
-                var_total_tau_zu = a.createVariable("total_tau_zu","f8",("time","zhc","yc","xc"))
-                var_res_tau_zu = a.createVariable("res_tau_zu","f8",("time","zhc","yc","xc"))
-                var_unres_tau_zu = a.createVariable("unres_tau_zu","f8",("time","zhc","yc","xc"))
-    
-                var_total_tau_zv = a.createVariable("total_tau_zv","f8",("time","zhc","yc","xc"))
-                var_res_tau_zv = a.createVariable("res_tau_zv","f8",("time","zhc","yc","xc"))
-                var_unres_tau_zv = a.createVariable("unres_tau_zv","f8",("time","zhc","yc","xc"))
-    
-                var_total_tau_zw = a.createVariable("total_tau_zw","f8",("time","zhc","yc","xc"))
-                var_res_tau_zw = a.createVariable("res_tau_zw","f8",("time","zhc","yc","xc"))
-                var_unres_tau_zw = a.createVariable("unres_tau_zw","f8",("time","zhc","yc","xc"))
-    
-            create_variables = False #Make sure variables are only created once.
-    
-            #Store values coarse fields
-            var_uc[t,:,:,:] = u_c[:,:,:]
-            var_vc[t,:,:,:] = v_c[:,:,:]
-            var_wc[t,:,:,:] = w_c[:,:,:]
-            var_pc[t,:,:,:] = p_c[:,:,:]
-    
-            var_total_tau_xu[t,:,:,:] = total_tau_xu[:,:,:]
-            var_res_tau_xu[t,:,:,:] = res_tau_xu[:,:,:]
-            var_unres_tau_xu[t,:,:,:] = unres_tau_xu[:,:,:]
-    
-            var_total_tau_xv[t,:,:,:] = total_tau_xv[:,:,:]
-            var_res_tau_xv[t,:,:,:] = res_tau_xv[:,:,:]
-            var_unres_tau_xv[t,:,:,:] = unres_tau_xv[:,:,:]
-    
-            var_total_tau_xw[t,:,:,:] = total_tau_xw[:,:,:]
-            var_res_tau_xw[t,:,:,:] = res_tau_xw[:,:,:]
-            var_unres_tau_xw[t,:,:,:] = unres_tau_xw[:,:,:]
-    
-            var_total_tau_yu[t,:,:,:] = total_tau_yu[:,:,:]
-            var_res_tau_yu[t,:,:,:] = res_tau_yu[:,:,:]
-            var_unres_tau_yu[t,:,:,:] = unres_tau_yu[:,:,:]
-    
-            var_total_tau_yv[t,:,:,:] = total_tau_yv[:,:,:]
-            var_res_tau_yv[t,:,:,:] = res_tau_yv[:,:,:]
-            var_unres_tau_yv[t,:,:,:] = unres_tau_yv[:,:,:]
-    
-            var_total_tau_yw[t,:,:,:] = total_tau_yw[:,:,:]
-            var_res_tau_yw[t,:,:,:] = res_tau_yw[:,:,:]
-            var_unres_tau_yw[t,:,:,:] = unres_tau_yw[:,:,:]
-    
-            var_total_tau_zu[t,:,:,:] = total_tau_zu[:,:,:]
-            var_res_tau_zu[t,:,:,:] = res_tau_zu[:,:,:]
-            var_unres_tau_zu[t,:,:,:] = unres_tau_zu[:,:,:]
-    
-            var_total_tau_zv[t,:,:,:] = total_tau_zv[:,:,:]
-            var_res_tau_zv[t,:,:,:] = res_tau_zv[:,:,:]
-            var_unres_tau_zv[t,:,:,:] = unres_tau_zv[:,:,:]
-    
-            var_total_tau_zw[t,:,:,:] = total_tau_zw[:,:,:]
-            var_res_tau_zw[t,:,:,:] = res_tau_zw[:,:,:]
-            var_unres_tau_zw[t,:,:,:] = unres_tau_zw[:,:,:]
-    
-            #Close file
-            a.close()
-    
-    
-    
-    
-        #Close files
-        #f.close()
-        #g.close()
-        #h.close()
-        #l.close()
-
-# binary3d_to_nc('u',768,384,256,starttime=0,endtime=7200,sampletime=600)
-# binary3d_to_nc('v',768,384,256,starttime=0,endtime=7200,sampletime=600)
-# binary3d_to_nc('w',768,384,256,starttime=0,endtime=7200,sampletime=600)
-# binary3d_to_nc('p',768,384,256,starttime=0,endtime=7200,sampletime=600)
-
-finegrid = Finegrid()
-coarsegrid = Coarsegrid((32,16,64), finegrid)
-generate_training_data(finegrid, coarsegrid)
+ 
+        ##Store flow fields coarse grid and unresolved transport ##
+        ###########################################################
+ 
+        #Create/open netCDF file
+        if create_file:
+            a = nc.Dataset(name_output_file, 'w')
+            create_file = False
+        else:
+            a = nc.Dataset(name_output_file, 'r+')
+ 
+        if create_variables:
+            ##Extract time variable from u-file (should be identical to the one from v-,w-,or p-file)
+            #time = np.array(f.variables['time'])
+ 
+            #Create new dimensions
+            dim_time = a.createDimension("time",None)
+            dim_xh = a.createDimension("xhc",xhc.shape[0])
+            dim_x = a.createDimension("xc",xc.shape[0])
+            dim_yh = a.createDimension("yhc",yhc.shape[0])
+            dim_y = a.createDimension("yc",yc.shape[0])
+            dim_zh = a.createDimension("zhc",zhc.shape[0])
+            dim_z = a.createDimension("zc",zc.shape[0])
+ 
+            #Create coordinate variables and store values
+            var_xhc = a.createVariable("xhc","f8",("xhc",))
+            var_xc = a.createVariable("xc","f8",("xc",))
+            var_yhc = a.createVariable("yhc","f8",("yhc",))
+            var_yc = a.createVariable("yc","f8",("yc",))
+            var_zhc = a.createVariable("zhc","f8",("zhc",))
+            var_zc = a.createVariable("zc","f8",("zc",))
+            #var_dist_midchannel = a.createVariable("dist_midchannel","f8",("zc",))
+ 
+            var_xhc[:] = coarsegrid['grid']['xh'][:]
+            var_xc[:] = coarsegrid['grid']['x'][:]
+            var_yhc[:] = coarsegrid['grid']['yh'][:]
+            var_yc[:] = coarsegrid['grid']['y'][:]
+            var_zhc[:] = coarsegrid['grid']['zh'][:]
+            var_zc[:] = coarsegrid['grid']['z'][:]
+            #var_dist_midchannel[:] = dist_midchannel[:]
+ 
+            #Create variables for coarse fields
+            var_uc = a.createVariable("uc","f8",("time","zc","yc","xhc"))
+            var_vc = a.createVariable("vc","f8",("time","zc","yhc","xc"))
+            var_wc = a.createVariable("wc","f8",("time","zhc","yc","xc"))
+            var_pc = a.createVariable("pc","f8",("time","zc","yc","xc"))
+ 
+            var_total_tau_xu = a.createVariable("total_tau_xu","f8",("time","zc","yc","xhc"))
+            var_res_tau_xu = a.createVariable("res_tau_xu","f8",("time","zc","yc","xhc"))
+            var_unres_tau_xu = a.createVariable("unres_tau_xu","f8",("time","zc","yc","xhc"))
+ 
+            var_total_tau_xv = a.createVariable("total_tau_xv","f8",("time","zc","yc","xhc"))
+            var_res_tau_xv = a.createVariable("res_tau_xv","f8",("time","zc","yc","xhc"))
+            var_unres_tau_xv = a.createVariable("unres_tau_xv","f8",("time","zc","yc","xhc"))
+ 
+            var_total_tau_xw = a.createVariable("total_tau_xw","f8",("time","zc","yc","xhc"))
+            var_res_tau_xw = a.createVariable("res_tau_xw","f8",("time","zc","yc","xhc"))
+            var_unres_tau_xw = a.createVariable("unres_tau_xw","f8",("time","zc","yc","xhc"))
+ 
+            var_total_tau_yu = a.createVariable("total_tau_yu","f8",("time","zc","yhc","xc"))
+            var_res_tau_yu = a.createVariable("res_tau_yu","f8",("time","zc","yhc","xc"))
+            var_unres_tau_yu = a.createVariable("unres_tau_yu","f8",("time","zc","yhc","xc"))
+ 
+            var_total_tau_yv = a.createVariable("total_tau_yv","f8",("time","zc","yhc","xc"))
+            var_res_tau_yv = a.createVariable("res_tau_yv","f8",("time","zc","yhc","xc"))
+            var_unres_tau_yv = a.createVariable("unres_tau_yv","f8",("time","zc","yhc","xc"))
+ 
+            var_total_tau_yw = a.createVariable("total_tau_yw","f8",("time","zc","yhc","xc"))
+            var_res_tau_yw = a.createVariable("res_tau_yw","f8",("time","zc","yhc","xc"))
+            var_unres_tau_yw = a.createVariable("unres_tau_yw","f8",("time","zc","yhc","xc"))
+ 
+            var_total_tau_zu = a.createVariable("total_tau_zu","f8",("time","zhc","yc","xc"))
+            var_res_tau_zu = a.createVariable("res_tau_zu","f8",("time","zhc","yc","xc"))
+            var_unres_tau_zu = a.createVariable("unres_tau_zu","f8",("time","zhc","yc","xc"))
+ 
+            var_total_tau_zv = a.createVariable("total_tau_zv","f8",("time","zhc","yc","xc"))
+            var_res_tau_zv = a.createVariable("res_tau_zv","f8",("time","zhc","yc","xc"))
+            var_unres_tau_zv = a.createVariable("unres_tau_zv","f8",("time","zhc","yc","xc"))
+ 
+            var_total_tau_zw = a.createVariable("total_tau_zw","f8",("time","zhc","yc","xc"))
+            var_res_tau_zw = a.createVariable("res_tau_zw","f8",("time","zhc","yc","xc"))
+            var_unres_tau_zw = a.createVariable("unres_tau_zw","f8",("time","zhc","yc","xc"))
+ 
+        create_variables = False #Make sure variables are only created once.
+ 
+        #Store values coarse fields
+        var_uc[t,:,:,:] = coarsegrid['output']['u'][:,:,:]
+        var_vc[t,:,:,:] = coarsegrid['output']['v'][:,:,:]
+        var_wc[t,:,:,:] = coarsegrid['output']['w'][:,:,:]
+        var_pc[t,:,:,:] = coarsegrid['output']['p'][:,:,:]
+ 
+        var_total_tau_xu[t,:,:,:] = total_tau_xu[:,:,:]
+        var_res_tau_xu[t,:,:,:] = res_tau_xu[:,:,:]
+        var_unres_tau_xu[t,:,:,:] = unres_tau_xu[:,:,:]
+ 
+        var_total_tau_xv[t,:,:,:] = total_tau_xv[:,:,:]
+        var_res_tau_xv[t,:,:,:] = res_tau_xv[:,:,:]
+        var_unres_tau_xv[t,:,:,:] = unres_tau_xv[:,:,:]
+ 
+        var_total_tau_xw[t,:,:,:] = total_tau_xw[:,:,:]
+        var_res_tau_xw[t,:,:,:] = res_tau_xw[:,:,:]
+        var_unres_tau_xw[t,:,:,:] = unres_tau_xw[:,:,:]
+ 
+        var_total_tau_yu[t,:,:,:] = total_tau_yu[:,:,:]
+        var_res_tau_yu[t,:,:,:] = res_tau_yu[:,:,:]
+        var_unres_tau_yu[t,:,:,:] = unres_tau_yu[:,:,:]
+ 
+        var_total_tau_yv[t,:,:,:] = total_tau_yv[:,:,:]
+        var_res_tau_yv[t,:,:,:] = res_tau_yv[:,:,:]
+        var_unres_tau_yv[t,:,:,:] = unres_tau_yv[:,:,:]
+ 
+        var_total_tau_yw[t,:,:,:] = total_tau_yw[:,:,:]
+        var_res_tau_yw[t,:,:,:] = res_tau_yw[:,:,:]
+        var_unres_tau_yw[t,:,:,:] = unres_tau_yw[:,:,:]
+ 
+        var_total_tau_zu[t,:,:,:] = total_tau_zu[:,:,:]
+        var_res_tau_zu[t,:,:,:] = res_tau_zu[:,:,:]
+        var_unres_tau_zu[t,:,:,:] = unres_tau_zu[:,:,:]
+ 
+        var_total_tau_zv[t,:,:,:] = total_tau_zv[:,:,:]
+        var_res_tau_zv[t,:,:,:] = res_tau_zv[:,:,:]
+        var_unres_tau_zv[t,:,:,:] = unres_tau_zv[:,:,:]
+ 
+        var_total_tau_zw[t,:,:,:] = total_tau_zw[:,:,:]
+        var_res_tau_zw[t,:,:,:] = res_tau_zw[:,:,:]
+        var_unres_tau_zw[t,:,:,:] = unres_tau_zw[:,:,:]
+ 
+        #Close file
+        a.close()
 

@@ -419,7 +419,7 @@ class Finegrid:
         if timestep > (self.var['time']['timesteps'] - 1):
             raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
 
-        #Remove ghostcells for this variable_name of it was stored before (most likely for another timestep)
+        #Remove ghostcells for this variable_name if it was stored before (most likely for another timestep)
         if variable_name in self.var['ghost'].keys():
             del self.var['ghost'][variable_name]
 
@@ -441,7 +441,7 @@ class Finegrid:
         if timestep > (self.var['time']['timesteps'] - 1):
             raise ValueError("Specified timestep not contained in data. Note that the timestep starts counting from 0.")
 
-        #Remove ghostcells for this variable_name of it was stored before (most likely for another timestep)
+        #Remove ghostcells for this variable_name if it was stored before (most likely for another timestep)
         if variable_name in self.var['ghost'].keys():
             del self.var['ghost'][variable_name]
 
@@ -485,12 +485,15 @@ class Finegrid:
         if not (output_field.shape == (self.var['grid']['ktot'],self.var['grid']['jtot'],self.var['grid']['itot'])):
             raise RuntimeError("The shape corresponding to the specified coordinates (z,y,x) is not the same as the shape of the specified output field. Note that for the staggered grid the top/downstream boundaries do not have to be included, these are automatically added.")
 
-        #Remove ghostcells for this variable_name of it was stored before (most likely for another timestep)
+        #Remove ghostcells for this variable_name if it was stored before (most likely for another timestep)
         if variable_name in self.var['ghost'].keys():
             del self.var['ghost'][variable_name]
 
         #Store output_field in object
         self.var['output'][variable_name] = output_field
+
+        #For convenience with the script func_generate_training.py, timesteps is set equal to 1.
+        self.var['time']['timesteps'] = 1
 
         #Add boundaries for wind velocities. Trick with np.newaxis makes sure that the values being appended have the same number of dimensions as the input array.
         self.add_boundaries_variable(self, variable_name, bool_edge_gridcell)
@@ -512,6 +515,13 @@ class Finegrid:
         if jgc < 0 or igc < 0:
             raise ValueError("The specified number of ghostcells cannot be negative.")
 
+        #Read variable from object
+        s = self.var['output'][variable_name]
+
+        #Check that there are not more ghost cells than grid cells
+        if igc > s.shape[2] or jgc > s.shape[1]:
+            raise ValueError("The specified number of ghostcells is larger than the number of grid cells present in the object.") 
+
       #  #Check that kgc is 0, 1 or 2 for each specified variable_name except 'w'. For 'w' kgc should be equal to 0.
       #  if not kgc in [0,1,2]:
       #      raise ValueError("Number of ghostcells in the vertical direction should be either 0, 1 or 2.")
@@ -521,7 +531,6 @@ class Finegrid:
       #      s = self.var['output'][variable_name][:-1,:,:]
 
         #Get original coordinates, remove samples at the downstream boundaries added in object for the wind velocities to prevent they are sampled multiple times
-        s = self.var['output'][variable_name]
         z = self.var['grid']['z']
         zh = self.var['grid']['zh']
         y = self.var['grid']['y']
@@ -617,10 +626,13 @@ class Coarsegrid:
     def __init__(self,dim_new_grid,finegrid_object):
         nz,ny,nx = dim_new_grid
 
+        #Store finegrid_object in Coarsegrid object
+        self.finegrid = finegrid_object
+
         #Store relevant settings from finegrid_object and dim_new_grid into coarsegrid_object
         self.var = {}
         self.var['grid'] = {}
-        self.var['output'] = {} #After the coarsegrid object is created, output can be stored here.
+        self.var['output'] = {} #After the coarsegrid object is created, output can be stored here. This is done in the script func_generate_training.py.
 
         #Boundary condition: the resolution of the coarse grid should indeed be coarser than the fine resolution
         if not (nz < finegrid_object['grid']['ktot'] and ny < finegrid_object['grid']['jtot'] and nx < finegrid_object['grid']['itot']):
@@ -655,6 +667,9 @@ class Coarsegrid:
         else:
             coarsecoord, step = np.linspace(0, gridsize, number_gridcells+1, endpoint=True, retstep=True)
         return coarsecoord, step
+
+    def add_ghostcells_hor(self,variable_name, jgc, igc, bool_edge_gridcell = (False, False, False)):
+        return self.finegrid.add_ghostcells_hor(variable_name, jgc, igc, bool_edge_gridcell) #Use method from Finegrid class
 
        
     def __getitem__(self, name):
