@@ -19,55 +19,41 @@ from microhh_tools_robinst import *
 def add_ghostcells_finegrid(finegrid, coarsegrid, variable_name, bool_edge_gridcell):
 
     #Determine how many ghostcells are needed. NOTE: should be based on the same (not opposed!) coordinate, 1 point outside coarse grid cell needed for interpolation
-    #y-direction
-    if bool_edge_gridcell[1]:
-        ycor = finegrid['grid']['yh']
-        #jgc_upstream
-        bottom = 0 - 0.5*coarsegrid['grid']['ydist']
-        jgc_up = 0
+    def _determine_ghostcell(ccor, dist, size):
+        #gc_upstream
+        bottom = 0 - 0.5*dist
+        gc_up = 0
         dist = 0
         while dist>bottom:
-            jgc_up += 1
-            dist = ycor[-jgc_up] - finegrid['grid']['ysize']
+            gc_up += 1
+            dist = ccor[-gc_up] - size
 
-        #jgc_downstream
-        top = coarsegrid['grid']['ysize'] + 0.5*coarsegrid['grid']['ydist']
-        jgc_down = 0
+        #gc_downstream
+        top = size + 0.5*dist
+        gc_down = 0
         dist = 0
         while dist<top:
-             jgc_down += 1
-             dist = coarsegrid['grid']['ysize'] + ycor[jgc_down - 1] #Appending ycor[0] to ycor is in fact adding 1 ghostcell, for this reason 1 is substracted from jgc_down
+             dist = size + ccor[gc_down]
+             gc_down += 1 #Appending ccor[0] to ccor is in fact adding 1 ghostcell, for this reason at least 1 is always to gc_down
 
         #Add maximum number of ghostcells needed to both sides (i.e. keep added ghostcells equal to both sides)
-        jgc = max(jgc_up, jgc_down)
+        gc = max(gc_up, gc_down)
 
+        return gc
+
+    #y-direction
+    if bool_edge_gridcell[1]:
+        ycor = finegrid['grid']['yh'][:-1] #Remove sample at downstream boundary since it is an already implemented ghost cell
+        jgc  = _determine_ghostcell(ycor, coarsegrid['grid']['ydist'], coarsegrid['grid']['ysize'])
     else:
-       jgc = 1 #Only 1 ghostcell needed for interpolation total transport terms, none for downsampling
+        jgc  = 1 #Only 1 ghostcell needed for interpolation total transport terms, none for downsampling
 
     #x-direction
     if bool_edge_gridcell[2]:
         xcor = finegrid['grid']['xh'][:-1] #Remove sample at downstream boundary since it is an already implemented ghost cell
-        #igc_upstream
-        bottom = 0 - 0.5*coarsegrid['grid']['xdist']
-        igc_up = 0
-        dist = 0
-        while dist>bottom:
-            igc_up += 1
-            dist = xcor[-igc_up] - finegrid['grid']['xsize']
-
-        #igc_downstream
-        top = coarsegrid['grid']['xsize'] + 0.5*coarsegrid['grid']['xdist']
-        igc_down = 0
-        dist = 0
-        while dist<top:
-             igc_down += 1
-             dist = coarsegrid['grid']['xsize'] + xcor[igc_down - 1] #Appending ycor[0] to ycor is in fact adding 1 ghostcell, for this reason 1 is substracted from jgc_down
-
-        #Add maximum number of ghostcells needed to both sides (i.e. keep added ghostcells equal to both sides)
-        igc = max(igc_up, igc_down)
-
+        igc  = _determine_ghostcell(xcor, coarsegrid['grid']['xdist'], coarsegrid['grid']['xsize'])
     else:
-       igc = 1 #Only 1 ghostcell needed for interpolation total transport terms, none for downsampling
+        igc = 1 #Only 1 ghostcell needed for interpolation total transport terms, none for downsampling
 
     #Add corresponding amount of ghostcells
     finegrid.add_ghostcells_hor(variable_name, jgc, igc, bool_edge_gridcell)
@@ -154,10 +140,6 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, vert_flag
 #   #     weights = np.append(weights, 0)
     
     return weights, points_indices_cor
-
-##############################################
-#Actual functions to generate the training data
-##############################################
 
 def generate_coarse_data(finegrid, coarsegrid, variable_name, timestep, bool_edge_gridcell = (False,False,False)):
     """Function to generate coarse grid with variables and total transport of momentum for creation training data. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates.
@@ -247,11 +229,13 @@ def generate_coarse_data(finegrid, coarsegrid, variable_name, timestep, bool_edg
     
     #Store downsampled variable in coarsegrid object
     coarsegrid['output'][variable_name] = var_c
-    
+ 
     return finegrid, coarsegrid
     
 	
-#Boundary condition: fine grid must have a smaller resolution than the coarse grid
+###############################################
+#Actual functions to generate the training data
+###############################################
 
 def generate_training_data(finegrid, coarsegrid, name_output_file = 'training_data.nc'): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts
  
@@ -271,15 +255,15 @@ def generate_training_data(finegrid, coarsegrid, name_output_file = 'training_da
         finegrid, coarsegrid = generate_coarse_data(finegrid, coarsegrid, variable_name = 'p', timestep = t, bool_edge_gridcell = (False, False, False))
  
         #Calculate total transport on coarse grid from fine grid, initialize first arrays
-        total_tau_xu = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_yu = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_zu = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_xv = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_yv = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_zv = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_xw = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_yw = np.zeros((nzc,nyc,nxc), dtype=float)
-        total_tau_zw = np.zeros((nzc,nyc,nxc), dtype=float)
+        total_tau_xu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_yu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zu = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_xv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_yv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zv = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_xw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_yw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zw = np.zeros((coarsegrid['grid']['ktot'], coarsegrid['grid']['jtot'], coarsegrid['grid']['itot']), dtype=float)
  
         #Interpolate to side boundaries coarse gridcell
         def _interpolate_side_cell(variable_name, coord_variable_ghost, coord_boundary):
