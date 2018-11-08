@@ -16,7 +16,7 @@ from grid_objects_training import Finegrid, Coarsegrid
 from func_generate_training import generate_training_data
 
 #Do testing
-finegrid = Finegrid(read_grid_flag = False, coordx = np.array([1,2.5,3]), xsize = 4, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7, coordz = np.array([0.1,0.3,1]), zsize = 1.2)
+finegrid = Finegrid(read_grid_flag = False, fourth_order = False, coordx = np.array([1,2.5,3]), xsize = 4.0, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7.0, coordz = np.array([0.1,0.3,1]), zsize = 1.2, periodic_bc = (False, True, True))
 #finegrid = Finegrid()
 finegrid.create_variables('u', np.reshape(np.arange(0,36), (3,4,3)), bool_edge_gridcell = (False, False, True))
 finegrid.create_variables('v', np.reshape(np.arange(0,36), (3,4,3)), bool_edge_gridcell = (False, True, False))
@@ -28,6 +28,27 @@ coarsegrid.downsample('u')
 coarsegrid.downsample('v')
 coarsegrid.downsample('w')
 coarsegrid.downsample('p')
+
+volume_finegrid_u = finegrid.volume_integral('u')
+volume_coarsegrid_u = coarsegrid.volume_integral('u')
+print('Volume integral u finegrid: ' + str(volume_finegrid_u))
+print('Volume integral u coarsegrid: ' + str(volume_coarsegrid_u))
+
+volume_finegrid_v = finegrid.volume_integral('v')
+volume_coarsegrid_v = coarsegrid.volume_integral('v')
+print('Volume integral v finegrid: ' + str(volume_finegrid_v))
+print('Volume integral v coarsegrid: ' + str(volume_coarsegrid_v))
+
+volume_finegrid_w = finegrid.volume_integral('w')
+volume_coarsegrid_w = coarsegrid.volume_integral('w')
+print('Volume integral w finegrid: ' + str(volume_finegrid_w))
+print('Volume integral w coarsegrid: ' + str(volume_coarsegrid_w))
+
+volume_finegrid_p = finegrid.volume_integral('p')
+volume_coarsegrid_p = coarsegrid.volume_integral('p')
+print('Volume integral p finegrid: ' + str(volume_finegrid_p))
+print('Volume integral p coarsegrid: ' + str(volume_coarsegrid_p))
+
 #t = 2
 #finegrid.read_binary_variables('u', t, bool_edge_gridcell = (False, False, True))
 #finegrid.read_binary_variables('v', t, bool_edge_gridcell = (False, True,  False))

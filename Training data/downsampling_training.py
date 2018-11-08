@@ -8,32 +8,49 @@ Author: Robin Stoffer
 #Developed for Python 3!
 import numpy as np
 
-def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc):
+def determine_machine_precision(finegrid):
+    '''Determine machine precision specified by finegrid with corresponding significant decimal digits.'''
+    if finegrid.prec == 'float64':
+        sgn_digits = 15
+    elif finegrid.prec == 'float32':
+        sgn_digits = 6
+    else:
+        raise RuntimeError('Script not configred for precision specified in finegrid object.')
+    return sgn_digits
+
+def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid):
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
     
+    #Determine machine precision specified by finegrid with corresponding significant decimal digits
+    sgn_digits = determine_machine_precision(finegrid)
+    cor_c_bottom = np.round(cor_c_bottom, sgn_digits)
+    cor_c_top = np.round(cor_c_top, sgn_digits)
+    cor_edges = np.round(cor_edges, sgn_digits)
+    
     #Find points of fine grid located just outside the coarse grid cell considered in iteration
-    cor_bottom = cor_edges[cor_edges <= cor_c_bottom].max()
+    cor_bottom = np.round(cor_edges[cor_edges <= cor_c_bottom].max(), sgn_digits)
     #cor_top = cor_c_top if iteration == (len_coordinate - 1) else cor_edges[cor_edges >= cor_c_top].min()
-    cor_top = cor_edges[cor_edges >= cor_c_top].min()    
+    cor_top = np.round(cor_edges[cor_edges >= cor_c_top].min(), sgn_digits)    
 
     #Select all points inside and just outside coarse grid cell
-    points_indices_cor = np.logical_and(cor_bottom <= cor_edges , cor_edges < cor_top)
-    cor_points = cor_edges[points_indices_cor] #Note: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).
+    points_indices_cor = np.logical_and(cor_bottom <= cor_edges , cor_edges < cor_top) #NOTE: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).
+    cor_points = cor_edges[points_indices_cor]
     
     #Calculate weights for cor_points. 
-    #NOTE: only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-    #NOTE: since cor_edges is one point longer than cor_center, the lengths of points_indices cor should be 1 shorter.
-    weights = np.zeros(len(cor_points))
+    #NOTE: only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell.
+    #NOTE: since cor_edges is one point longer than cor_center, the lengths of weights and points_indices_cor should be 1 shorter. 
     points_indices_cor = points_indices_cor[:-1].copy()
+    len_weights = len(np.where(points_indices_cor)[0])
+    weights = np.zeros(len_weights)
     if len(cor_points) == 1:
         weights = np.array([1])
 
     else:
-        for i in range(len(cor_points)):
+        for i in range(len_weights):
             if i == 0:
                 weights[0] = (cor_points[1] - cor_c_bottom)/(cor_c_top - cor_c_bottom)
-            elif i == (len(cor_points) - 1):
+            elif i == (len_weights - 1):
                 weights[i] = (cor_c_top - cor_points[i])/(cor_c_top - cor_c_bottom)
             else:
                 weights[i] = (cor_points[i+1] - cor_points[i])/(cor_c_top - cor_c_bottom)
@@ -47,107 +64,140 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc):
 
     return weights, points_indices_cor
 
-def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, periodic_bc = True, size = 0): #For 'size' a default value is used that should not affect results as long as vert_flag = False.
+def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid, periodic_bc = True, size = 0): #For 'size' a default value is used that should not affect results as long as vert_flag = False.
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
+    
+    #Determine machine precision specified by finegrid with corresponding significant decimal digits
+    sgn_digits = determine_machine_precision(finegrid)
+    cor_c_bottom = np.round(cor_c_bottom, sgn_digits)
+    cor_c_top = np.round(cor_c_top, sgn_digits)
+    cor_center = np.round(cor_center, sgn_digits)
 
     #Find points of fine grid located just outside the coarse grid cell considered in iteration, except when the top and bottom boundary in the vertical direction are considered (since in that direction no ghost cells are added).
+
+    #Define function that adds an additional point to points_indices_cor, which is needed because cor_center is 1 point smaller than cor_edges
+    def _add_points(cor_center, cor_c_top, points_indices_cor):
+        if cor_c_top > cor_center[-1]: #Select top/downstream boundary when coarse grid top/downstream boundary exceeds the boundaries of the fine grid cell centers
+            points_indices_cor = np.append(points_indices_cor, True)
+        else:
+            points_indices_cor = np.append(points_indices_cor, False)
+        return points_indices_cor
     
     #Define function that selects correct points for coarse grid cells where periodic bc are not used for the downsampling from the fine grid.
-    def _select_points(cor_center, cor_c_bottom, cor_c_top, cor_bottom_defined = False, cor_top_defined = False):
+    def _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits, cor_bottom_defined = False, cor_top_defined = False):
 
         if not cor_bottom_defined:
-            cor_bottom = cor_center[cor_center <= cor_c_bottom].max()
+            cor_bottom = np.round(cor_center[cor_center <= cor_c_bottom].max(), sgn_digits)
         else:
             cor_bottom = cor_c_bottom
             
         if not cor_top_defined:
-            cor_top = cor_center[cor_center >= cor_c_top].min()
+            cor_top = np.round(cor_center[cor_center >= cor_c_top].min(), sgn_digits)
         else:
             cor_top = cor_c_top
             
         #Select all points inside and just outside coarse grid cell
-        points_indices_cor = np.logical_and(cor_bottom<cor_center , cor_center<=cor_top)
+        points_indices_cor = np.logical_and(cor_bottom<cor_center , cor_center<=cor_top) #NOTE: points_indices_cor includes the top boundary (cor_top), but not the bottom boundary (cor_bottom). 
+        points_indices_cor = _add_points(cor_center, cor_c_top, points_indices_cor)
         
-        #Set cells where fractions need to be calculated
-        index_bottom_coarse_cell = 0
-        index_top_coarse_cell = len(cor_center[points_indices_cor]) - 1
-        coord_bottom_coarse_cell = cor_c_bottom
-        coord_top_coarse_cell = cor_c_top
-        
-        return points_indices_cor, index_bottom_coarse_cell, index_top_coarse_cell, coord_bottom_coarse_cell, coord_top_coarse_cell
+        return points_indices_cor
     
-    #Select points of fine grid depending on coarse grid configuration en periodic bc.
-    if periodic_bc and (cor_c_bottom<0):
+    #Select points of fine grid depending on coarse grid configuration and periodic bc.
+    if periodic_bc and (cor_c_bottom < 0):
         #Select two different regions of coarse grid
-        cor_c_bottom1 = 0
+        cor_c_bottom1 = 0.0
         cor_bottom1 = cor_c_bottom1
         cor_c_top1 = cor_c_top
-        cor_top1 = cor_center[cor_center >= cor_c_top1].min()
+        cor_top1 = np.round(cor_center[cor_center >= cor_c_top1].min(), sgn_digits)
         
-        cor_c_bottom2 = cor_c_bottom + size
-        cor_bottom2 = cor_center[cor_center <= cor_c_bottom2].max()
-        cor_c_top2 = size
+        cor_c_bottom2 = np.round(cor_c_bottom + size, sgn_digits)
+        cor_bottom2 = np.round(cor_center[cor_center <= cor_c_bottom2].max(), sgn_digits)
+        cor_c_top2 = np.round(size, sgn_digits)
         cor_top2 = cor_c_top2
         
         points_indices_cor1 = np.logical_and(cor_bottom1 < cor_center, cor_center <= cor_top1)
+        points_indices_cor1 = _add_points(cor_center, cor_c_top1, points_indices_cor1)
         points_indices_cor2 = np.logical_and(cor_bottom2 < cor_center, cor_center <= cor_top2)
+        points_indices_cor2 = _add_points(cor_center, cor_c_top2, points_indices_cor2)
         points_indices_cor = np.logical_or(points_indices_cor1, points_indices_cor2)
         index_bottom_coarse_cell = np.where(points_indices_cor2)[0][0] - len(np.where(np.logical_and(np.logical_not(points_indices_cor1), np.logical_not(points_indices_cor2)))[0]) #Compensate for the indices that are not selected, cor_points has fewer indices than cor_center!
         index_top_coarse_cell = np.where(points_indices_cor1)[0][-1]
-        coord_bottom_coarse_cell = cor_c_bottom2
-        coord_top_coarse_cell = cor_c_top1
+        two_boxes = True
     
     elif cor_c_bottom < 0:
-        cor_c_bottom = 0
-        points_indices_cor, index_bottom_coarse_cell, index_top_coarse_cell, coord_bottom_coarse_cell, coord_top_coarse_cell = _select_points(cor_center, cor_c_bottom, cor_c_top, cor_bottom_defined = True)
+        cor_c_bottom = 0.0
+        points_indices_cor = _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits, cor_bottom_defined = True)
+        two_boxes = False
         
     elif periodic_bc and (cor_c_top > size):
         #Select two different regions of coarse grid
-        cor_c_bottom1 = 0
+        cor_c_bottom1 = 0.0
         cor_bottom1 = cor_c_bottom1
-        cor_c_top1 = cor_c_top - size
-        cor_top1 = cor_center[cor_center >= cor_c_top1].min()
+        cor_c_top1 = np.round(cor_c_top - size, sgn_digits)
+        cor_top1 = np.round(cor_center[cor_center >= cor_c_top1].min(), sgn_digits)
         
         cor_c_bottom2 = cor_c_bottom
-        cor_bottom2 = cor_center[cor_center <= cor_c_bottom2].max()
-        cor_c_top2 = size
+        cor_bottom2 = np.round(cor_center[cor_center <= cor_c_bottom2].max(), sgn_digits)
+        cor_c_top2 = np.round(size, sgn_digits)
         cor_top2 = cor_c_top2
         
         points_indices_cor1 = np.logical_and(cor_bottom1 < cor_center, cor_center <= cor_top1)
+        points_indices_cor1 = _add_points(cor_center, cor_c_top1, points_indices_cor1)
         points_indices_cor2 = np.logical_and(cor_bottom2 < cor_center, cor_center <= cor_top2)
+        points_indices_cor2 = _add_points(cor_center, cor_c_top2, points_indices_cor2)
         points_indices_cor = np.logical_or(points_indices_cor1, points_indices_cor2)
         index_bottom_coarse_cell = np.where(points_indices_cor2)[0][0]  - len(np.where(np.logical_and(np.logical_not(points_indices_cor1), np.logical_not(points_indices_cor2)))[0]) #Compensate for the indices that are not selected, cor_points has fewer indices than cor_center!
         index_top_coarse_cell = np.where(points_indices_cor1)[0][-1]
-        coord_bottom_coarse_cell = cor_c_bottom2
-        coord_top_coarse_cell = cor_c_top1
-        
-        
+        two_boxes = True
+                
     elif cor_c_top > size:
         cor_c_top = size
-        points_indices_cor, index_bottom_coarse_cell, index_top_coarse_cell, coord_bottom_coarse_cell, coord_top_coarse_cell = _select_points(cor_center, cor_c_bottom, cor_c_top, cor_top_defined = True)
-       
+        points_indices_cor = _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits, cor_top_defined = True)
+        two_boxes = False
+        
     else:
-        points_indices_cor, index_bottom_coarse_cell, index_top_coarse_cell, coord_bottom_coarse_cell, coord_top_coarse_cell = _select_points(cor_center, cor_c_bottom, cor_c_top)
+        points_indices_cor = _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits)
+        two_boxes = False
 
 #    #Find points of fine grid located just outside the coarse grid cell considered in iteration
 #    cor_bottom = cor_center[cor_center <= cor_c_bottom].max()
 #    cor_top = cor_center[cor_center >= cor_c_top].min()
     
     #Select all cells that are within coarse grid cell
-    cor_points = cor_center[points_indices_cor] #Note: cor_points includes the bottom boundary (cor_bottom), but not the top boundary (cor_top).
-	  
-    #Calculate weights for cor_points. Note that only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
-    weights = np.zeros(len(cor_points))
-    if len(cor_points) == 1:
+    cor_points = cor_center[points_indices_cor[:-1]] #NOTE: cor_points is one shorter than cor_edges, meaning last index point in array (i.e. [-1]) included earlier should be removed for correct selection cor_center.
+    
+    #Calculate weights for cor_points. 
+    #NOTE: only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell
+    #NOTE: since cor_center is one point shorter than cor_edges, the lengths of weights and points_indices_cor should be 1 longer. The additional point in points_indices_cor is already added via the _add_points function.
+    len_weights = len(np.where(points_indices_cor)[0])
+    weights = np.zeros(len_weights)
+    if len_weights == 1:
         weights = np.array([1])
+    
+    elif two_boxes: #Deal with the cases where the selected fine grid cells consist of two separate regions (which occurs when periodic bc are imposed and the center of the coarse grid cell is located on the bottom/top of the domain).
+        for i in range(len_weights):
+            if i == 0 and i == index_top_coarse_cell:
+                weights[i] = (cor_c_top1 - cor_c_bottom1)/(cor_c_top - cor_c_bottom)
+            elif i == 0:
+                weights[i] = (cor_points[i] - cor_c_bottom1)/(cor_c_top - cor_c_bottom)
+            elif i == index_top_coarse_cell:
+                weights[i] = (cor_c_top1 - cor_points[i-1])/(cor_c_top - cor_c_bottom)
+            elif i == (len_weights - 1) and i == index_bottom_coarse_cell:
+                weights[i] = (cor_c_top2 - cor_c_bottom2)/(cor_c_top - cor_c_bottom)
+            elif i == (len_weights - 1):
+                weights[i] = (cor_c_top2 - cor_points[i-1])/(cor_c_top - cor_c_bottom)
+            elif i == index_bottom_coarse_cell:
+                weights[i] = (cor_points[i] - cor_c_bottom2)/(cor_c_top - cor_c_bottom)
+            else:
+                weights[i] = (cor_points[i] - cor_points[i-1])/(cor_c_top - cor_c_bottom)
 
     else:
-        for i in range(len(cor_points)):
-            if i == index_bottom_coarse_cell:
-                weights[i] = (cor_points[i] - coord_bottom_coarse_cell)/(cor_c_top - cor_c_bottom)
-            elif i == index_top_coarse_cell:
-                weights[i] = (coord_top_coarse_cell - cor_points[i-1])/(cor_c_top - cor_c_bottom)
+        for i in range(len_weights):
+            if i == 0:
+                weights[i] = (cor_points[i] - cor_c_bottom)/(cor_c_top - cor_c_bottom)
+            elif i == (len_weights - 1):
+                weights[i] = (cor_c_top - cor_points[i-1])/(cor_c_top - cor_c_bottom)
             else:
                 weights[i] = (cor_points[i] - cor_points[i-1])/(cor_c_top - cor_c_bottom)
 
@@ -171,26 +221,26 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     #Read in the right coarse coordinates determined by bool_edge_gridcell.
     #z-direction
     if bool_edge_gridcell[0]:
-        zcor_c     = coarsegrid['grid']['zh']
+        zcor_c     = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend]
         dist_zc    = coarsegrid['grid']['zhdist']
     else:
-        zcor_c     = coarsegrid['grid']['z']
+        zcor_c     = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]
         dist_zc    = coarsegrid['grid']['zdist']
 
     #y-direction
     if bool_edge_gridcell[1]:
-        ycor_c     = coarsegrid['grid']['yh']
+        ycor_c     = coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend]
         dist_yc    = coarsegrid['grid']['yhdist']
     else:
-        ycor_c     = coarsegrid['grid']['y']
+        ycor_c     = coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend]
         dist_yc    = coarsegrid['grid']['ydist']
 
     #x-direction
     if bool_edge_gridcell[2]:
-        xcor_c     = coarsegrid['grid']['xh']
+        xcor_c     = coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]
         dist_xc    = coarsegrid['grid']['xhdist']
     else:
-        xcor_c     = coarsegrid['grid']['x']
+        xcor_c     = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]
         dist_xc    = coarsegrid['grid']['xdist']
         
     #Check that variable_name is a string
@@ -233,10 +283,10 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     for zcor_c_middle in zcor_c:
     #for izc in range(coarsegrid['grid']['ktot'])
         if bool_edge_gridcell[0]:
-            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, periodic_bc = periodic_bc[0], size = finegrid['grid']['zsize'])
+            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid, periodic_bc = periodic_bc[0], size = finegrid['grid']['zsize'])
             var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc:finegrid.khend, :, :]
         else:
-            weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc)
+            weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid)
             var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc:finegrid.kend, :, :]
 
         var_finez = var_finez[points_indices_z,:,:]
@@ -245,10 +295,10 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
 	
         for ycor_c_middle in ycor_c:
             if bool_edge_gridcell[1]:
-                weights_y, points_indices_y = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc, periodic_bc = periodic_bc[1], size = finegrid['grid']['ysize'])
+                weights_y, points_indices_y = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc, finegrid = finegrid, periodic_bc = periodic_bc[1], size = finegrid['grid']['ysize'])
                 var_finezy = var_finez[:, finegrid.jgc:finegrid.jhend,:]
             else:
-                weights_y, points_indices_y = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc)
+                weights_y, points_indices_y = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc, finegrid = finegrid)
                 var_finezy = var_finez[:, finegrid.jgc:finegrid.jend,:]
 
             var_finezy = var_finezy[:,points_indices_y,:]
@@ -257,11 +307,11 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
 				
             for xcor_c_middle in xcor_c:
                 if bool_edge_gridcell[2]:
-                    weights_x, points_indices_x = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc, periodic_bc = periodic_bc[2], size = finegrid['grid']['xsize'])
+                    weights_x, points_indices_x = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc, finegrid = finegrid, periodic_bc = periodic_bc[2], size = finegrid['grid']['xsize'])
                     var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.ihend]
                 else:
-                    weights_x, points_indices_x = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc)
-                    var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.ihend]
+                    weights_x, points_indices_x = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc, finegrid = finegrid)
+                    var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.iend]
                     
                 var_finezyx = var_finezyx[:,:,points_indices_x]
 

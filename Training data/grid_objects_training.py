@@ -31,7 +31,6 @@ class Finegrid:
         #Set correct precision and order of spatial interpolation with corresponding ghost cells
         self.prec  = tools._process_precision(precision)
         self.fourth_order = fourth_order
-        self.define_ghost_grid = True #Flag to ensure the grid with ghost cells is only initialized once.
         
         if self.fourth_order:
             self.igc = 3
@@ -149,6 +148,9 @@ class Finegrid:
         __read_coordinate(f, nbytes, self.var['grid']['ktot'], 'z')
         __read_coordinate(f, nbytes, self.var['grid']['ktot'], 'zh')
         f.close()
+        
+        #Add ghostcells to grid
+        self.__add_ghostcells_grid()
 
     def read_binary_variables(self, variable_name, timestep, bool_edge_gridcell = (False, False, False)):
         """ Read specified variable at a certain time step from binary files of a MicroHH simulation. Furthermore, ghost cells are added consistent with the specified order of spatial interpolation."""
@@ -204,6 +206,9 @@ class Finegrid:
         self.var['grid']['yh'] = self.__edgegrid_from_centergrid(self.var['grid']['y'], self.var['grid']['jtot'], sizey)
         self.var['grid']['zh'] = self.__edgegrid_from_centergrid(self.var['grid']['z'], self.var['grid']['ktot'], sizez)
         
+        #Add ghostcells to grid
+        self.__add_ghostcells_grid()
+        
         #Set define_grid_flag to True, such that the create_variables method can be executed
         self.define_grid_flag = True
 
@@ -249,9 +254,9 @@ class Finegrid:
         self.__add_ghostcells(variable_name)
         
     def __add_ghostcells(self, variable_name):
-        """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name, consistent with . 
+        """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name. 
             The samples at the end of the array are repeated at the beginning and vice versa. Furthermore, the ghostcells are added to the coordinates as well."""
-
+            
         #Check that variable_name is a string
         if not isinstance(variable_name, str):
             raise TypeError("Specified variable_name should be a string.")
@@ -277,17 +282,13 @@ class Finegrid:
         #Read variable from object
         s = self.var['output'][variable_name]['variable']
 
-        #Check that there are not more ghost cells than grid cells. 
-        if self.igc > (s.shape[2]) or self.jgc > (s.shape[1]) or self.kgc > (s.shape[0]):
-            raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
-
         #Determine size new output array including ghost cells
-        icells = s.shape[2] + 2*self.igc
-        jcells = s.shape[1] + 2*self.jgc
+        icells = self.var['grid']['itot'] + 2*self.igc
+        jcells = self.var['grid']['jtot'] + 2*self.jgc
       #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = s.shape[0] + 2*self.kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
         
-        #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independt of self.igc/jgc/kgc
+        #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independent of self.igc/jgc/kgc
         bkgc = 0
         bjgc = 0
         bigc = 0
@@ -298,70 +299,159 @@ class Finegrid:
         if self.var['output'][variable_name]['orientation'][2]:
             bigc = 1
 
-        self.siend = self.igc + s.shape[2] + bigc
-        self.sjend = self.jgc + s.shape[1] + bjgc
-        self.skend = self.kgc + s.shape[0] + bkgc
+        self.siend = self.igc + self.var['grid']['itot'] + bigc
+        self.sjend = self.jgc + self.var['grid']['jtot'] + bjgc
+        self.skend = self.kgc + self.var['grid']['ktot'] + bkgc
+        
+        #Check that there are not more ghost cells than grid cells. 
+        if (self.igc + bigc) > (s.shape[2]) or (self.jgc + bjgc) > (s.shape[1]) or (self.kgc + bkgc) > (s.shape[0]):
+            raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
         
         #Initialize new output array including ghost cells
         sgc = np.zeros((kcells+bkgc, jcells+bjgc, icells+bigc))
         
         #Fill new initialzid array including ghost cells
         sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy()
-        sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc:self.siend] #Add ghostcell upstream x-direction
+        sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc-bigc:self.siend-bigc] #Add ghostcell upstream x-direction
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction
-        sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc:self.sjend,:] #Add ghostcell upstream y-direction
+        sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc-bjgc:self.sjend-bjgc,:] #Add ghostcell upstream y-direction
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
-        sgc[0:self.kgc,:,:] = sgc[self.skend-self.kgc:self.skend,:,:] #Add ghostcell bottom z-direction
+        sgc[0:self.kgc,:,:] = sgc[self.skend-self.kgc-bkgc:self.skend-bkgc,:,:] #Add ghostcell bottom z-direction
         sgc[self.skend-bkgc:self.skend+self.kgc] = sgc[self.kgc:self.kgc+self.kgc+bkgc,:,:] #Add ghostcell top z-direction
 
         #Store new fields in object
         self.var['output'][variable_name]['variable'] = sgc
         
-        #Store new coordinates with ghost cells in object
-        if self.define_ghost_grid: #Make sure this is only done the first time to reduce runtime
+    def __add_ghostcells_grid(self):
+        '''Store new coordinates with ghost cells in object.'''
 
-            #Get original coordinates
-            z = self.var['grid']['z']
-            zh = self.var['grid']['zh']
-            y = self.var['grid']['y']
-            yh = self.var['grid']['yh']
-            x = self.var['grid']['x']
-            xh = self.var['grid']['xh']
+        #Get original coordinates
+        z = self.var['grid']['z']
+        zh = self.var['grid']['zh']
+        y = self.var['grid']['y']
+        yh = self.var['grid']['yh']
+        x = self.var['grid']['x']
+        xh = self.var['grid']['xh']
 
-            #Check that the grid center and grid edges arrays defined above have the same shape (which is an implicit assumption in the code below).
-            if (z.shape != zh.shape) or (y.shape != yh.shape) or (x.shape != xh.shape):
-                raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
+        #Check that the grid center and grid edges arrays defined above have the same shape (which is an implicit assumption in the code below).
+        if (z.shape != zh.shape) or (y.shape != yh.shape) or (x.shape != xh.shape):
+            raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
+        
+        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's.
+        if self.kgc > 0 and not self.periodic_bc[0]:
+            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
             
-            #Initialize new coordinates and store ghost cells in them
-            xgc = np.zeros(icells)
-            xhgc = np.zeros(icells+1)
-            ygc = np.zeros(jcells)
-            yhgc = np.zeros(jcells+1)
-            zgc = np.zeros(kcells)
-            zhgc = np.zeros(kcells+1)
-            
-            self.iend = self.igc + s.shape[2]
-            self.ihend = self.igc + s.shape[2] + 1
-            self.jend = self.jgc + s.shape[1]
-            self.jhend = self.jgc + s.shape[1] + 1
-            self.kend = self.kgc + s.shape[0]
-            self.khend = self.kgc + s.shape[0] + 1
-            
-            xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
-            xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
-            ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
-            yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
-            zgc  = self.__add_ghostcells_cor(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
-            zhgc = self.__add_ghostcells_cor(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
+        if self.jgc > 0 and not self.periodic_bc[1]:
+            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
-            self.var['grid']['z'] = zgc
-            self.var['grid']['zh'] = zhgc
-            self.var['grid']['y'] = ygc
-            self.var['grid']['yh'] = yhgc
-            self.var['grid']['x'] = xgc
-            self.var['grid']['xh'] = xhgc
-            self.define_ghost_grid = False
+        if self.igc > 0 and not self.periodic_bc[2]:
+            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
+        #Check that there are not more ghost cells than grid cells. 
+        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (self.kgc + 1) > (z.shape[0]):
+            raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
+        
+        #Determine size new output array including ghost cells
+        icells = self.var['grid']['itot'] + 2*self.igc
+        jcells = self.var['grid']['jtot'] + 2*self.jgc
+      #  kcells = self.var['grid']['ktot'] + 2*kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        
+        #Initialize new coordinates and store ghost cells in them
+        xgc = np.zeros(icells)
+        xhgc = np.zeros(icells+1)
+        ygc = np.zeros(jcells)
+        yhgc = np.zeros(jcells+1)
+        zgc = np.zeros(kcells)
+        zhgc = np.zeros(kcells+1)
+        
+        self.iend = self.igc + self.var['grid']['itot']
+        self.ihend = self.igc + self.var['grid']['itot'] + 1
+        self.jend = self.jgc + self.var['grid']['jtot']
+        self.jhend = self.jgc + self.var['grid']['jtot'] + 1
+        self.kend = self.kgc + self.var['grid']['ktot']
+        self.khend = self.kgc + self.var['grid']['ktot'] + 1
+        
+        xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
+        xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
+        ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
+        yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
+        zgc  = self.__add_ghostcells_cor(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
+        zhgc = self.__add_ghostcells_cor(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
+
+        self.var['grid']['z'] = zgc
+        self.var['grid']['zh'] = zhgc
+        self.var['grid']['y'] = ygc
+        self.var['grid']['yh'] = yhgc
+        self.var['grid']['x'] = xgc
+        self.var['grid']['xh'] = xhgc
+        
+    def __add_ghostcells_cor(self, corgc, bgc, gc, endindex, cor, size):
+        """ Add ghostcells to coordinates. """
+        corgc[gc:endindex-bgc] = cor[:]
+        if gc != 0:
+            corgc[0:gc] = 0 - (size - corgc[endindex-bgc-gc:endindex-bgc])
+        if (gc != 0) or (bgc != 0): 
+            corgc[endindex-bgc:endindex+gc] = size + corgc[gc:gc+gc+bgc]
+        return corgc
+    
+    def volume_integral(self, variable_name):
+        """ Return volume integral for variable specified by variable name. (Defined for testing purposes.)"""
+        
+        #Check that variable_name is a string
+        if not isinstance(variable_name, str):
+            raise TypeError("Specified variable_name should be a string.")
+        
+        #Check whether variable specified via variable_name is defined in object
+        if not variable_name in self.var['output'].keys():
+            raise KeyError("Specified variable_name not defined in object.")
+            
+        #Read in variable values and axes, remove ghostcells
+        #NOTE: because in the next section np.trapz only integrates over the range specified by the coordinates, it is needed that all coordinates have the same range. This is done below by copying values of the variable.
+        s = self.var['output'][variable_name]['variable']
+        
+        if self.var['output'][variable_name]['orientation'][0]:
+            z = self.var['grid']['zh'][self.kgc:self.khend]
+            s = s[self.kgc:self.khend,:,:].copy()
+        else:
+            z = self.var['grid']['z'][self.kgc:self.kend]
+            s = s[self.kgc:self.kend,:,:].copy()
+            z = np.insert(z, 0, 0.0)
+            z = np.append(z, self.var['grid']['zsize'])
+            s = np.insert(s, 0, s[0,:,:], axis = 0)
+            s = np.append(s, s[np.newaxis,-1,:,:], axis = 0)
+            
+        if self.var['output'][variable_name]['orientation'][1]:
+            y = self.var['grid']['yh'][self.jgc:self.jhend]
+            s = s[:,self.jgc:self.jhend,:].copy()
+        else:
+            y = self.var['grid']['y'][self.jgc:self.jend]
+            s = s[:,self.jgc:self.jend,:].copy()
+            y = np.insert(y, 0, 0.0)
+            y = np.append(y, self.var['grid']['ysize'])
+            s = np.insert(s, 0, s[:,0,:], axis = 1)
+            s = np.append(s, s[:,np.newaxis,-1,:], axis = 1)
+        
+        if self.var['output'][variable_name]['orientation'][2]:
+            x = self.var['grid']['xh'][self.igc:self.ihend]
+            s = s[:,:,self.igc:self.ihend].copy()
+        else:
+            x = self.var['grid']['x'][self.igc:self.iend]
+            s = s[:,:,self.igc:self.iend].copy()
+            x = np.insert(x, 0, 0.0)
+            x = np.append(x, self.var['grid']['xsize'])
+            s = np.insert(s, 0, s[:,:,0], axis = 2)
+            s = np.append(s, s[:,:,np.newaxis,-1], axis = 2)
+            
+        #Integrate over variable by applying the composite trapezoïdal rule for each coordinate separately
+        x_int = np.broadcast_to(x[np.newaxis,np.newaxis,:], (s.shape[0], s.shape[1], s.shape[2]))
+        s_intx = np.trapz(s, x_int, axis = -1)
+        y_int = np.broadcast_to(y[np.newaxis,:], (s.shape[0], s.shape[1]))
+        s_intyx = np.trapz(s_intx, y_int, axis = -1)
+        s_intzyx = np.trapz(s_intyx, z, axis = -1)
+        
+        return s_intzyx
+    
     def __edgegrid_from_centergrid(self, coord_center, len_coord, size_coord):
         """ Define coordinates corresponding to the grid walls from coordinates corresponding to the centers of the grid. """
 
@@ -371,15 +461,6 @@ class Finegrid:
         for i in range(1,len_coord):
             coord_edge[i] = coord_center[i-1] + 0.5 * dcoord[i-1]
         return coord_edge
-    
-    def __add_ghostcells_cor(self, corgc, bgc, gc, endindex, cor, size):
-        """ Add ghostcells to coordinates. """
-        corgc[gc:endindex-bgc] = cor[:]
-        if gc != 0:
-            corgc[0:gc] = 0 - (size - corgc[endindex-gc:endindex])
-        if (gc != 0) or (bgc != 0): 
-            corgc[endindex-bgc:endindex+gc] = size + corgc[gc:gc+gc+bgc]
-        return corgc
 
     def __getitem__(self, name):
         if name in self.var.keys():
@@ -441,9 +522,9 @@ class Coarsegrid:
         self.var['grid']['yh'], self.var['grid']['yhdist'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = False)
         self.var['grid']['z'] , self.var['grid']['zdist']  = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = True)
         self.var['grid']['zh'], self.var['grid']['zhdist'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = False)
-    
-        #Set flag for ghost grid, such that it is only created once
-        self.define_ghost_grid = True
+        
+        #Add ghostcells to grid
+        self.__add_ghostcells_grid()
         
     #Calculate new grid using the information stored above, assuming the grid is uniform
     def __define_coarsegrid(self, number_gridcells, gridsize, center_cell):
@@ -453,7 +534,7 @@ class Coarsegrid:
         if center_cell:
             coarsecoord, step = np.linspace(0.5*dist_coarsecoord, gridsize-0.5*dist_coarsecoord, number_gridcells, endpoint=True, retstep=True)
         else:
-            coarsecoord, step = np.linspace(0, gridsize, number_gridcells+1, endpoint=True, retstep=True)
+            coarsecoord, step = np.linspace(0, gridsize, number_gridcells, endpoint=False, retstep=True)
 
         return coarsecoord, step
     
@@ -475,9 +556,11 @@ class Coarsegrid:
         self.__add_ghostcells(variable_name)
             
     def __add_ghostcells(self, variable_name):
-        """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name, consistent with . 
+        """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name. 
             The samples at the end of the array are repeated at the beginning and vice versa. Furthermore, the ghostcells are added to the coordinates as well."""
 
+        #NOTE: slightly different from finegrid add_ghostcells method above, because here the additional points for the grid edges arrays are already added in the output field s. Remove them first to ensure added ghostcells are consistent.
+            
         #Check that variable_name is a string
         if not isinstance(variable_name, str):
             raise TypeError("Specified variable_name should be a string.")
@@ -503,100 +586,189 @@ class Coarsegrid:
         #Read variable from object
         s = self.var['output'][variable_name]['variable']
 
-        #Check that there are not more ghost cells than grid cells. 
-        if self.igc > (s.shape[2]) or self.jgc > (s.shape[1]) or self.kgc > (s.shape[0]):
-            raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
-
         #Determine size new output array including ghost cells
-        icells = s.shape[2] + 2*self.igc
-        jcells = s.shape[1] + 2*self.jgc
+        icells = self.var['grid']['itot'] + 2*self.igc
+        jcells = self.var['grid']['jtot'] + 2*self.jgc
       #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = s.shape[0] + 2*self.kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
         
-        #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independt of self.igc/jgc/kgc
+        #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independent of self.igc/jgc/kgc
         bkgc = 0
         bjgc = 0
         bigc = 0
         if self.var['output'][variable_name]['orientation'][0]:
             bkgc = 1
+            s = s[:-1,:,:].copy()
         if self.var['output'][variable_name]['orientation'][1]:
             bjgc = 1
+            s = s[:,:-1,:].copy()
         if self.var['output'][variable_name]['orientation'][2]:
             bigc = 1
+            s = s[:,:,:-1].copy()
 
-        self.siend = self.igc + s.shape[2] + bigc
-        self.sjend = self.jgc + s.shape[1] + bjgc
-        self.skend = self.kgc + s.shape[0] + bkgc
+        self.siend = self.igc + self.var['grid']['itot'] + bigc
+        self.sjend = self.jgc + self.var['grid']['jtot'] + bjgc
+        self.skend = self.kgc + self.var['grid']['ktot'] + bkgc
+        
+        #Check that there are not more ghost cells than grid cells. 
+        if (self.igc + bigc) > (s.shape[2]) or (self.jgc + bjgc) > (s.shape[1]) or (self.kgc + bkgc) > (s.shape[0]):
+            raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
         
         #Initialize new output array including ghost cells
         sgc = np.zeros((kcells+bkgc, jcells+bjgc, icells+bigc))
         
         #Fill new initialzid array including ghost cells
         sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy()
-        sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc:self.siend] #Add ghostcell upstream x-direction
+        sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc-bigc:self.siend-bigc] #Add ghostcell upstream x-direction
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction
-        sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc:self.sjend,:] #Add ghostcell upstream y-direction
+        sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc-bjgc:self.sjend-bjgc,:] #Add ghostcell upstream y-direction
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
-        sgc[0:self.kgc,:,:] = sgc[self.skend-self.kgc:self.skend,:,:] #Add ghostcell bottom z-direction
+        sgc[0:self.kgc,:,:] = sgc[self.skend-self.kgc-bkgc:self.skend-bkgc,:,:] #Add ghostcell bottom z-direction
         sgc[self.skend-bkgc:self.skend+self.kgc] = sgc[self.kgc:self.kgc+self.kgc+bkgc,:,:] #Add ghostcell top z-direction
 
         #Store new fields in object
         self.var['output'][variable_name]['variable'] = sgc
         
-        #Store new coordinates with ghost cells in object
-        if self.define_ghost_grid: #Make sure this is only done the first time to reduce runtime
+    def __add_ghostcells_grid(self):
+        '''Store new coordinates with ghost cells in object.'''
 
-            #Get original coordinates
-            z = self.var['grid']['z']
-            zh = self.var['grid']['zh']
-            y = self.var['grid']['y']
-            yh = self.var['grid']['yh']
-            x = self.var['grid']['x']
-            xh = self.var['grid']['xh']
+        #Get original coordinates
+        z = self.var['grid']['z']
+        zh = self.var['grid']['zh']
+        y = self.var['grid']['y']
+        yh = self.var['grid']['yh']
+        x = self.var['grid']['x']
+        xh = self.var['grid']['xh']
 
-            #Check that the grid center and grid edges arrays defined above have the same shape (which is an implicit assumption in the code below).
-            if (z.shape != zh.shape) or (y.shape != yh.shape) or (x.shape != xh.shape):
-                raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
+        #Check that the grid center and grid edges arrays defined above have the same shape (which is an implicit assumption in the code below).
+        if (z.shape != zh.shape) or (y.shape != yh.shape) or (x.shape != xh.shape):
+            raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
+        
+        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's.
+        if self.kgc > 0 and not self.periodic_bc[0]:
+            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
             
-            #Initialize new coordinates and store ghost cells in them
-            xgc = np.zeros(icells)
-            xhgc = np.zeros(icells+1)
-            ygc = np.zeros(jcells)
-            yhgc = np.zeros(jcells+1)
-            zgc = np.zeros(kcells)
-            zhgc = np.zeros(kcells+1)
-            
-            self.iend = self.igc + s.shape[2]
-            self.ihend = self.igc + s.shape[2] + 1
-            self.jend = self.jgc + s.shape[1]
-            self.jhend = self.jgc + s.shape[1] + 1
-            self.kend = self.kgc + s.shape[0]
-            self.khend = self.kgc + s.shape[0] + 1
-            
-            xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
-            xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
-            ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
-            yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
-            zgc  = self.__add_ghostcells_cor(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
-            zhgc = self.__add_ghostcells_cor(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
+        if self.jgc > 0 and not self.periodic_bc[1]:
+            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
-            self.var['grid']['z'] = zgc
-            self.var['grid']['zh'] = zhgc
-            self.var['grid']['y'] = ygc
-            self.var['grid']['yh'] = yhgc
-            self.var['grid']['x'] = xgc
-            self.var['grid']['xh'] = xhgc
-            self.define_ghost_grid = False
+        if self.igc > 0 and not self.periodic_bc[2]:
+            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
+        #Check that there are not more ghost cells than grid cells. 
+        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (self.kgc + 1) > (z.shape[0]):
+            raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
+        
+        #Determine size new output array including ghost cells
+        icells = self.var['grid']['itot'] + 2*self.igc
+        jcells = self.var['grid']['jtot'] + 2*self.jgc
+      #  kcells = self.var['grid']['ktot'] + 2*kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        
+        #Initialize new coordinates and store ghost cells in them
+        xgc = np.zeros(icells)
+        xhgc = np.zeros(icells+1)
+        ygc = np.zeros(jcells)
+        yhgc = np.zeros(jcells+1)
+        zgc = np.zeros(kcells)
+        zhgc = np.zeros(kcells+1)
+        
+        self.iend = self.igc + self.var['grid']['itot']
+        self.ihend = self.igc + self.var['grid']['itot'] + 1
+        self.jend = self.jgc + self.var['grid']['jtot']
+        self.jhend = self.jgc + self.var['grid']['jtot'] + 1
+        self.kend = self.kgc + self.var['grid']['ktot']
+        self.khend = self.kgc + self.var['grid']['ktot'] + 1
+        
+        xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
+        xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
+        ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
+        yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
+        zgc  = self.__add_ghostcells_cor(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
+        zhgc = self.__add_ghostcells_cor(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
+
+        self.var['grid']['z'] = zgc
+        self.var['grid']['zh'] = zhgc
+        self.var['grid']['y'] = ygc
+        self.var['grid']['yh'] = yhgc
+        self.var['grid']['x'] = xgc
+        self.var['grid']['xh'] = xhgc
+        self.define_ghost_grid = False
         
     def __add_ghostcells_cor(self, corgc, bgc, gc, endindex, cor, size):
         """ Add ghostcells to coordinates. """
         corgc[gc:endindex-bgc] = cor[:]
         if gc != 0:
-            corgc[0:gc] = 0 - (size - corgc[endindex-gc:endindex])
+            corgc[0:gc] = 0 - (size - corgc[endindex-bgc-gc:endindex-bgc])
         if (gc != 0) or (bgc != 0): 
             corgc[endindex-bgc:endindex+gc] = size + corgc[gc:gc+gc+bgc]
         return corgc
+    
+    def volume_integral(self, variable_name):
+        """ Return volume integral for variable specified by variable name. (Defined for testing purposes.)"""
+        
+        #Check that variable_name is a string
+        if not isinstance(variable_name, str):
+            raise TypeError("Specified variable_name should be a string.")
+        
+        #Check whether variable specified via variable_name is defined in object
+        if not variable_name in self.var['output'].keys():
+            raise KeyError("Specified variable_name not defined in object.")
+            
+        #Read in variable values and axes, remove ghostcells
+        #NOTE: because in the next section np.trapz only integrates over the range specified by the coordinates, it is needed that all coordinates have the same range. This is done below by copying values of the variable.
+        s = self.var['output'][variable_name]['variable']
+        
+        if self.var['output'][variable_name]['orientation'][0]:
+            z = self.var['grid']['zh'][self.kgc:self.khend]
+            s = s[self.kgc:self.khend,:,:].copy()
+        else:
+            z = self.var['grid']['z'][self.kgc:self.kend]
+            s = s[self.kgc:self.kend,:,:].copy()
+            z = np.insert(z, 0, 0.0)
+            z = np.append(z, self.var['grid']['zsize'])
+            s = np.insert(s, 0, s[0,:,:], axis = 0)
+            s = np.append(s, s[np.newaxis,-1,:,:], axis = 0)
+            
+        if self.var['output'][variable_name]['orientation'][1]:
+            y = self.var['grid']['yh'][self.jgc:self.jhend]
+            s = s[:,self.jgc:self.jhend,:].copy()
+        else:
+            y = self.var['grid']['y'][self.jgc:self.jend]
+            s = s[:,self.jgc:self.jend,:].copy()
+            y = np.insert(y, 0, 0.0)
+            y = np.append(y, self.var['grid']['ysize'])
+            s = np.insert(s, 0, s[:,0,:], axis = 1)
+            s = np.append(s, s[:,np.newaxis,-1,:], axis = 1)
+        
+        if self.var['output'][variable_name]['orientation'][2]:
+            x = self.var['grid']['xh'][self.igc:self.ihend]
+            s = s[:,:,self.igc:self.ihend].copy()
+        else:
+            x = self.var['grid']['x'][self.igc:self.iend]
+            s = s[:,:,self.igc:self.iend].copy()
+            x = np.insert(x, 0, 0.0)
+            x = np.append(x, self.var['grid']['xsize'])
+            s = np.insert(s, 0, s[:,:,0], axis = 2)
+            s = np.append(s, s[:,:,np.newaxis,-1], axis = 2)
+            
+        #Integrate over variable by applying the composite trapezoïdal rule for each coordinate separately
+        x_int = np.broadcast_to(x[np.newaxis,np.newaxis,:], (s.shape[0], s.shape[1], s.shape[2]))
+        s_intx = np.trapz(s, x_int, axis = -1)
+        y_int = np.broadcast_to(y[np.newaxis,:], (s.shape[0], s.shape[1]))
+        s_intyx = np.trapz(s_intx, y_int, axis = -1)
+        s_intzyx = np.trapz(s_intyx, z, axis = -1)
+        
+        return s_intzyx
+    
+    def __edgegrid_from_centergrid(self, coord_center, len_coord, size_coord):
+        """ Define coordinates corresponding to the grid walls from coordinates corresponding to the centers of the grid. """
+
+        dcoord = coord_center[1:] - coord_center[:-1]
+        coord_edge = np.empty(len_coord)
+        coord_edge[0] = 0
+        for i in range(1,len_coord):
+            coord_edge[i] = coord_center[i-1] + 0.5 * dcoord[i-1]
+        return coord_edge
  
     def __getitem__(self, name):
         if name in self.var.keys():
