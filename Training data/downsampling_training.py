@@ -87,12 +87,12 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
     #Define function that selects correct points for coarse grid cells where periodic bc are not used for the downsampling from the fine grid.
     def _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits, cor_bottom_defined = False, cor_top_defined = False):
 
-        if not cor_bottom_defined:
+        if not cor_bottom_defined and np.any(cor_center <= cor_c_bottom):
             cor_bottom = np.round(cor_center[cor_center <= cor_c_bottom].max(), sgn_digits)
         else:
             cor_bottom = cor_c_bottom
             
-        if not cor_top_defined:
+        if (not cor_top_defined) and np.any(cor_center >= cor_c_top):
             cor_top = np.round(cor_center[cor_center >= cor_c_top].min(), sgn_digits)
         else:
             cor_top = cor_c_top
@@ -221,10 +221,10 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     #Read in the right coarse coordinates determined by bool_edge_gridcell.
     #z-direction
     if bool_edge_gridcell[0]:
-        zcor_c     = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend]
+        zcor_c     = coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend]
         dist_zc    = coarsegrid['grid']['zhdist']
     else:
-        zcor_c     = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]
+        zcor_c     = coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend]
         dist_zc    = coarsegrid['grid']['zdist']
 
     #y-direction
@@ -283,11 +283,11 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     for zcor_c_middle in zcor_c:
     #for izc in range(coarsegrid['grid']['ktot'])
         if bool_edge_gridcell[0]:
-            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid, periodic_bc = periodic_bc[0], size = finegrid['grid']['zsize'])
-            var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc:finegrid.khend, :, :]
+            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid, periodic_bc = periodic_bc[0], size = finegrid['grid']['zsize'])
+            var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_edge:finegrid.khend, :, :]
         else:
-            weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid)
-            var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc:finegrid.kend, :, :]
+            weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid)
+            var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_center:finegrid.kend, :, :]
 
         var_finez = var_finez[points_indices_z,:,:]
 

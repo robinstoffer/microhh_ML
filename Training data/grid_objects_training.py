@@ -26,20 +26,32 @@ class Finegrid:
          When read_grid flag is False, specifiy explicitly (using keywords) each spatial coordinate (coordz,coordy,coordx) as a 1d numpy array, e.g. Finegrid(read_grid_flag = False, coordx = np.array([1,2,3]),xsize = 4, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7, coordz = np.array([0.1,0.3,1]), zsize = 1.2).
          Furthermore, for each spatial dimension the length should be indicated (zsize,ysize,xsize), which has to be larger than the last spatial coordinate in each dimension. 
          Each coordinate should 1) refer to the center of the grid cell, 2) be larger than 0, 3) be larger than the previous coordinate in the same direction."""
-    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), **kwargs):
-
+    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), no_slip = True, **kwargs):
+        
+        # Test whether types of input variables are correct.
+        if not isinstance(read_grid_flag, bool):
+            raise TypeError('The fourth_order flag should be a boolean (True/False).')
+        if not isinstance(fourth_order, bool):
+            raise TypeError('The fourth_order flag should be a boolean (True/False).')
+        if not isinstance(no_slip, bool):
+            raise TypeError('The no_slip flag should be a boolean (True/False).')
+            
         #Set correct precision and order of spatial interpolation with corresponding ghost cells
         self.prec  = tools._process_precision(precision)
         self.fourth_order = fourth_order
+        self.no_slip = no_slip
         
         if self.fourth_order:
-            self.igc = 3
-            self.jgc = 3
-            self.kgc = 0
+            #self.igc = 3
+            #self.jgc = 3
+            #self.kgc_center = 3
+            #self.kgc_edge = 0
+            raise RuntimeError('Fourth order interpolation is currently not yet implemented in this script, only second order interpolation. If the user wants to implement fourth order interpolation, the code that adds the ghost cells in the vertical direction needs to be changed (where no periodic boundary conditions can be assumed).')
         else:
             self.igc = 1
             self.jgc = 1
-            self.kgc = 0
+            self.kgc_center = 1 #Although in the vertical direction no periodic_bc is usually assumed, you can make use of the boundary bc that w = 0.
+            self.kgc_edge = 0
 
         #Define empty dictionary to store grid and variables
         self.var = {}
@@ -57,6 +69,9 @@ class Finegrid:
         if not any(isinstance(flag, bool) for flag in periodic_bc):
             raise ValueError("Periodic_bc should be a tuple with length 3 (z, y, x), and consist only of booleans.")
         
+        if periodic_bc[0]:
+            raise RuntimeError("In the vertical direction the periodic BC's cannot be imposed in this script.  Add additional functionality to this script if needed.")
+        
         self.periodic_bc = periodic_bc
 
         #Read or define the grid depending on read_grid_flag
@@ -72,26 +87,36 @@ class Finegrid:
             self.read_grid_flag = False
             self.define_grid_flag = False
             try:
-                def __checks_coord(coord_name, dim):
-                    if not(np.all(kwargs[coord_name][1:] > kwargs[coord_name][:-1]) and np.all(kwargs[coord_name][:] > 0) and \
+                def __checks_coord(coord_name, dim, uniform):
+                    diff_coord = kwargs[coord_name][1:] - kwargs[coord_name][:-1]
+                    if not(np.all(diff_coord > 0) and np.all(kwargs[coord_name][:] > 0) and \
                     (len(kwargs[coord_name][:].shape) == 1)):
-                        raise ValueError("The coordinates should be 1-dimensional, strictly increasing, and consist of positive values only.") 
-                    else:
-                        self.var['grid'][dim] = kwargs[coord_name]
+                        raise ValueError("The coordinates should be 1-dimensional, strictly increasing, and consist of positive values only.")
+                    
+                    if not (len(kwargs[coord_name]) == 1): #Test whether the grid is uniform only when the coordinate exists of more than one grid cell.
+                        if uniform and (np.any(diff_coord != diff_coord[0])):
+                            raise ValueError("The coordinates in the x- and y-direction should be uniform.")
+                            
+                    self.var['grid'][dim] = kwargs[coord_name]
 
-                __checks_coord('coordx', 'x')
-                __checks_coord('coordy', 'y')
-                __checks_coord('coordz', 'z')
+                __checks_coord('coordx', 'x', True)
+                __checks_coord('coordy', 'y', True)
+                __checks_coord('coordz', 'z', False)
 
-                def __checks_size(size_name, coord_name):
+                def __checks_size(size_name, coord_name, uniform):
+                    diff_coord = kwargs[coord_name][1:] - kwargs[coord_name][:-1]
                     if not kwargs[size_name] > kwargs[coord_name][-1]:
                         raise ValueError("The length of the coordinate should be larger than the last coordinate.")
-                    else: 
-                        self.var['grid'][size_name] = kwargs[size_name]
+                    
+                    if not (len(kwargs[coord_name]) == 1): #Test whether the grid is uniform only when the coordinate exists of more than one grid cell.
+                        if uniform and ((kwargs[size_name] - kwargs[coord_name][-1]) != (0.5*diff_coord[0])):
+                            raise ValueError("The coordinates in the x- and y-direction should be uniform, which should also be taken into account when defining the sizes of the grid.")
+ 
+                    self.var['grid'][size_name] = kwargs[size_name]
 
-                __checks_size('xsize', 'coordx')
-                __checks_size('ysize', 'coordy')
-                __checks_size('zsize', 'coordz')
+                __checks_size('xsize', 'coordx', True)
+                __checks_size('ysize', 'coordy', True)
+                __checks_size('zsize', 'coordz', False)
 
             except KeyError:
                 print("The needed arguments were not correctly specified. Make sure that coordx, coordy and coordz are assinged to a 1d numpy array.")
@@ -266,12 +291,15 @@ class Finegrid:
             raise KeyError("Specified variable_name not defined in object.")
 
         #Check that ghost cells are not negative
-        if self.jgc < 0 or self.igc < 0 or self.kgc < 0:
+        if self.jgc < 0 or self.igc < 0 or self.kgc_center < 0 or self.kgc_edge < 0:
             raise ValueError("The specified number of ghostcells cannot be negative.")
             
-        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's.
-        if self.kgc > 0 and not self.periodic_bc[0]:
-            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
+        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
+        if self.kgc_edge > 0 and (not self.periodic_bc[0]):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+        
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
             
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
@@ -281,19 +309,15 @@ class Finegrid:
 
         #Read variable from object
         s = self.var['output'][variable_name]['variable']
-
-        #Determine size new output array including ghost cells
-        icells = self.var['grid']['itot'] + 2*self.igc
-        jcells = self.var['grid']['jtot'] + 2*self.jgc
-      #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = self.var['grid']['ktot'] + 2*self.kgc
         
         #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independent of self.igc/jgc/kgc
+        self.kgc = self.kgc_center
         bkgc = 0
         bjgc = 0
         bigc = 0
         if self.var['output'][variable_name]['orientation'][0]:
             bkgc = 1
+            self.kgc = self.kgc_edge
         if self.var['output'][variable_name]['orientation'][1]:
             bjgc = 1
         if self.var['output'][variable_name]['orientation'][2]:
@@ -303,6 +327,12 @@ class Finegrid:
         self.sjend = self.jgc + self.var['grid']['jtot'] + bjgc
         self.skend = self.kgc + self.var['grid']['ktot'] + bkgc
         
+        #Determine size new output array including ghost cells
+        icells = self.var['grid']['itot'] + 2*self.igc
+        jcells = self.var['grid']['jtot'] + 2*self.jgc
+      #  kcells = self.var['grid']['ktot'] + 2*kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        
         #Check that there are not more ghost cells than grid cells. 
         if (self.igc + bigc) > (s.shape[2]) or (self.jgc + bjgc) > (s.shape[1]) or (self.kgc + bkgc) > (s.shape[0]):
             raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
@@ -310,15 +340,18 @@ class Finegrid:
         #Initialize new output array including ghost cells
         sgc = np.zeros((kcells+bkgc, jcells+bjgc, icells+bigc))
         
-        #Fill new initialzid array including ghost cells
+        #Fill new initialzid array including ghost cells for horizontal directions
         sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy()
         sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc-bigc:self.siend-bigc] #Add ghostcell upstream x-direction
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction
         sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc-bjgc:self.sjend-bjgc,:] #Add ghostcell upstream y-direction
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
-        sgc[0:self.kgc,:,:] = sgc[self.skend-self.kgc-bkgc:self.skend-bkgc,:,:] #Add ghostcell bottom z-direction
-        sgc[self.skend-bkgc:self.skend+self.kgc] = sgc[self.kgc:self.kgc+self.kgc+bkgc,:,:] #Add ghostcell top z-direction
-
+        if self.kgc == 1:
+            sgc[0:self.kgc,:,:] = 0 - sgc[self.kgc,:,:] #Add ghostcell bottom z-direction
+            sgc[self.skend,:,:] = 0 - sgc[self.skend-1,:,:] #Add ghostcell top z-direction
+        if bkgc == 1:
+            sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction
+        
         #Store new fields in object
         self.var['output'][variable_name]['variable'] = sgc
         
@@ -337,10 +370,13 @@ class Finegrid:
         if (z.shape != zh.shape) or (y.shape != yh.shape) or (x.shape != xh.shape):
             raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
         
-        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's.
-        if self.kgc > 0 and not self.periodic_bc[0]:
-            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
-            
+        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
+        if self.kgc_edge > 0 and (not self.periodic_bc[0]):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+        
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+                
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
@@ -348,14 +384,15 @@ class Finegrid:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
         #Check that there are not more ghost cells than grid cells. 
-        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (self.kgc + 1) > (z.shape[0]):
+        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (max(self.kgc_center, self.kgc_edge) + 1) > (z.shape[0]):
             raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
         
         #Determine size new output array including ghost cells
         icells = self.var['grid']['itot'] + 2*self.igc
         jcells = self.var['grid']['jtot'] + 2*self.jgc
       #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc_center
+        khcells = self.var['grid']['ktot'] + 2*self.kgc_edge 
         
         #Initialize new coordinates and store ghost cells in them
         xgc = np.zeros(icells)
@@ -363,21 +400,21 @@ class Finegrid:
         ygc = np.zeros(jcells)
         yhgc = np.zeros(jcells+1)
         zgc = np.zeros(kcells)
-        zhgc = np.zeros(kcells+1)
+        zhgc = np.zeros(khcells+1)
         
         self.iend = self.igc + self.var['grid']['itot']
         self.ihend = self.igc + self.var['grid']['itot'] + 1
         self.jend = self.jgc + self.var['grid']['jtot']
         self.jhend = self.jgc + self.var['grid']['jtot'] + 1
-        self.kend = self.kgc + self.var['grid']['ktot']
-        self.khend = self.kgc + self.var['grid']['ktot'] + 1
+        self.kend = self.kgc_center + self.var['grid']['ktot']
+        self.khend = self.kgc_edge + self.var['grid']['ktot'] + 1
         
         xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
         xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
         ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
         yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
-        zgc  = self.__add_ghostcells_cor(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
-        zhgc = self.__add_ghostcells_cor(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
+        zgc  = self.__add_ghostcells_cor_ver(zgc , 0,  self.kgc_center, self.kend , z,  self.var['grid']['zsize'])
+        zhgc = self.__add_ghostcells_cor_ver(zhgc, 1,  self.kgc_edge, self.khend, zh, self.var['grid']['zsize'])
 
         self.var['grid']['z'] = zgc
         self.var['grid']['zh'] = zhgc
@@ -395,6 +432,18 @@ class Finegrid:
             corgc[endindex-bgc:endindex+gc] = size + corgc[gc:gc+gc+bgc]
         return corgc
     
+    def __add_ghostcells_cor_ver(self, corgc, bgc, gc, endindex, cor, size):
+        """ Add 0 or 1 ghostcell to coordinates corresponding to the vertical direction, making use of the no-slip BC. """
+        corgc[gc:endindex-bgc] = cor[:]
+        if not (gc == 0 or gc == 1):
+            raise RuntimeError("Number of ghost cells to be added in vertical direction not consistent with specified BC's.")
+        if gc == 1:
+            corgc[0] = 0 - cor[0]
+            corgc[endindex] = size + (size - corgc[endindex-1])
+        if bgc == 1: 
+            corgc[endindex-bgc] = size
+        return corgc
+    
     def volume_integral(self, variable_name):
         """ Return volume integral for variable specified by variable name. (Defined for testing purposes.)"""
         
@@ -406,49 +455,50 @@ class Finegrid:
         if not variable_name in self.var['output'].keys():
             raise KeyError("Specified variable_name not defined in object.")
             
-        #Read in variable values and axes, remove ghostcells
+        #Read in variable values and axes, remove ghostcells, calculate grid distances for integration
         #NOTE: because in the next section np.trapz only integrates over the range specified by the coordinates, it is needed that all coordinates have the same range. This is done below by copying values of the variable.
         s = self.var['output'][variable_name]['variable']
         
         if self.var['output'][variable_name]['orientation'][0]:
-            z = self.var['grid']['zh'][self.kgc:self.khend]
-            s = s[self.kgc:self.khend,:,:].copy()
+            s = s[self.kgc_edge:self.khend,:,:].copy()
+            z_alt = self.var['grid']['z'][self.kgc_center:self.kend]
+            z_diff = z_alt[1:] - z_alt[:-1]
+            z_diff = np.insert(z_diff, 0, z_alt[0])
+            z_diff = np.append(z_diff, self.var['grid']['zsize'] - z_alt[-1])
+            
         else:
-            z = self.var['grid']['z'][self.kgc:self.kend]
-            s = s[self.kgc:self.kend,:,:].copy()
-            z = np.insert(z, 0, 0.0)
-            z = np.append(z, self.var['grid']['zsize'])
-            s = np.insert(s, 0, s[0,:,:], axis = 0)
-            s = np.append(s, s[np.newaxis,-1,:,:], axis = 0)
+            s = s[self.kgc_center:self.kend,:,:].copy()
+            z_alt = self.var['grid']['zh'][self.kgc_edge:self.khend]
+            z_diff = z_alt[1:] - z_alt[:-1]
             
         if self.var['output'][variable_name]['orientation'][1]:
-            y = self.var['grid']['yh'][self.jgc:self.jhend]
             s = s[:,self.jgc:self.jhend,:].copy()
+            y_alt = self.var['grid']['y'][self.jgc:self.jend]
+            y_diff = y_alt[1:] - y_alt[:-1]
+            y_diff = np.insert(y_diff, 0, y_alt[0])
+            y_diff = np.append(y_diff, self.var['grid']['ysize'] - y_alt[-1])
+            
         else:
-            y = self.var['grid']['y'][self.jgc:self.jend]
             s = s[:,self.jgc:self.jend,:].copy()
-            y = np.insert(y, 0, 0.0)
-            y = np.append(y, self.var['grid']['ysize'])
-            s = np.insert(s, 0, s[:,0,:], axis = 1)
-            s = np.append(s, s[:,np.newaxis,-1,:], axis = 1)
+            y_alt = self.var['grid']['yh'][self.jgc:self.jhend]
+            y_diff = y_alt[1:] - y_alt[:-1]
         
         if self.var['output'][variable_name]['orientation'][2]:
-            x = self.var['grid']['xh'][self.igc:self.ihend]
             s = s[:,:,self.igc:self.ihend].copy()
-        else:
-            x = self.var['grid']['x'][self.igc:self.iend]
-            s = s[:,:,self.igc:self.iend].copy()
-            x = np.insert(x, 0, 0.0)
-            x = np.append(x, self.var['grid']['xsize'])
-            s = np.insert(s, 0, s[:,:,0], axis = 2)
-            s = np.append(s, s[:,:,np.newaxis,-1], axis = 2)
+            x_alt = self.var['grid']['x'][self.igc:self.iend]
+            x_diff = x_alt[1:] - x_alt[:-1]
+            x_diff = np.insert(x_diff, 0, x_alt[0])
+            x_diff = np.append(x_diff, self.var['grid']['xsize'] - x_alt[-1])
             
-        #Integrate over variable by applying the composite trapezoïdal rule for each coordinate separately
-        x_int = np.broadcast_to(x[np.newaxis,np.newaxis,:], (s.shape[0], s.shape[1], s.shape[2]))
-        s_intx = np.trapz(s, x_int, axis = -1)
-        y_int = np.broadcast_to(y[np.newaxis,:], (s.shape[0], s.shape[1]))
-        s_intyx = np.trapz(s_intx, y_int, axis = -1)
-        s_intzyx = np.trapz(s_intyx, z, axis = -1)
+        else:
+            s = s[:,:,self.igc:self.iend].copy()
+            x_alt = self.var['grid']['xh'][self.igc:self.ihend]
+            x_diff = x_alt[1:] - x_alt[:-1]
+            
+        #Integrate over variable by multiplying with the corresponding grid distances and subsequent summing.
+        s_intx = np.tensordot(s, z_diff, axes = (0,0))
+        s_intyx = np.tensordot(s_intx, y_diff, axes = (0,0))
+        s_intzyx = np.tensordot(s_intyx, x_diff, axes = (0,0))
         
         return s_intzyx
     
@@ -497,11 +547,13 @@ class Coarsegrid:
         self.var['output'] = {} #After the coarsegrid object is created, output can be stored here. This is done in the script func_generate_training.py.
         self.igc = self.finegrid.igc
         self.jgc = self.finegrid.jgc
-        self.kgc = self.finegrid.kgc
+        self.kgc_center = self.finegrid.kgc_center
+        self.kgc_edge = self.finegrid.kgc_edge
         self.periodic_bc = self.finegrid.periodic_bc
+        self.no_slip = self.finegrid.no_slip
 
         #Boundary condition: the resolution of the coarse grid should indeed be coarser than the fine resolution
-        if not (nz < finegrid_object['grid']['ktot'] and ny < finegrid_object['grid']['jtot'] and nx < finegrid_object['grid']['itot']):
+        if not (nz <= finegrid_object['grid']['ktot'] and ny <= finegrid_object['grid']['jtot'] and nx <= finegrid_object['grid']['itot']):
             raise ValueError("The resolution of the coarse grid should be coarser than the fine resolution contained in the Finegrid object.")        
 
         self.var['grid']['ktot'] = nz
@@ -558,8 +610,6 @@ class Coarsegrid:
     def __add_ghostcells(self, variable_name):
         """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name. 
             The samples at the end of the array are repeated at the beginning and vice versa. Furthermore, the ghostcells are added to the coordinates as well."""
-
-        #NOTE: slightly different from finegrid add_ghostcells method above, because here the additional points for the grid edges arrays are already added in the output field s. Remove them first to ensure added ghostcells are consistent.
             
         #Check that variable_name is a string
         if not isinstance(variable_name, str):
@@ -570,12 +620,15 @@ class Coarsegrid:
             raise KeyError("Specified variable_name not defined in object.")
 
         #Check that ghost cells are not negative
-        if self.jgc < 0 or self.igc < 0 or self.kgc < 0:
+        if self.jgc < 0 or self.igc < 0 or self.kgc_center < 0 or self.kgc_edge < 0:
             raise ValueError("The specified number of ghostcells cannot be negative.")
             
-        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's.
-        if self.kgc > 0 and not self.periodic_bc[0]:
-            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
+        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
+        if self.kgc_edge > 0 and (not self.periodic_bc[0]):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+        
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
             
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
@@ -585,20 +638,16 @@ class Coarsegrid:
 
         #Read variable from object
         s = self.var['output'][variable_name]['variable']
-
-        #Determine size new output array including ghost cells
-        icells = self.var['grid']['itot'] + 2*self.igc
-        jcells = self.var['grid']['jtot'] + 2*self.jgc
-      #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = self.var['grid']['ktot'] + 2*self.kgc
         
         #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independent of self.igc/jgc/kgc
+        self.kgc = self.kgc_center
         bkgc = 0
         bjgc = 0
         bigc = 0
         if self.var['output'][variable_name]['orientation'][0]:
             bkgc = 1
-            s = s[:-1,:,:].copy()
+            self.kgc = self.kgc_edge
+            #s = s[:-1,:,:].copy() NOTE: This line should NOT be commented out in case of periodic BC
         if self.var['output'][variable_name]['orientation'][1]:
             bjgc = 1
             s = s[:,:-1,:].copy()
@@ -610,6 +659,12 @@ class Coarsegrid:
         self.sjend = self.jgc + self.var['grid']['jtot'] + bjgc
         self.skend = self.kgc + self.var['grid']['ktot'] + bkgc
         
+        #Determine size new output array including ghost cells
+        icells = self.var['grid']['itot'] + 2*self.igc
+        jcells = self.var['grid']['jtot'] + 2*self.jgc
+      #  kcells = self.var['grid']['ktot'] + 2*kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        
         #Check that there are not more ghost cells than grid cells. 
         if (self.igc + bigc) > (s.shape[2]) or (self.jgc + bjgc) > (s.shape[1]) or (self.kgc + bkgc) > (s.shape[0]):
             raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
@@ -617,15 +672,20 @@ class Coarsegrid:
         #Initialize new output array including ghost cells
         sgc = np.zeros((kcells+bkgc, jcells+bjgc, icells+bigc))
         
-        #Fill new initialzid array including ghost cells
-        sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy()
+        #Fill new initialzid array including ghost cells for horizontal directions
+        #sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy() NOTE: This line should NOT be commented out in case of periodic BC
+        sgc[self.kgc:self.skend, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy() #compared to line above, -bkgc removed: top ghost cell already implemented (using no-slip BC rather than periodic BC) in the downsampling procedure
         sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc-bigc:self.siend-bigc] #Add ghostcell upstream x-direction
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction
         sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc-bjgc:self.sjend-bjgc,:] #Add ghostcell upstream y-direction
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
-        sgc[0:self.kgc,:,:] = sgc[self.skend-self.kgc-bkgc:self.skend-bkgc,:,:] #Add ghostcell bottom z-direction
-        sgc[self.skend-bkgc:self.skend+self.kgc] = sgc[self.kgc:self.kgc+self.kgc+bkgc,:,:] #Add ghostcell top z-direction
-
+        if self.kgc == 1:
+            sgc[0:self.kgc,:,:] = 0 - sgc[self.kgc,:,:] #Add ghostcell bottom z-direction
+            sgc[self.skend,:,:] = 0 - sgc[self.skend-1,:,:] #Add ghostcell top z-direction
+#        if bkgc == 1:
+#            sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction
+        #NOTE: The two lines above should NOT be commented out in case of periodic BC. In case of periodic BC, the ghost cells can implemented in a similar way as in the horizontal directions.
+        
         #Store new fields in object
         self.var['output'][variable_name]['variable'] = sgc
         
@@ -644,10 +704,13 @@ class Coarsegrid:
         if (z.shape != zh.shape) or (y.shape != yh.shape) or (x.shape != xh.shape):
             raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
         
-        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's.
-        if self.kgc > 0 and not self.periodic_bc[0]:
-            raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
-            
+        #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
+        if self.kgc_edge > 0 and (not self.periodic_bc[0]):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+        
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
+            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+                
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
@@ -655,14 +718,15 @@ class Coarsegrid:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
         #Check that there are not more ghost cells than grid cells. 
-        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (self.kgc + 1) > (z.shape[0]):
+        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (max(self.kgc_center, self.kgc_edge) + 1) > (z.shape[0]):
             raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
         
         #Determine size new output array including ghost cells
         icells = self.var['grid']['itot'] + 2*self.igc
         jcells = self.var['grid']['jtot'] + 2*self.jgc
       #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        kcells = self.var['grid']['ktot'] + 2*self.kgc_center
+        khcells = self.var['grid']['ktot'] + 2*self.kgc_edge 
         
         #Initialize new coordinates and store ghost cells in them
         xgc = np.zeros(icells)
@@ -670,21 +734,21 @@ class Coarsegrid:
         ygc = np.zeros(jcells)
         yhgc = np.zeros(jcells+1)
         zgc = np.zeros(kcells)
-        zhgc = np.zeros(kcells+1)
+        zhgc = np.zeros(khcells+1)
         
         self.iend = self.igc + self.var['grid']['itot']
         self.ihend = self.igc + self.var['grid']['itot'] + 1
         self.jend = self.jgc + self.var['grid']['jtot']
         self.jhend = self.jgc + self.var['grid']['jtot'] + 1
-        self.kend = self.kgc + self.var['grid']['ktot']
-        self.khend = self.kgc + self.var['grid']['ktot'] + 1
+        self.kend = self.kgc_center + self.var['grid']['ktot']
+        self.khend = self.kgc_edge + self.var['grid']['ktot'] + 1
         
         xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
         xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
         ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
         yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
-        zgc  = self.__add_ghostcells_cor(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
-        zhgc = self.__add_ghostcells_cor(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
+        zgc  = self.__add_ghostcells_cor_ver(zgc , 0,  self.kgc_center, self.kend , z,  self.var['grid']['zsize'])
+        zhgc = self.__add_ghostcells_cor_ver(zhgc, 1,  self.kgc_edge, self.khend, zh, self.var['grid']['zsize'])
 
         self.var['grid']['z'] = zgc
         self.var['grid']['zh'] = zhgc
@@ -692,7 +756,6 @@ class Coarsegrid:
         self.var['grid']['yh'] = yhgc
         self.var['grid']['x'] = xgc
         self.var['grid']['xh'] = xhgc
-        self.define_ghost_grid = False
         
     def __add_ghostcells_cor(self, corgc, bgc, gc, endindex, cor, size):
         """ Add ghostcells to coordinates. """
@@ -701,6 +764,18 @@ class Coarsegrid:
             corgc[0:gc] = 0 - (size - corgc[endindex-bgc-gc:endindex-bgc])
         if (gc != 0) or (bgc != 0): 
             corgc[endindex-bgc:endindex+gc] = size + corgc[gc:gc+gc+bgc]
+        return corgc
+    
+    def __add_ghostcells_cor_ver(self, corgc, bgc, gc, endindex, cor, size):
+        """ Add 0 or 1 ghostcell to coordinates corresponding to the vertical direction, making use of the no-slip BC. """
+        corgc[gc:endindex-bgc] = cor[:]
+        if not (gc == 0 or gc == 1):
+            raise RuntimeError("Number of ghost cells to be added in vertical direction not consistent with specified BC's.")
+        if gc == 1:
+            corgc[0] = 0 - cor[0]
+            corgc[endindex] = size + (size - corgc[endindex-1])
+        if bgc == 1: 
+            corgc[endindex-bgc] = size
         return corgc
     
     def volume_integral(self, variable_name):
@@ -714,49 +789,50 @@ class Coarsegrid:
         if not variable_name in self.var['output'].keys():
             raise KeyError("Specified variable_name not defined in object.")
             
-        #Read in variable values and axes, remove ghostcells
+        #Read in variable values and axes, remove ghostcells, calculate grid distances for integration
         #NOTE: because in the next section np.trapz only integrates over the range specified by the coordinates, it is needed that all coordinates have the same range. This is done below by copying values of the variable.
         s = self.var['output'][variable_name]['variable']
         
         if self.var['output'][variable_name]['orientation'][0]:
-            z = self.var['grid']['zh'][self.kgc:self.khend]
-            s = s[self.kgc:self.khend,:,:].copy()
+            s = s[self.kgc_edge:self.khend,:,:].copy()
+            z_alt = self.var['grid']['z'][self.kgc_center:self.kend]
+            z_diff = z_alt[1:] - z_alt[:-1]
+            z_diff = np.insert(z_diff, 0, z_alt[0])
+            z_diff = np.append(z_diff, self.var['grid']['zsize'] - z_alt[-1])
+            
         else:
-            z = self.var['grid']['z'][self.kgc:self.kend]
-            s = s[self.kgc:self.kend,:,:].copy()
-            z = np.insert(z, 0, 0.0)
-            z = np.append(z, self.var['grid']['zsize'])
-            s = np.insert(s, 0, s[0,:,:], axis = 0)
-            s = np.append(s, s[np.newaxis,-1,:,:], axis = 0)
+            s = s[self.kgc_center:self.kend,:,:].copy()
+            z_alt = self.var['grid']['zh'][self.kgc_edge:self.khend]
+            z_diff = z_alt[1:] - z_alt[:-1]
             
         if self.var['output'][variable_name]['orientation'][1]:
-            y = self.var['grid']['yh'][self.jgc:self.jhend]
             s = s[:,self.jgc:self.jhend,:].copy()
+            y_alt = self.var['grid']['y'][self.jgc:self.jend]
+            y_diff = y_alt[1:] - y_alt[:-1]
+            y_diff = np.insert(y_diff, 0, y_alt[0])
+            y_diff = np.append(y_diff, self.var['grid']['ysize'] - y_alt[-1])
+            
         else:
-            y = self.var['grid']['y'][self.jgc:self.jend]
             s = s[:,self.jgc:self.jend,:].copy()
-            y = np.insert(y, 0, 0.0)
-            y = np.append(y, self.var['grid']['ysize'])
-            s = np.insert(s, 0, s[:,0,:], axis = 1)
-            s = np.append(s, s[:,np.newaxis,-1,:], axis = 1)
+            y_alt = self.var['grid']['yh'][self.jgc:self.jhend]
+            y_diff = y_alt[1:] - y_alt[:-1]
         
         if self.var['output'][variable_name]['orientation'][2]:
-            x = self.var['grid']['xh'][self.igc:self.ihend]
             s = s[:,:,self.igc:self.ihend].copy()
-        else:
-            x = self.var['grid']['x'][self.igc:self.iend]
-            s = s[:,:,self.igc:self.iend].copy()
-            x = np.insert(x, 0, 0.0)
-            x = np.append(x, self.var['grid']['xsize'])
-            s = np.insert(s, 0, s[:,:,0], axis = 2)
-            s = np.append(s, s[:,:,np.newaxis,-1], axis = 2)
+            x_alt = self.var['grid']['x'][self.igc:self.iend]
+            x_diff = x_alt[1:] - x_alt[:-1]
+            x_diff = np.insert(x_diff, 0, x_alt[0])
+            x_diff = np.append(x_diff, self.var['grid']['xsize'] - x_alt[-1])
             
-        #Integrate over variable by applying the composite trapezoïdal rule for each coordinate separately
-        x_int = np.broadcast_to(x[np.newaxis,np.newaxis,:], (s.shape[0], s.shape[1], s.shape[2]))
-        s_intx = np.trapz(s, x_int, axis = -1)
-        y_int = np.broadcast_to(y[np.newaxis,:], (s.shape[0], s.shape[1]))
-        s_intyx = np.trapz(s_intx, y_int, axis = -1)
-        s_intzyx = np.trapz(s_intyx, z, axis = -1)
+        else:
+            s = s[:,:,self.igc:self.iend].copy()
+            x_alt = self.var['grid']['xh'][self.igc:self.ihend]
+            x_diff = x_alt[1:] - x_alt[:-1]
+            
+        #Integrate over variable by multiplying with the corresponding grid distances and subsequent summing.
+        s_intx = np.tensordot(s, z_diff, axes = (0,0))
+        s_intyx = np.tensordot(s_intx, y_diff, axes = (0,0))
+        s_intzyx = np.tensordot(s_intyx, x_diff, axes = (0,0))
         
         return s_intzyx
     

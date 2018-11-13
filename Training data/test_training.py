@@ -16,14 +16,39 @@ from grid_objects_training import Finegrid, Coarsegrid
 from func_generate_training import generate_training_data
 
 #Do testing
-finegrid = Finegrid(read_grid_flag = False, fourth_order = False, coordx = np.array([1,2.5,3]), xsize = 4.0, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7.0, coordz = np.array([0.1,0.3,1]), zsize = 1.2, periodic_bc = (False, True, True))
-#finegrid = Finegrid()
-finegrid.create_variables('u', np.reshape(np.arange(0,36), (3,4,3)), bool_edge_gridcell = (False, False, True))
-finegrid.create_variables('v', np.reshape(np.arange(0,36), (3,4,3)), bool_edge_gridcell = (False, True, False))
-finegrid.create_variables('w', np.reshape(np.arange(0,36), (3,4,3)), bool_edge_gridcell = (True, False, False))
-finegrid.create_variables('p', np.reshape(np.arange(0,36), (3,4,3)), bool_edge_gridcell = (False, False, False))
+coordx = np.array([0.25,0.75])
+xsize = 1.0
+coordy = np.array([0.25,0.75])
+ysize = 1.0
+coordz = np.array([0.01,0.5,0.95])
+zsize = 1.0
 
-coarsegrid = Coarsegrid((2,3,2), finegrid)
+#coordx = np.array([0.25,0.75,1.25,1.75,2.25,2.75,3.25,3.75])
+#xsize = 4.0
+#coordy = np.array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5])
+#ysize = 10.0
+#coordz = np.array([0.01,0.05,0.1,13.7,13.8,13.85,13.9,14.0])
+#zsize = 20.0
+
+finegrid = Finegrid(read_grid_flag = False, fourth_order = False, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = (False, True, True), no_slip = True)
+#finegrid = Finegrid()
+#finegrid = Finegrid(read_grid_flag = False, fourth_order = False, coordx = np.array([0.25, 0.75]), xsize = 1.0, coordy = np.array([0.25,0.75]), ysize = 1.0, coordz = np.array([0.5,0.75]), zsize = 1.0, periodic_bc = (False, True, True), no_slip = True)
+
+output_shape = (3,2,2)
+#start_value = 0
+#end_value = start_value + output_shape[0]*output_shape[1]*output_shape[2]
+#output_array = np.reshape(np.arange(start_value,end_value), output_shape)
+output_array = np.ones(output_shape)
+#output_0level = np.zeros((output_shape[1], output_shape[2]))
+output_1level = np.ones((output_shape[1], output_shape[2]))
+output_array = np.stack([output_1level, 2*output_1level, 3*output_1level], axis = 0)
+
+finegrid.create_variables('u', output_array, bool_edge_gridcell = (False, False, True))
+finegrid.create_variables('v', output_array, bool_edge_gridcell = (False, True, False))
+finegrid.create_variables('w', output_array, bool_edge_gridcell = (True, False, False))
+finegrid.create_variables('p', output_array, bool_edge_gridcell = (False, False, False))
+
+coarsegrid = Coarsegrid((3,2,2), finegrid)
 coarsegrid.downsample('u')
 coarsegrid.downsample('v')
 coarsegrid.downsample('w')
