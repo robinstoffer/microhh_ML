@@ -2,28 +2,18 @@
 """
 Created on Tue Oct 30 09:50:03 2018
 
-Author: Robin Stoffer
+Author: Robin Stoffer (robin.stoffer@wur.nl)
 """
 
 #Developed for Python 3!
 import numpy as np
-
-def determine_machine_precision(finegrid):
-    '''Determine machine precision specified by finegrid with corresponding significant decimal digits.'''
-    if finegrid.prec == 'float64':
-        sgn_digits = 15
-    elif finegrid.prec == 'float32':
-        sgn_digits = 6
-    else:
-        raise RuntimeError('Script not configred for precision specified in finegrid object.')
-    return sgn_digits
 
 def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid):
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
     
     #Determine machine precision specified by finegrid with corresponding significant decimal digits
-    sgn_digits = determine_machine_precision(finegrid)
+    sgn_digits = finegrid.sgn_digits
     cor_c_bottom = np.round(cor_c_bottom, sgn_digits)
     cor_c_top = np.round(cor_c_top, sgn_digits)
     cor_edges = np.round(cor_edges, sgn_digits)
@@ -69,7 +59,7 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
     cor_c_top = cor_c_middle + 0.5*dist_corc
     
     #Determine machine precision specified by finegrid with corresponding significant decimal digits
-    sgn_digits = determine_machine_precision(finegrid)
+    sgn_digits = finegrid.sgn_digits
     cor_c_bottom = np.round(cor_c_bottom, sgn_digits)
     cor_c_top = np.round(cor_c_top, sgn_digits)
     cor_center = np.round(cor_center, sgn_digits)
@@ -165,7 +155,7 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
 #    cor_top = cor_center[cor_center >= cor_c_top].min()
     
     #Select all cells that are within coarse grid cell
-    cor_points = cor_center[points_indices_cor[:-1]] #NOTE: cor_points is one shorter than cor_edges, meaning last index point in array (i.e. [-1]) included earlier should be removed for correct selection cor_center.
+    cor_points = cor_center[points_indices_cor[:-1]] #NOTE: cor_center is one shorter than cor_edges, meaning last index point in array (i.e. [-1]) included earlier should be removed for correct selection cor_center.
     
     #Calculate weights for cor_points. 
     #NOTE: only the top and bottom fine grid cell may be PARTLY present in the corresponding coarse grid cell

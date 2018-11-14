@@ -38,6 +38,7 @@ class Finegrid:
             
         #Set correct precision and order of spatial interpolation with corresponding ghost cells
         self.prec  = tools._process_precision(precision)
+        self.__determine_sgn_digits() #Determine significant decimals digits corresponding to self.prec
         self.fourth_order = fourth_order
         self.no_slip = no_slip
         
@@ -50,7 +51,7 @@ class Finegrid:
         else:
             self.igc = 1
             self.jgc = 1
-            self.kgc_center = 1 #Although in the vertical direction no periodic_bc is usually assumed, you can make use of the boundary bc that w = 0.
+            self.kgc_center = 1 #Although in the vertical direction no periodic_bc is usually assumed, you can make use of the boundary bc that w = 0 (no-slip BC).
             self.kgc_edge = 0
 
         #Define empty dictionary to store grid and variables
@@ -424,7 +425,7 @@ class Finegrid:
         self.var['grid']['xh'] = xhgc
         
     def __add_ghostcells_cor(self, corgc, bgc, gc, endindex, cor, size):
-        """ Add ghostcells to coordinates. """
+        """ Add ghostcells to coordinates in horizontal directions, making use of the periodic BC's. """
         corgc[gc:endindex-bgc] = cor[:]
         if gc != 0:
             corgc[0:gc] = 0 - (size - corgc[endindex-bgc-gc:endindex-bgc])
@@ -433,7 +434,7 @@ class Finegrid:
         return corgc
     
     def __add_ghostcells_cor_ver(self, corgc, bgc, gc, endindex, cor, size):
-        """ Add 0 or 1 ghostcell to coordinates corresponding to the vertical direction, making use of the no-slip BC. """
+        """ Add 0 or 1 ghostcell to coordinates in vertical direction, making use of the no-slip BC. """
         corgc[gc:endindex-bgc] = cor[:]
         if not (gc == 0 or gc == 1):
             raise RuntimeError("Number of ghost cells to be added in vertical direction not consistent with specified BC's.")
@@ -456,7 +457,6 @@ class Finegrid:
             raise KeyError("Specified variable_name not defined in object.")
             
         #Read in variable values and axes, remove ghostcells, calculate grid distances for integration
-        #NOTE: because in the next section np.trapz only integrates over the range specified by the coordinates, it is needed that all coordinates have the same range. This is done below by copying values of the variable.
         s = self.var['output'][variable_name]['variable']
         
         if self.var['output'][variable_name]['orientation'][0]:
@@ -511,6 +511,15 @@ class Finegrid:
         for i in range(1,len_coord):
             coord_edge[i] = coord_center[i-1] + 0.5 * dcoord[i-1]
         return coord_edge
+    
+    def __determine_sgn_digits(self):
+        '''Determine significant decimal digits corresponding to specified machine precision (double or single).'''
+        if self.prec == 'float64':
+            self.sgn_digits = 15
+        elif self.prec == 'float32':
+            self.sgn_digits = 6
+        else:
+            raise RuntimeError('Script not configred for precision specified in finegrid object.')
 
     def __getitem__(self, name):
         if name in self.var.keys():
@@ -551,8 +560,9 @@ class Coarsegrid:
         self.kgc_edge = self.finegrid.kgc_edge
         self.periodic_bc = self.finegrid.periodic_bc
         self.no_slip = self.finegrid.no_slip
+        self.sgn_digits = self.finegrid.sgn_digits
 
-        #Boundary condition: the resolution of the coarse grid should indeed be coarser than the fine resolution
+        #Boundary condition: the resolution of the coarse grid should be coarser than the fine resolution
         if not (nz <= finegrid_object['grid']['ktot'] and ny <= finegrid_object['grid']['jtot'] and nx <= finegrid_object['grid']['itot']):
             raise ValueError("The resolution of the coarse grid should be coarser than the fine resolution contained in the Finegrid object.")        
 
@@ -566,7 +576,7 @@ class Coarsegrid:
             self.var['grid']['zsize'] = finegrid_object['grid']['zsize']
 
         except KeyError:
-            raise KeyError("At least one of the needed settings was not contained in the finegrid_object. Check that the relevant methods have been called to initialize the grid.")
+            raise KeyError("At least one of the needed settings was not contained in the finegrid_object. Check that the relevant methods of the finegrid object have been called to initialize the grid.")
     
         self.var['grid']['x'] , self.var['grid']['xdist']  = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = True) 
         self.var['grid']['xh'], self.var['grid']['xhdist'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = False)
