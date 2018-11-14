@@ -1,10 +1,13 @@
+#Script containing helper functions for generating training data NN
+#From MicroHH scripts available on GitHub (https://github.com/microhh/microhh; van Heerwaarden et al., 2017), adapted by Robin Stoffer (robin.stoffer@wur.nl)
+
 import netCDF4 as nc
 import numpy   as np
 import struct  as st
 import glob
 import re
 
-# Note: script only compatible with Python 3!
+# NOTE: script only compatible with Python 3!
 # -------------------------
 # General help functions
 # -------------------------

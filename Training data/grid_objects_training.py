@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 30 10:48:25 2018
+#Script containing Finegrid and Coarsegrid classes for generation training data NN
+#Author: Robin Stoffer (robin.stoffer@wur.nl)
 
-@author: Robin Stoffer
-"""
 #Developed for Python 3!
 import numpy as np
 import downsampling_training
@@ -126,6 +123,11 @@ class Finegrid:
             except KeyError:
                 print("The needed arguments were not correctly specified. Make sure that coordx, coordy and coordz are assinged to a 1d numpy array.")
                 raise
+                 
+            #For convenience with the script func_generate_training.py, timesteps is set equal to 1.
+            self.var['time']['timesteps'] = 1
+            
+            #Store manually defined grid
             self.__define_grid(self.var['grid']['z'],self.var['grid']['y'],self.var['grid']['x'], self.var['grid']['zsize'], self.var['grid']['ysize'], self.var['grid']['xsize'])
 
     def __read_settings(self,settings_filename = None):
@@ -276,9 +278,6 @@ class Finegrid:
         
         #Store orientation of output_field in object
         self.var['output'][variable_name]['orientation'] = bool_edge_gridcell
-
-        #For convenience with the script func_generate_training.py, timesteps is set equal to 1.
-        self.var['time']['timesteps'] = 1
 
         #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
         self.__add_ghostcells(variable_name)

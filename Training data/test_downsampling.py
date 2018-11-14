@@ -1,12 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Nov  8 10:54:17 2018
-
-Test script to check convergence for downsampling done in test_training.py, preferably define arrays that are homogenous in the x,y-directions and only have a gradient in the z-direction.
-NOTE: Run this script AFTER test_training.py
-
-@author: stoff013
-"""
+#Test script to check convergence for downsampling done in test_training.py. 
+#NOTE: preferably define arrays that are homogenous in the x,y-directions and only have a gradient in the z-direction.
+#NOTE: Run this script AFTER test_training.py
+#Author: Robin Stoffer (robin.stoffer@wur.nl)
 
 import matplotlib.pyplot as plt
 import numpy as np

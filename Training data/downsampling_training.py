@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Oct 30 09:50:03 2018
-
-Author: Robin Stoffer (robin.stoffer@wur.nl)
-"""
+#Script to downsample finegrid data to coarsegrid, which is needed for the generation of the training data for the NN.
+#Author: Robin Stoffer (robin.stoffer@wur.nl)
 
 #Developed for Python 3!
 import numpy as np
