@@ -89,13 +89,15 @@ class Finegrid:
             self.define_grid_flag = False
             try:
                 def __checks_coord(coord_name, dim, uniform):
-                    diff_coord = kwargs[coord_name][1:] - kwargs[coord_name][:-1]
+                    diff_coord = np.round(kwargs[coord_name][1:] - kwargs[coord_name][:-1], self.sgn_digits)
                     if not(np.all(diff_coord > 0) and np.all(kwargs[coord_name][:] > 0) and \
                     (len(kwargs[coord_name][:].shape) == 1)):
                         raise ValueError("The coordinates should be 1-dimensional, strictly increasing, and consist of positive values only.")
                     
                     if not (len(kwargs[coord_name]) == 1): #Test whether the grid is uniform only when the coordinate exists of more than one grid cell.
-                        if uniform and (np.any(diff_coord != diff_coord[0])):
+                        diff_bottom = np.round(kwargs[coord_name][0] - 0, self.sgn_digits)
+                        half_distance = np.round(0.5*diff_coord[0], self.sgn_digits)
+                        if uniform and ((np.any(diff_coord != diff_coord[0])) or (diff_bottom != half_distance)):
                             raise ValueError("The coordinates in the x- and y-direction should be uniform.")
                             
                     self.var['grid'][dim] = kwargs[coord_name]
@@ -105,12 +107,14 @@ class Finegrid:
                 __checks_coord('coordz', 'z', False)
 
                 def __checks_size(size_name, coord_name, uniform):
-                    diff_coord = kwargs[coord_name][1:] - kwargs[coord_name][:-1]
+                    diff_coord = np.round(kwargs[coord_name][1:] - kwargs[coord_name][:-1], self.sgn_digits)
                     if not kwargs[size_name] > kwargs[coord_name][-1]:
                         raise ValueError("The length of the coordinate should be larger than the last coordinate.")
                     
                     if not (len(kwargs[coord_name]) == 1): #Test whether the grid is uniform only when the coordinate exists of more than one grid cell.
-                        if uniform and ((kwargs[size_name] - kwargs[coord_name][-1]) != (0.5*diff_coord[0])):
+                        diff_top = np.round(kwargs[size_name] - kwargs[coord_name][-1], self.sgn_digits)
+                        half_distance = np.round(0.5*diff_coord[0], self.sgn_digits)
+                        if uniform and (diff_top != half_distance):
                             raise ValueError("The coordinates in the x- and y-direction should be uniform, which should also be taken into account when defining the sizes of the grid.")
  
                     self.var['grid'][size_name] = kwargs[size_name]
@@ -683,7 +687,7 @@ class Coarsegrid:
         sgc = np.zeros((kcells+bkgc, jcells+bjgc, icells+bigc))
         
         #Fill new initialzid array including ghost cells for horizontal directions
-        #sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy() NOTE: This line should NOT be commented out in case of periodic BC
+        #sgc[self.kgc:self.skend-bkgc, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy() NOTE: This line should NOT be commented out in case of periodic BC in vertical direction
         sgc[self.kgc:self.skend, self.jgc:self.sjend-bjgc, self.igc:self.siend-bigc] = s[:,:,:].copy() #compared to line above, -bkgc removed: top ghost cell already implemented (using no-slip BC rather than periodic BC) in the downsampling procedure
         sgc[:,:,0:self.igc] = sgc[:,:,self.siend-self.igc-bigc:self.siend-bigc] #Add ghostcell upstream x-direction
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction

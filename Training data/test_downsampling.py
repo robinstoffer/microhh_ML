@@ -37,6 +37,9 @@ plt.step(z, test3, label = 'coarse')
 z_grid = coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend]
 plt.plot(z_grid, test4,'C1o')
 
+plt.xlabel('z')
+plt.ylabel('value')
+plt.title('w, coarsegrid shape: ' + str(test.shape))
 plt.legend()
 
 
@@ -63,4 +66,7 @@ plt.step(z, test3, label = 'coarse')
 z_grid = coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend]
 plt.plot(z_grid, test4,'C1o')
 
+plt.xlabel('z')
+plt.ylabel('value')
+plt.title('p, coarsegrid shape: ' + str(test.shape))
 plt.legend()
