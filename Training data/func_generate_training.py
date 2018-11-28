@@ -6,18 +6,26 @@ import netCDF4 as nc
 import scipy.interpolate
 from downsampling_training import generate_coarsecoord_centercell, generate_coarsecoord_edgecell
 from grid_objects_training import Finegrid, Coarsegrid
+import matplotlib as mpl
+mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 import matplotlib.pyplot as plt
 
 ###############################################
 #Actual functions to generate the training data
 ###############################################
 
-def generate_training_data(dim_new_grid, output_directory, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts. igc and jgc specify the amount of ghost cells to be added in the downsampled coarse grid for the x- and y-direction respectively.
+def generate_training_data(dim_new_grid, input_directory, output_directory, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts. igc and jgc specify the amount of ghost cells to be added in the downsampled coarse grid for the x- and y-direction respectively.
 
-    #Check that output direcotry is a string
+    #Check types input variables
     if not isinstance(output_directory,str):
         raise TypeError("Specified output directory should be a string.")
         
+    if not (isinstance(settings_filepath,str)) and not (settings_filepath is None):
+        raise TypeError("Specified settings filepath should be a string or NoneType.")
+
+    if not isinstance(grid_filepath,str):
+        raise TypeError("Specified grid filepath should be a string.")
+
     #Check that size_samples is an integer, uneven, and larger than 1. This is necessary for the sampling strategy currently implemented
     if not isinstance(size_samples,int):
         raise TypeError("Specified size of samples should be an integer.")
@@ -47,7 +55,7 @@ def generate_training_data(dim_new_grid, output_directory, size_samples = 5, pre
         finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom)
             
     else:
-        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom) #Read settings and grid from .ini files produced by MicroHH
+        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH
  
     #Define orientation on grid for all the variables (z,y,x). True means variable is located on the sides in that direction, false means it is located in the grid centers.
     bool_edge_gridcell_u = (False, False, True)
@@ -83,10 +91,10 @@ def generate_training_data(dim_new_grid, output_directory, size_samples = 5, pre
             finegrid.create_variables('p', output_array, bool_edge_gridcell_p)
             
         else:
-            finegrid.read_binary_variables('u', t, bool_edge_gridcell_u)
-            finegrid.read_binary_variables('v', t, bool_edge_gridcell_v)
-            finegrid.read_binary_variables('w', t, bool_edge_gridcell_w)
-            finegrid.read_binary_variables('p', t, bool_edge_gridcell_p)
+            finegrid.read_binary_variables(input_directory, 'u', t, bool_edge_gridcell_u)
+            finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v)
+            finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w)
+            finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p)
             
         #Initialize coarsegrid object
         coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc)
@@ -584,7 +592,7 @@ def generate_training_data(dim_new_grid, output_directory, size_samples = 5, pre
             a = nc.Dataset(output_directory + name_output_file, 'w')
             create_file = False
         else:
-            a = nc.Dataset(output_direcotry + name_output_file, 'r+')
+            a = nc.Dataset(output_directory + name_output_file, 'r+')
  
         if create_variables:
             ##Extract time variable from u-file (should be identical to the one from v-,w-,or p-file)

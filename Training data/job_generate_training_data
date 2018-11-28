@@ -8,7 +8,7 @@
 ###SBATCH -p gpu
 
 cd
-cd microhh/cases/moser600/simulation2_new
+cd microhh/cases/moser600/simulation2_new/Training\ data/
 
 module purge
 module load eb

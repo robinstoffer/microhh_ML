@@ -5,6 +5,7 @@
 import numpy as np
 import downsampling_training
 import microhh_tools_robinst as tools
+import os
 
 class Finegrid:
     """ Returns a single object that can read from binary files or explicitly define the grid and output variables.
@@ -75,10 +76,10 @@ class Finegrid:
         #Read or define the grid depending on read_grid_flag
         if read_grid_flag:
             self.read_grid_flag = True
-            self.settings_filename = kwargs.get('settings_filename', None)
-            self.grid_filename = kwargs.get('grid_filename', 'grid.0000000')
-            self.__read_settings(settings_filename = self.settings_filename)
-            self.__read_binary_grid(grid_filename = self.grid_filename)
+            self.settings_filepath = kwargs.get('settings_filepath', None)
+            self.grid_filepath = kwargs.get('grid_filepath', 'grid.0000000')
+            self.__read_settings(settings_filepath = self.settings_filepath)
+            self.__read_binary_grid(grid_filepath = self.grid_filepath)
             self.define_grid_flag = False
 
         else:
@@ -130,7 +131,7 @@ class Finegrid:
             #Store manually defined grid
             self.__define_grid(self.var['grid']['z'],self.var['grid']['y'],self.var['grid']['x'], self.var['grid']['zsize'], self.var['grid']['ysize'], self.var['grid']['xsize'])
 
-    def __read_settings(self,settings_filename = None):
+    def __read_settings(self,settings_filepath = None):
         """ Read settings from specified file (default: .ini file in current directory). """
 
         if not self.read_grid_flag:
@@ -138,7 +139,7 @@ class Finegrid:
 
         #Read settings of MicroHH simulation from specified settings_filename. 
         #If None, a .ini file should be present in the current directory to read.
-        settings = tools.Read_namelist(settings_filename)
+        settings = tools.Read_namelist(settings_filepath)
 
         self.var['grid']['itot'] = settings['grid']['itot']
         self.var['grid']['jtot'] = settings['grid']['jtot']
@@ -156,14 +157,14 @@ class Finegrid:
         #self.var['time']['timesteps'] = (self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']
         self.var['time']['timesteps'] = 13
 
-    def __read_binary_grid(self, grid_filename):
+    def __read_binary_grid(self, grid_filepath):
         """ Read binary grid from specified file (default: grid.0000000). """
 
         if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read the grid from an already existing binary grid file.")
 
         #Open binary file containing the grid information
-        f = open(grid_filename,'rb')
+        f = open(grid_filepath,'rb')
 
         #Infer number of bytes from the used precision
         nbytes = 8 if self.prec == 'float64' else 4
@@ -184,10 +185,14 @@ class Finegrid:
         #Add ghostcells to grid
         self.__add_ghostcells_grid()
 
-    def read_binary_variables(self, variable_name, timestep, bool_edge_gridcell = (False, False, False)):
-        """ Read specified variable at a certain time step from binary files of a MicroHH simulation. Furthermore, ghost cells are added consistent with the specified order of spatial interpolation."""
+    def read_binary_variables(self, filepath, variable_name, timestep, bool_edge_gridcell = (False, False, False)):
+        """ Read specified variable at a certain time step from binary files of a MicroHH simulation stored in filepath. Furthermore, ghost cells are added consistent with the specified order of spatial interpolation."""
         if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing binary file.")
+
+        #Check that variable_name is a string
+        if not isinstance(filepath, str):
+            raise TypeError("Specified filepath should be a string.")
 
         #Check that variable_name is a string
         if not isinstance(variable_name, str):
@@ -214,9 +219,10 @@ class Finegrid:
         #Open binary file to read variable at timestep
         time = self.var['time']['starttime'] + timestep*self.var['time']['savetime']
         var_filename = '{0}.{1:07d}'.format(variable_name,time)
-        
+        var_filepath = os.path.join(filepath, var_filename)        
+
         self.var['output'][variable_name] = {}
-        self.var['output'][variable_name]['variable'] = np.fromfile(var_filename, dtype = self.prec).reshape((self.var['grid']['ktot'], self.var['grid']['jtot'], self.var['grid']['itot']))
+        self.var['output'][variable_name]['variable'] = np.fromfile(var_filepath, dtype = self.prec).reshape((self.var['grid']['ktot'], self.var['grid']['jtot'], self.var['grid']['itot']))
         self.var['output'][variable_name]['orientation'] = bool_edge_gridcell
         
         #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
