@@ -50,7 +50,7 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid
 
     return weights, points_indices_cor
 
-def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid, periodic_bc = True, size = 0): #For 'size' a default value is used that should not affect results as long as vert_flag = False.
+def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid, periodic_bc = True, zero_w_topbottom = True, size = 0): #For 'size' a default value is used that should not affect results as long as vert_flag = False.
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
     
@@ -110,11 +110,13 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
         index_bottom_coarse_cell = np.where(points_indices_cor2)[0][0] - len(np.where(np.logical_and(np.logical_not(points_indices_cor1), np.logical_not(points_indices_cor2)))[0]) #Compensate for the indices that are not selected, cor_points has fewer indices than cor_center!
         index_top_coarse_cell = np.where(points_indices_cor1)[0][-1]
         two_boxes = True
+        dirichlet_bc = False
     
     elif cor_c_bottom < 0:
         cor_c_bottom = 0.0
         points_indices_cor = _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits, cor_bottom_defined = True)
         two_boxes = False
+        dirichlet_bc = True
         
     elif periodic_bc and (cor_c_top > size):
         #Select two different regions of coarse grid
@@ -136,15 +138,18 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
         index_bottom_coarse_cell = np.where(points_indices_cor2)[0][0]  - len(np.where(np.logical_and(np.logical_not(points_indices_cor1), np.logical_not(points_indices_cor2)))[0]) #Compensate for the indices that are not selected, cor_points has fewer indices than cor_center!
         index_top_coarse_cell = np.where(points_indices_cor1)[0][-1]
         two_boxes = True
+        dirichlet_bc = False
                 
     elif cor_c_top > size:
         cor_c_top = size
         points_indices_cor = _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits, cor_top_defined = True)
         two_boxes = False
+        dirichlet_bc = True
         
     else:
         points_indices_cor = _select_points(cor_center, cor_c_bottom, cor_c_top, sgn_digits)
         two_boxes = False
+        dirichlet_bc = False
 
 #    #Find points of fine grid located just outside the coarse grid cell considered in iteration
 #    cor_bottom = cor_center[cor_center <= cor_c_bottom].max()
@@ -158,7 +163,10 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
     #NOTE: since cor_center is one point shorter than cor_edges, the lengths of weights and points_indices_cor should be 1 longer. The additional point in points_indices_cor is already added via the _add_points function.
     len_weights = len(np.where(points_indices_cor)[0])
     weights = np.zeros(len_weights)
-    if len_weights == 1:
+    if zero_w_topbottom and dirichlet_bc:
+        pass #Keep the weights at zero
+    
+    elif len_weights == 1:
         weights = np.array([1])
     
     elif two_boxes: #Deal with the cases where the selected fine grid cells consist of two separate regions (which occurs when periodic bc are imposed and the center of the coarse grid cell is located on the bottom/top of the domain).
@@ -198,7 +206,7 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
     
     return weights, points_indices_cor
 
-def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False, False, False), periodic_bc = (False, True, True)):
+def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False, False, False), periodic_bc = (False, True, True), zero_w_topbottom = True):
     """Function to generate coarse grid with variables and total transport of momentum for creation training data. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates.
     Variable_name specifies the variable to calculate on the coarse grid.
     Bool_edge_gridcell indicates in a tuple for each spatial direction (z, y, x) whether they should be aligned at the center of the grid cells (False) or the edges (True).
@@ -229,7 +237,7 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
         xcor_c     = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]
         dist_xc    = coarsegrid['grid']['xdist']
         
-    #Check that variable_name is a string
+    #Check that variable_name is a string.
     if not isinstance(variable_name, str):
         raise TypeError("Specified variable_name should be a string.")
 
@@ -257,6 +265,10 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     if not any(isinstance(flag, bool) for flag in bool_edge_gridcell):
         raise ValueError("Bool_edge_gridcell should be a tuple with length 3 (z, y, x), and consist only of booleans.")
 
+    #Check that zero_w_topbottom is a boolean.
+    if not isinstance(zero_w_topbottom, bool):
+        raise TypeError('The zero_w_topbottom flag should be a boolean (True/False).')
+
     var_c = np.zeros((len(zcor_c), len(ycor_c), len(xcor_c)), dtype=float)
     #weights_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=(object, object, object))
     #points_indices_c = np.zeros(len(zcor_c), len(ycor_c), len(xcor_c), dtype=(object, object, object))
@@ -269,7 +281,7 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     for zcor_c_middle in zcor_c:
     #for izc in range(coarsegrid['grid']['ktot'])
         if bool_edge_gridcell[0]:
-            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid, periodic_bc = periodic_bc[0], size = finegrid['grid']['zsize'])
+            weights_z, points_indices_z = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid, periodic_bc = periodic_bc[0], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['zsize'])
             var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_edge:finegrid.khend, :, :]
         else:
             weights_z, points_indices_z = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], cor_c_middle = zcor_c_middle, dist_corc = dist_zc, finegrid = finegrid)
@@ -281,7 +293,7 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
 	
         for ycor_c_middle in ycor_c:
             if bool_edge_gridcell[1]:
-                weights_y, points_indices_y = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc, finegrid = finegrid, periodic_bc = periodic_bc[1], size = finegrid['grid']['ysize'])
+                weights_y, points_indices_y = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc, finegrid = finegrid, periodic_bc = periodic_bc[1], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['ysize'])
                 var_finezy = var_finez[:, finegrid.jgc:finegrid.jhend,:]
             else:
                 weights_y, points_indices_y = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], cor_c_middle = ycor_c_middle, dist_corc = dist_yc, finegrid = finegrid)
@@ -293,7 +305,7 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
 				
             for xcor_c_middle in xcor_c:
                 if bool_edge_gridcell[2]:
-                    weights_x, points_indices_x = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc, finegrid = finegrid, periodic_bc = periodic_bc[2], size = finegrid['grid']['xsize'])
+                    weights_x, points_indices_x = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc, finegrid = finegrid, periodic_bc = periodic_bc[2], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['xsize'])
                     var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.ihend]
                 else:
                     weights_x, points_indices_x = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle, dist_corc = dist_xc, finegrid = finegrid)

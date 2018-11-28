@@ -23,21 +23,21 @@ class Finegrid:
          When read_grid flag is False, specifiy explicitly (using keywords) each spatial coordinate (coordz,coordy,coordx) as a 1d numpy array, e.g. Finegrid(read_grid_flag = False, coordx = np.array([1,2,3]),xsize = 4, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7, coordz = np.array([0.1,0.3,1]), zsize = 1.2).
          Furthermore, for each spatial dimension the length should be indicated (zsize,ysize,xsize), which has to be larger than the last spatial coordinate in each dimension. 
          Each coordinate should 1) refer to the center of the grid cell, 2) be larger than 0, 3) be larger than the previous coordinate in the same direction."""
-    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), no_slip = True, **kwargs):
+    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, **kwargs):
         
         # Test whether types of input variables are correct.
         if not isinstance(read_grid_flag, bool):
             raise TypeError('The fourth_order flag should be a boolean (True/False).')
         if not isinstance(fourth_order, bool):
             raise TypeError('The fourth_order flag should be a boolean (True/False).')
-        if not isinstance(no_slip, bool):
-            raise TypeError('The no_slip flag should be a boolean (True/False).')
+        if not isinstance(zero_w_topbottom, bool):
+            raise TypeError('The zero_w_topbottom flag should be a boolean (True/False).')
             
         #Set correct precision and order of spatial interpolation with corresponding ghost cells
         self.prec  = tools._process_precision(precision)
         self.__determine_sgn_digits() #Determine significant decimals digits corresponding to self.prec
         self.fourth_order = fourth_order
-        self.no_slip = no_slip
+        self.zero_w_topbottom = zero_w_topbottom
         
         if self.fourth_order:
             #self.igc = 3
@@ -131,7 +131,7 @@ class Finegrid:
             self.__define_grid(self.var['grid']['z'],self.var['grid']['y'],self.var['grid']['x'], self.var['grid']['zsize'], self.var['grid']['ysize'], self.var['grid']['xsize'])
 
     def __read_settings(self,settings_filename = None):
-        """ Read settings from specified file (default: .ini file in current directory) """
+        """ Read settings from specified file (default: .ini file in current directory). """
 
         if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing settings file.")
@@ -300,10 +300,10 @@ class Finegrid:
             
         #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
         if self.kgc_edge > 0 and (not self.periodic_bc[0]):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
         
-        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
             
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
@@ -376,10 +376,10 @@ class Finegrid:
         
         #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
         if self.kgc_edge > 0 and (not self.periodic_bc[0]):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
         
-        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
                 
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
@@ -536,7 +536,7 @@ class Coarsegrid:
         Furthermore, a method is provided to downsample variables already present in the finegrid_ojbect.
         NOTE: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible."""
 
-    def __init__(self, dim_new_grid, finegrid_object):
+    def __init__(self, dim_new_grid, finegrid_object, **kwargs):
         
         #Check whether dim_new_grid is a tuple of length 3 with only positive integers
         if not isinstance(dim_new_grid, tuple):
@@ -553,16 +553,27 @@ class Coarsegrid:
         #Store finegrid_object in Coarsegrid object
         self.finegrid = finegrid_object
 
-        #Store relevant settings from finegrid_object and dim_new_grid into coarsegrid_object
+        #Store relevant settings from finegrid_object and dim_new_grid into coarsegrid_object.
+        #NOTE: for the ghostcells in the horizontal direction by default the corresponding amount of ghostcells in the finegrid is used.
         self.var = {}
         self.var['grid'] = {}
         self.var['output'] = {} #After the coarsegrid object is created, output can be stored here. This is done in the script func_generate_training.py.
-        self.igc = self.finegrid.igc
-        self.jgc = self.finegrid.jgc
+        try:
+            self.igc = kwargs['igc']
+            if not isinstance(self.igc, int):
+                raise TypeError('Specified ghost cells should be an integer.')
+        except KeyError:
+            self.igc = self.finegrid.igc
+        try:
+            self.jgc = kwargs['jgc']
+            if not isinstance(self.jgc, int):
+                raise TypeError('Specified ghost cells should be an integer.')
+        except KeyError:
+            self.jgc = self.finegrid.jgc
         self.kgc_center = self.finegrid.kgc_center
         self.kgc_edge = self.finegrid.kgc_edge
         self.periodic_bc = self.finegrid.periodic_bc
-        self.no_slip = self.finegrid.no_slip
+        self.zero_w_topbottom = self.finegrid.zero_w_topbottom
         self.sgn_digits = self.finegrid.sgn_digits
 
         #Boundary condition: the resolution of the coarse grid should be coarser than the fine resolution
@@ -615,7 +626,7 @@ class Coarsegrid:
 
         self.var['output'][variable_name] = {}
         self.var['output'][variable_name]['orientation'] = self.finegrid['output'][variable_name]['orientation']
-        variable_downsampled = downsampling_training.downsample(finegrid = self.finegrid, coarsegrid = self, variable_name = variable_name, bool_edge_gridcell = self.var['output'][variable_name]['orientation'], periodic_bc = self.periodic_bc)
+        variable_downsampled = downsampling_training.downsample(finegrid = self.finegrid, coarsegrid = self, variable_name = variable_name, bool_edge_gridcell = self.var['output'][variable_name]['orientation'], periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
         self.var['output'][variable_name]['variable'] = variable_downsampled.copy()
         #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
         self.__add_ghostcells(variable_name)
@@ -638,10 +649,10 @@ class Coarsegrid:
             
         #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
         if self.kgc_edge > 0 and (not self.periodic_bc[0]):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
         
-        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
             
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
@@ -719,10 +730,10 @@ class Coarsegrid:
         
         #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
         if self.kgc_edge > 0 and (not self.periodic_bc[0]):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
         
-        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.no_slip):
-            raise ValueError("The current settings for the periodic_bc and no_slip flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
                 
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
