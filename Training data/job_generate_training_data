@@ -40,6 +40,6 @@ source ~/virtualenv/firstCNN_intel/bin/activate
 #python3 generate_training_data.py
 #python3 func_generate_training.py > output_training.txt
 #python3 sample_training_data_tfrecord.py > output_sampling.txt
-python3 test_training.py > output_training.txt
+python3 main_training.py > output_training.txt
 
 echo 'finished'
