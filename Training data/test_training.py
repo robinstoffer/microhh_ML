@@ -110,5 +110,5 @@ from sample_training_data_tfrecord import generate_samples
 #print('Volume integral p coarsegrid: ' + str(volume_coarsegrid_p))
 
 output_directory = 'M:/My Documents/Machine learning projects/SURFsara project/Scripts/Training data/'
-#generate_training_data((9,15,15), output_directory, size_samples = 7, testing = True, periodic_bc = (False,True,True), zero_w_topbottom = True)
+generate_training_data((28,15,10), output_directory, size_samples = 5, testing = True, periodic_bc = (False,True,True), zero_w_topbottom = True)
 generate_samples(output_directory, training_file = 'training_data.nc', samples_file = 'samples_training.nc', create_binary = False, create_netcdf = True)

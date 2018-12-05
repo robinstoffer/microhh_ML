@@ -75,8 +75,8 @@ class Finegrid:
         #Read or define the grid depending on read_grid_flag
         if read_grid_flag:
             self.read_grid_flag = True
-            self.settings_filename = kwargs.get('settings_filename', None)
-            self.grid_filename = kwargs.get('grid_filename', 'grid.0000000')
+            self.settings_filename = kwargs.get('settings_filepath', None)
+            self.grid_filename = kwargs.get('grid_filepath', 'grid.0000000')
             self.__read_settings(settings_filename = self.settings_filename)
             self.__read_binary_grid(grid_filename = self.grid_filename)
             self.define_grid_flag = False
