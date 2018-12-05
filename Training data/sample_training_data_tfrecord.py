@@ -3,17 +3,17 @@ import netCDF4 as nc
 import os
 import tensorflow as tf
 
-def generate_samples(output_directory, training_file = 'training_data.nc', samples_file = 'samples_training.nc', create_binary = True, create_netcdf = False):
+def generate_samples(output_directory, training_filepath = 'training_data.nc', samples_filepath = 'samples_training.nc', create_binary = True, create_netcdf = False):
     
     #Check types input
     if not isinstance(output_directory,str):
         raise TypeError("Specified output directory should be a string.")
         
-    if not isinstance(training_file,str):
-        raise TypeError("Specified training file should be a string.")
+    if not isinstance(training_filepath,str):
+        raise TypeError("Specified training filepath should be a string.")
         
-    if not isinstance(samples_file,str):
-        raise TypeError("Specified samples file should be a string.")
+    if not isinstance(samples_filepath,str):
+        raise TypeError("Specified samples filepath should be a string.")
     
     if not isinstance(create_binary,bool):
         raise TypeError("Specified create_binary flag should be a boolean.")
@@ -22,7 +22,7 @@ def generate_samples(output_directory, training_file = 'training_data.nc', sampl
         raise TypeError("Specified create_netcdf flag should be a boolean.")
 
     #Fetch training data
-    a = nc.Dataset(training_file, 'r')
+    a = nc.Dataset(training_filepath, 'r')
     
     #Define shapes of output arrays based on stored training data
     nt,nz,ny,nx = a['unres_tau_xu'].shape # nt should be the same for all variables, here defined from p. NOTE: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
@@ -42,11 +42,11 @@ def generate_samples(output_directory, training_file = 'training_data.nc', sampl
         
         #Open/create netCDF-file for storage
         if create_file and create_netcdf:
-            samples_file = nc.Dataset(output_directory + 'samples_training.nc', 'w')
+            samples_file = nc.Dataset(samples_filepath, 'w')
             create_file = False
             create_variables = True
         elif create_netcdf:
-            samples_file = nc.Dataset(output_directory + 'samples_training.nc', 'r+')
+            samples_file = nc.Dataset(samples_filepath, 'r+')
             create_variables = False #Don't define variables when netCDF file already exists, because it should already contain those variables.
     
         #Define variables for storage
