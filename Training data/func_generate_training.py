@@ -47,10 +47,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
         xsize = 10.0
         coordy = np.array([0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5,8.5,9.5,10.5,11.5,12.5,13.5,14.5,15.5,16.5,17.5,18.5,19.5])
         ysize = 20.0
-        coordz = np.array([0.01,0.05,0.1,0.2,0.4,0.6,0.8,1.0,2.0,3.0,4.0,5.0,5.1,5.15,5.2,5.4,6.0,9.0,9.5,10.0,11.5,12.3,13.0,13.5,13.7,13.8,13.85,13.9,13.95])
-        zsize = 14.0
-        #coordz = np.array([0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9,3.1,3.3,3.5,3.7,3.9,4.1,4.3,4.5,4.7,4.9,5.1,5.3,5.5,5.7])
-        #zsize = 5.8
+        #coordz = np.array([0.01,0.05,0.1,0.2,0.4,0.6,0.8,1.0,2.0,3.0,4.0,5.0,5.1,5.15,5.2,5.4,6.0,9.0,9.5,10.0,11.5,12.3,13.0,13.5,13.7,13.8,13.85,13.9,13.95])
+        #zsize = 14.0
+        coordz = np.array([0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9,3.1,3.3,3.5,3.7,3.9,4.1,4.3,4.5,4.7,4.9,5.1,5.3,5.5,5.7])
+        zsize = 5.8
         
         finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom)
             
@@ -76,14 +76,15 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
 #            end_value     = start_value + output_shape[0]*output_shape[1]*output_shape[2]
 #            output_array  = np.reshape(np.arange(start_value,end_value), output_shape)
             
-#            output_1level = np.ones((output_shape[1], output_shape[2]))
+            output_1level = np.ones((output_shape[1], output_shape[2]))
 #            output_1level = np.ones((output_shape[0], output_shape[1]))
-            output_1level = np.ones((output_shape[0], output_shape[2]))
+#            output_1level = np.ones((output_shape[0], output_shape[2]))
 #            output_array  = np.stack([output_1level, 2*output_1level, 3*output_1level], axis = 0)
 #            output_array  = np.stack([output_1level, 2*output_1level, 3*output_1level, 4*output_1level, 5*output_1level, 6*output_1level, 2*output_1level, 4*output_1level, 5*output_1level, 4*output_1level,3*output_1level,2*output_1level,1*output_1level,6*output_1level,1*output_1level,6*output_1level,1*output_1level,6*output_1level,5*output_1level,4*output_1level,3*output_1level,2*output_1level,1*output_1level,5*output_1level,2*output_1level,4*output_1level,1*output_1level,3*output_1level,6*output_1level])
-#            output_array  = np.stack([output_1level, 2*output_1level, 3*output_1level, 4*output_1level, 5*output_1level, 6*output_1level, 7*output_1level, 8*output_1level, 9*output_1level, 10*output_1level,11*output_1level,12*output_1level,13*output_1level,14*output_1level,15*output_1level,16*output_1level,17*output_1level,18*output_1level,19*output_1level,20*output_1level,21*output_1level,22*output_1level,23*output_1level,24*output_1level,25*output_1level,26*output_1level,27*output_1level,28*output_1level,29*output_1level])
+            #NOTE: first output level is 0 such that w on finegrid is 0 on bottom and top domain. Otherwhise, the assumptions in the script applied in the downsampling (i.e. setting zero_w_topbottom = True) are not valid.
+            output_array  = np.stack([0*output_1level, 2*output_1level, 3*output_1level, 4*output_1level, 5*output_1level, 6*output_1level, 7*output_1level, 8*output_1level, 9*output_1level, 10*output_1level,11*output_1level,12*output_1level,13*output_1level,14*output_1level,15*output_1level,16*output_1level,17*output_1level,18*output_1level,19*output_1level,20*output_1level,21*output_1level,22*output_1level,23*output_1level,24*output_1level,25*output_1level,26*output_1level,27*output_1level,28*output_1level,29*output_1level])
 #            output_array  = np.stack([output_1level, 2*output_1level, 3*output_1level, 4*output_1level, 5*output_1level, 6*output_1level, 7*output_1level, 8*output_1level, 9*output_1level, 10*output_1level,11*output_1level,12*output_1level,13*output_1level,14*output_1level,15*output_1level,16*output_1level,17*output_1level,18*output_1level,19*output_1level,20*output_1level], axis=2)
-            output_array  = np.stack([output_1level, 2*output_1level, 3*output_1level, 4*output_1level, 5*output_1level, 6*output_1level, 7*output_1level, 8*output_1level, 9*output_1level, 10*output_1level,11*output_1level,12*output_1level,13*output_1level,14*output_1level,15*output_1level,16*output_1level,17*output_1level,18*output_1level,19*output_1level,20*output_1level], axis=1)            
+#            output_array  = np.stack([output_1level, 2*output_1level, 3*output_1level, 4*output_1level, 5*output_1level, 6*output_1level, 7*output_1level, 8*output_1level, 9*output_1level, 10*output_1level,11*output_1level,12*output_1level,13*output_1level,14*output_1level,15*output_1level,16*output_1level,17*output_1level,18*output_1level,19*output_1level,20*output_1level], axis=1)            
             
             finegrid.create_variables('u', output_array, bool_edge_gridcell_u)
             finegrid.create_variables('v', output_array, bool_edge_gridcell_v)
@@ -419,60 +420,60 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
             totalt_tau_zv = wt_vxyint * vt_vxyint
             totalt_tau_zw = wt_wxyint ** 2
             
-#            plt.figure()
-#            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_xu[:,0,0], 'C0o-', label = 'totalt_tau_xu')
-#            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_xu[:,0,0], 'C1o-', label = 'total_tau_xu')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_xv[:,0,0], 'C0o-', label = 'totalt_tau_xv')
-#            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_xv[:,0,0], 'C1o-', label = 'total_tau_xv')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_xw[:,0,0], 'C0o-', label = 'totalt_tau_xw')
-#            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_xw[:,0,0], 'C1o-', label = 'total_tau_xw')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_yu[:,0,0], 'C0o-', label = 'totalt_tau_yu')
-#            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_yu[:,0,0], 'C1o-', label = 'total_tau_yu')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_yv[:,0,0], 'C0o-', label = 'totalt_tau_yv')
-#            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_yv[:,0,0], 'C1o-', label = 'total_tau_yv')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_yw[:,0,0], 'C0o-', label = 'totalt_tau_yw')
-#            #plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_yw[:,0,0], 'C1o-', label = 'total_tau_yw')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_zu[:,0,0], 'C0o-', label = 'totalt_tau_zu')
-#            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_zu[:,0,0], 'C1o-', label = 'total_tau_zu')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_zv[:,0,0], 'C0o-', label = 'totalt_tau_zv')
-#            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_zv[:,0,0], 'C1o-', label = 'total_tau_zv')
-#            plt.legend()
-#            plt.show()
-#            
-#            plt.figure()
-#            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_zw[:,0,0], 'C0o-', label = 'totalt_tau_zw')
-#            #plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_zw[:,0,0], 'C0o-', label = 'totalt_tau_zw')
-#            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_zw[:,0,0], 'C1o-', label = 'total_tau_zw')
-#            plt.legend()
-#            plt.show()
+            plt.figure()
+            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_xu[:,0,0], 'C0o-', label = 'totalt_tau_xu')
+            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_xu[:,0,0], 'C1o-', label = 'total_tau_xu')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_xv[:,0,0], 'C0o-', label = 'totalt_tau_xv')
+            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_xv[:,0,0], 'C1o-', label = 'total_tau_xv')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_xw[:,0,0], 'C0o-', label = 'totalt_tau_xw')
+            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_xw[:,0,0], 'C1o-', label = 'total_tau_xw')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_yu[:,0,0], 'C0o-', label = 'totalt_tau_yu')
+            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_yu[:,0,0], 'C1o-', label = 'total_tau_yu')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_yv[:,0,0], 'C0o-', label = 'totalt_tau_yv')
+            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_yv[:,0,0], 'C1o-', label = 'total_tau_yv')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_yw[:,0,0], 'C0o-', label = 'totalt_tau_yw')
+            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_yw[:,0,0], 'C1o-', label = 'total_tau_yw')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_zu[:,0,0], 'C0o-', label = 'totalt_tau_zu')
+            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_zu[:,0,0], 'C1o-', label = 'total_tau_zu')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_zv[:,0,0], 'C0o-', label = 'totalt_tau_zv')
+            plt.plot(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], total_tau_zv[:,0,0], 'C1o-', label = 'total_tau_zv')
+            plt.legend()
+            plt.show()
+            
+            plt.figure()
+            plt.plot(finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], totalt_tau_zw[:,0,0], 'C0o-', label = 'totalt_tau_zw')
+            #plt.plot(finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], totalt_tau_zw[:,0,0], 'C0o-', label = 'totalt_tau_zw')
+            plt.plot(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], total_tau_zw[:,0,0], 'C1o-', label = 'total_tau_zw')
+            plt.legend()
+            plt.show()
 #            
 #            plt.figure()
 #            plt.plot(finegrid['grid']['x'][finegrid.igc:finegrid.iend], totalt_tau_xu[1,0,:], 'C0o-', label = 'totalt_tau_xu')
@@ -529,60 +530,60 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
 #            plt.legend()
 #            plt.show()
             
-            plt.figure()
-            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_xu[1,:,0], 'C0o-', label = 'totalt_tau_xu')
-            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_xu[1,:,0], 'C1o-', label = 'total_tau_xu')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_xv[1,:,0], 'C0o-', label = 'totalt_tau_xv')
-            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_xv[1,:,0], 'C1o-', label = 'total_tau_xv')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['y'][finegrid.igc:finegrid.jend], totalt_tau_xw[1,:,0], 'C0o-', label = 'totalt_tau_xw')
-            plt.plot(coarsegrid['grid']['y'][coarsegrid.igc:coarsegrid.jend], total_tau_xw[1,:,0], 'C1o-', label = 'total_tau_xw')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_yu[1,:,0], 'C0o-', label = 'totalt_tau_yu')
-            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_yu[1,:,0], 'C1o-', label = 'total_tau_yu')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_yv[1,:,0], 'C0o-', label = 'totalt_tau_yv')
-            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_yv[1,:,0], 'C1o-', label = 'total_tau_yv')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_yw[1,:,0], 'C0o-', label = 'totalt_tau_yw')
-            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_yw[1,:,0], 'C1o-', label = 'total_tau_yw')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_zu[1,:,0], 'C0o-', label = 'totalt_tau_zu')
-            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_zu[1,:,0], 'C1o-', label = 'total_tau_zu')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_zv[1,:,0], 'C0o-', label = 'totalt_tau_zv')
-            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_zv[1,:,0], 'C1o-', label = 'total_tau_zv')
-            plt.legend()
-            plt.show()
-            
-            plt.figure()
-            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_zw[1,:,0], 'C0o-', label = 'totalt_tau_zw')
-            #plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_zw[0,:,0], 'C0o-', label = 'totalt_tau_zw')
-            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_zw[1,:,0], 'C1o-', label = 'total_tau_zw')
-            plt.legend()
-            plt.show()
+#            plt.figure()
+#            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_xu[1,:,0], 'C0o-', label = 'totalt_tau_xu')
+#            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_xu[1,:,0], 'C1o-', label = 'total_tau_xu')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_xv[1,:,0], 'C0o-', label = 'totalt_tau_xv')
+#            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_xv[1,:,0], 'C1o-', label = 'total_tau_xv')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['y'][finegrid.igc:finegrid.jend], totalt_tau_xw[1,:,0], 'C0o-', label = 'totalt_tau_xw')
+#            plt.plot(coarsegrid['grid']['y'][coarsegrid.igc:coarsegrid.jend], total_tau_xw[1,:,0], 'C1o-', label = 'total_tau_xw')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_yu[1,:,0], 'C0o-', label = 'totalt_tau_yu')
+#            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_yu[1,:,0], 'C1o-', label = 'total_tau_yu')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_yv[1,:,0], 'C0o-', label = 'totalt_tau_yv')
+#            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_yv[1,:,0], 'C1o-', label = 'total_tau_yv')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_yw[1,:,0], 'C0o-', label = 'totalt_tau_yw')
+#            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_yw[1,:,0], 'C1o-', label = 'total_tau_yw')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_zu[1,:,0], 'C0o-', label = 'totalt_tau_zu')
+#            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_zu[1,:,0], 'C1o-', label = 'total_tau_zu')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], totalt_tau_zv[1,:,0], 'C0o-', label = 'totalt_tau_zv')
+#            plt.plot(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], total_tau_zv[1,:,0], 'C1o-', label = 'total_tau_zv')
+#            plt.legend()
+#            plt.show()
+#            
+#            plt.figure()
+#            plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_zw[1,:,0], 'C0o-', label = 'totalt_tau_zw')
+#            #plt.plot(finegrid['grid']['y'][finegrid.jgc:finegrid.jend], totalt_tau_zw[0,:,0], 'C0o-', label = 'totalt_tau_zw')
+#            plt.plot(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], total_tau_zw[1,:,0], 'C1o-', label = 'total_tau_zw')
+#            plt.legend()
+#            plt.show()
 
         ##Store flow fields coarse grid and unresolved transport ##
         ###########################################################

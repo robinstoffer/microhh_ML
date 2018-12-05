@@ -5,6 +5,7 @@
 import numpy as np
 
 def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid):
+    dist_corc = np.round(dist_corc, finegrid.sgn_digits)
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
     
@@ -51,6 +52,7 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid
     return weights, points_indices_cor
 
 def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid, periodic_bc = True, zero_w_topbottom = True, size = 0): #For 'size' a default value is used that should not affect results as long as vert_flag = False.
+    dist_corc = np.round(dist_corc, finegrid.sgn_digits)
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
     
