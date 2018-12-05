@@ -1,4 +1,4 @@
-#Main script that generates the training data for the NN
+#Script that generates the training data for the NN
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
 #NOTE: Developed for Python 3!
 import numpy   as np

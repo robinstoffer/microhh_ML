@@ -1,4 +1,4 @@
-#Test script for func_generate_training.py, microhh_tools_robinst.py, grid_objects_training.py, downsampling_training.py.
+#Main to test and run func_generate_training.py, sample_training_data_tfrecord.py, microhh_tools_robinst.py, grid_objects_training.py, downsampling_training.py.
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
 
 #Load modules

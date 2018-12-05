@@ -8,7 +8,7 @@ import microhh_tools_robinst as tools
 import os
 
 class Finegrid:
-    """ Returns a single object that can read from binary files or explicitly define the grid and output variables.
+    """ Returns a single object that can read from MicroHH output binary files the grid and output variables. For testing purposes, the grid and output variables can also be explicitly defined.
         
         -The precision indicates the floating point precision of the fine resolution data, which is either 'single' or 'double'.
        
