@@ -141,20 +141,20 @@ class Finegrid:
         #If None, a .ini file should be present in the current directory to read.
         settings = tools.Read_namelist(settings_filepath)
 
-        self.var['grid']['itot'] = settings['grid']['itot']
-        self.var['grid']['jtot'] = settings['grid']['jtot']
-        self.var['grid']['ktot'] = settings['grid']['ktot']
+        self.var['grid']['itot'] = int(settings['grid']['itot'])
+        self.var['grid']['jtot'] = int(settings['grid']['jtot'])
+        self.var['grid']['ktot'] = int(settings['grid']['ktot'])
         self.var['grid']['xsize'] = settings['grid']['xsize']
         self.var['grid']['ysize'] = settings['grid']['ysize']
         self.var['grid']['zsize'] = settings['grid']['zsize']
 
-        self.var['time']['starttime'] = settings['time']['starttime']
+        self.var['time']['starttime'] = int(settings['time']['starttime'])
         #self.var['time']['starttime'] = 0
-        self.var['time']['endtime'] = settings['time']['endtime']
+        self.var['time']['endtime'] = int(settings['time']['endtime'])
         #self.var['time']['endtime'] = 7200
-        self.var['time']['savetime'] = settings['time']['savetime']
+        self.var['time']['savetime'] = int(settings['time']['savetime'])
         #self.var['time']['savetime'] = 600
-        self.var['time']['timesteps'] = (self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']
+        self.var['time']['timesteps'] = int((self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime'])
         #self.var['time']['timesteps'] = 13
 
     def __read_binary_grid(self, grid_filepath):
