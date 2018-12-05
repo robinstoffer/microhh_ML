@@ -148,14 +148,14 @@ class Finegrid:
         self.var['grid']['ysize'] = settings['grid']['ysize']
         self.var['grid']['zsize'] = settings['grid']['zsize']
 
-        #self.var['time']['starttime'] = settings['time']['starttime']
-        self.var['time']['starttime'] = 0
-        #self.var['time']['endtime'] = settings['time']['endtime']
-        self.var['time']['endtime'] = 7200
-        #self.var['time']['savetime'] = settings['time']['savetime']
-        self.var['time']['savetime'] = 600
-        #self.var['time']['timesteps'] = (self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']
-        self.var['time']['timesteps'] = 13
+        self.var['time']['starttime'] = settings['time']['starttime']
+        #self.var['time']['starttime'] = 0
+        self.var['time']['endtime'] = settings['time']['endtime']
+        #self.var['time']['endtime'] = 7200
+        self.var['time']['savetime'] = settings['time']['savetime']
+        #self.var['time']['savetime'] = 600
+        self.var['time']['timesteps'] = (self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime']
+        #self.var['time']['timesteps'] = 13
 
     def __read_binary_grid(self, grid_filepath):
         """ Read binary grid from specified file (default: grid.0000000). """

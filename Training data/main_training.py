@@ -109,6 +109,7 @@ from sample_training_data_tfrecord import generate_samples
 #print('Volume integral p finegrid: ' + str(volume_finegrid_p))
 #print('Volume integral p coarsegrid: ' + str(volume_coarsegrid_p))
 
+
 input_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/'
 output_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/Training data/'
 settings_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/moser600.ini'
