@@ -249,7 +249,23 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                   Example proto
                 """
             
-                example = tf.train.Example(features=tf.train.Features(feature={'uc_sample': _float_feature(uc_sample.flatten().tolist()),'vc_sample': _float_feature(vc_sample.flatten().tolist()),'wc_sample': _float_feature(wc_sample.flatten().tolist()),'pc_sample': _float_feature(pc_sample.flatten().tolist()),'unres_tau_xu_sample': _float_feature(unres_tau_xu_sample.flatten().tolist()),'unres_tau_xv_sample': _float_feature(unres_tau_xv_sample.flatten().tolist()),'unres_tau_xw_sample': _float_feature(unres_tau_xw_sample.flatten().tolist()),'unres_tau_yu_sample': _float_feature(unres_tau_yu_sample.flatten().tolist()),'unres_tau_yv_sample': _float_feature(unres_tau_yv_sample.flatten().tolist()),'unres_tau_yw_sample': _float_feature(unres_tau_yw_sample.flatten().tolist()),'unres_tau_zu_sample': _float_feature(unres_tau_zu_sample.flatten().tolist()),'unres_tau_zv_sample': _float_feature(unres_tau_zv_sample.flatten().tolist()),'unres_tau_zw_sample': _float_feature(unres_tau_zw_sample.flatten().tolist()),'x_sample_size': _int64_feature(x_sample_size),'y_sample_size': _int64_feature(y_sample_size),'z_sample_size': _int64_feature(z_sample_size)}))        
+                example = tf.train.Example(features=tf.train.Features(feature={
+                               'uc_sample': _float_feature(uc_sample.flatten().tolist()),
+                               'vc_sample': _float_feature(vc_sample.flatten().tolist()),
+                               'wc_sample': _float_feature(wc_sample.flatten().tolist()),
+                               'pc_sample': _float_feature(pc_sample.flatten().tolist()),
+                               'unres_tau_xu_sample': _float_feature(unres_tau_xu_sample.flatten().tolist()),
+                               'unres_tau_xv_sample': _float_feature(unres_tau_xv_sample.flatten().tolist()),
+                               'unres_tau_xw_sample': _float_feature(unres_tau_xw_sample.flatten().tolist()),
+                               'unres_tau_yu_sample': _float_feature(unres_tau_yu_sample.flatten().tolist()),
+                               'unres_tau_yv_sample': _float_feature(unres_tau_yv_sample.flatten().tolist()),
+                               'unres_tau_yw_sample': _float_feature(unres_tau_yw_sample.flatten().tolist()),
+                               'unres_tau_zu_sample': _float_feature(unres_tau_zu_sample.flatten().tolist()),
+                               'unres_tau_zv_sample': _float_feature(unres_tau_zv_sample.flatten().tolist()),
+                               'unres_tau_zw_sample': _float_feature(unres_tau_zw_sample.flatten().tolist()),
+                               'x_sample_size': _int64_feature(x_sample_size),
+                               'y_sample_size': _int64_feature(y_sample_size),
+                               'z_sample_size': _int64_feature(z_sample_size)}))        
                 return example
             
             def _process_image_files_batch(output_file,uc_samples, vc_samples, wc_samples, pc_samples, unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples, unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples, unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples,x_sample_size,y_sample_size,z_sample_size):
