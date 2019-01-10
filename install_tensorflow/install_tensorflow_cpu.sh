@@ -9,8 +9,11 @@ echo "Loaded modules are:"
 module list
 
 # Define virtualenv
-VIRTENV=tensorflow_cpu
-VIRTENV_ROOT=~/virtualenvs
+#VIRTENV=tensorflow_cpu
+#VIRTENV_ROOT=~/virtualenvs
+
+VIRTENV=firstCNN_intel_CPU
+VIRTENV_ROOT=~/virtualenv
 
 # Creating virtual env
 echo "Creating virtual environment $VIRTENV_ROOT/$VIRTENV"
@@ -25,13 +28,15 @@ echo "Current Python packages"
 pip list
 
 # Export LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH
 export MPICC=mpicc
 export MPICXX=mpicxx
 
 # Tensorflow
 echo "Installing Tensorflow"
 pip install intel-tensorflow --no-cache-dir
+
+# Getting this error when installing horovod, unless we comment a line: https://github.com/protocolbuffers/protobuf/issues/4069
+sed -i 's/static_assert(std::is_pod<AuxillaryParseTableField>::value, "");/\/\/static_assert(std::is_pod<AuxillaryParseTableField>::value, "");/g' $VIRTENV_ROOT/$VIRTENV/lib/python3.6/site-packages/tensorflow/include/google/protobuf/generated_message_table_driven.h
 
 # Horovod
 echo "Installing Horovod"

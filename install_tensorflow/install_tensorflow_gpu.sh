@@ -2,7 +2,7 @@
 
 # Loading modules
 module load Python/3.6.3-foss-2017b
-module load netCDF/4.4.1.1-foss-2017b
+module load netCDF/4.5.0-foss-2017b
 module load netCDF-C++4/4.3.0-foss-2017b
 
 module load CUDA/9.0.176
@@ -35,8 +35,7 @@ source $VIRTENV_ROOT/$VIRTENV/bin/activate
 echo "Current Python packages"
 pip list
 
-# Export LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH
+# Export MPICC
 export MPICC=mpicc
 export MPICXX=mpicxx
 export HOROVOD_MPICXX_SHOW="mpicxx --showme:link"
