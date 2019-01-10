@@ -20,8 +20,8 @@ export HOROVOD_NCCL_HOME=$EBROOTNCCL
 export HOROVOD_GPU_ALLREDUCE=NCCL
 
 # Define virtualenv
-VIRTENV=tensorflow_gpu
-VIRTENV_ROOT=~/virtualenvs
+VIRTENV=firstCNN_foss_GPU
+VIRTENV_ROOT=~/virtualenv
 
 # Creating virtual env
 echo "Creating virtual environment $VIRTENV_ROOT/$VIRTENV"
