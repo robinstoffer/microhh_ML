@@ -4,6 +4,7 @@ import numpy as np
 import netCDF4 as nc
 import tensorflow as tf
 import os
+import subprocess
 import glob
 import argparse
 import matplotlib
@@ -14,6 +15,9 @@ matplotlib.use('agg')
 
 ##Enable eager execution
 #tf.enable_eager_execution()
+
+#Amount of cores on node
+ncores = int(subprocess.check_output(["nproc", "--all"]))
 
 # Instantiate the parser
 parser = argparse.ArgumentParser(description='microhh_ML')
@@ -27,7 +31,7 @@ parser.add_argument('--synthetic', default=None, \
 parser.add_argument('--benchmark', dest='benchmark', default=None, \
         action='store_true', \
         help='fullrun includes testing and plotting, otherwise it ends after validation loss to facilitate benchmark tests')
-parser.add_argument('--intra_op_parallelism_threads', type=int, default=31, \
+parser.add_argument('--intra_op_parallelism_threads', type=int, default=ncores-1, \
         help='intra_op_parallelism_threads')
 parser.add_argument('--inter_op_parallelism_threads', type=int, default=1, \
         help='inter_op_parallelism_threads')
@@ -238,7 +242,7 @@ profiler_hook = tf.train.ProfilerHook(save_steps = 10000, output_dir = checkpoin
 if args.synthetic is None:
     #Train and evaluate CNN
     train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable), max_steps=num_steps, hooks=[profiler_hook])
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable), steps=1000, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps (which does not include all validation data)
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps (which does not include all validation data)
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    #Train the CNN
