@@ -2,6 +2,8 @@
 
 # Loading modules
 module load Python/3.6.1-intel-2016b
+module load netCDF/4.4.1.1-intel-2016b
+module load netCDF-C++4/4.3.0-intel-2016b
 
 echo "Loaded modules are:"
 module list
@@ -35,3 +37,16 @@ pip install intel-tensorflow --no-cache-dir
 echo "Installing Horovod"
 pip install horovod --no-cache-dir
 
+# netCDF
+echo "Installing netCDF for python"
+pip3 install netCDF4 --no-cache-dir
+
+# Scipy
+echo "Installing scipy for python"
+pip3 install scipy --no-cache-dir
+
+# Matplotlib
+# Note: Tkinter is not supported with this installation
+# Switch backend to Agg after importing matplotlib in your python session, then plot
+echo "Installing matplotlib"
+pip3 install matplotlib --no-cache-dir

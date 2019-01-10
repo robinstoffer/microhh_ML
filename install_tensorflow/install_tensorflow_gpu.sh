@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # Loading modules
-module load Python/3.6.1-intel-2016b
+module load Python/3.6.3-foss-2017b
+module load netCDF/4.4.1.1-foss-2017b
+module load netCDF-C++4/4.3.0-foss-2017b
 
 module load CUDA/9.0.176
 module load cuDNN/7.0.5-CUDA-9.0.176
@@ -47,3 +49,16 @@ pip3 install tensorflow-gpu --no-cache-dir
 echo "Installing Horovod"
 pip3 install horovod --no-cache-dir
 
+# netCDF
+echo "Installing netCDF for python"
+pip3 install netCDF4 --no-cache-dir
+
+# Scipy
+echo "Installing scipy for python"
+pip3 install scipy --no-cache-dir
+
+# Matplotlib
+# Note: Tkinter is not supported with this installation
+# Switch backend to Agg after importing matplotlib in your python session, then plot
+echo "Installing matplotlib"
+pip3 install matplotlib --no-cache-dir
