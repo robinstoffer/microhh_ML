@@ -49,11 +49,6 @@ random_seed = 1234
 #the output in format (dict(features),labels)
 def _parse_function(example_proto,label_name):
     keys_to_features = {
-#        'uc_sample':tf.VarLenFeature(tf.float64),
-#        'vc_sample':tf.VarLenFeature(tf.float64),
-#        'wc_sample':tf.VarLenFeature(tf.float64),
-#        'pc_sample':tf.VarLenFeature(tf.float64),
-#        label_name :tf.VarLenFeature(tf.float64),
         'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
         'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
         'wc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
@@ -66,24 +61,6 @@ def _parse_function(example_proto,label_name):
 
     parsed_features = tf.parse_single_example(example_proto, keys_to_features)
 
-    #Reshape input data
-#    xsize = parsed_features['x_sample_size']
-#    ysize = parsed_features['y_sample_size']
-#    zsize = parsed_features['z_sample_size']
-#    xsize = 5
-#    ysize = 5
-#    zsize = 5
-#    parsed_features['uc_sample'] = tf.reshape(parsed_features['uc_sample'], [zsize,ysize,xsize])
-#    parsed_features['vc_sample'] = tf.reshape(parsed_features['vc_sample'], [zsize,ysize,xsize])
-#    parsed_features['wc_sample'] = tf.reshape(parsed_features['wc_sample'], [zsize,ysize,xsize])
-#    parsed_features['pc_sample'] = tf.reshape(parsed_features['pc_sample'], [zsize,ysize,xsize])
-    
-#    #Convert sparse tensors to dense tensors
-#    parsed_features['uc_sample'] = tf.sparse_tensor_to_dense(parsed_features['uc_sample'],default_value=-9999)
-#    parsed_features['vc_sample'] = tf.sparse_tensor_to_dense(parsed_features['vc_sample'],default_value=-9999)
-#    parsed_features['wc_sample'] = tf.sparse_tensor_to_dense(parsed_features['wc_sample'],default_value=-9999)
-#    parsed_features['pc_sample'] = tf.sparse_tensor_to_dense(parsed_features['pc_sample'],default_value=-9999)
-#    parsed_features[label_name] = tf.sparse_tensor_to_dense(parsed_features[label_name],default_value=-9999)
     labels = parsed_features.pop(label_name)
     return parsed_features,labels
 
@@ -94,10 +71,6 @@ def train_input_fn(filenames,batch_size,label_name):
     dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
     dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
     dataset.prefetch(1)
-#    dataset = dataset.map(lambda line:_parse_function(line,label_name))
-#    dataset = dataset.shuffle(batch_num*num_steps*10).repeat().batch(batch_size)
-#    features, labels = dataset.make_one_shot_iterator().get_next()
-#    return features,labels
     return dataset
 
 def train_input_synthetic_fn(batch_size, num_steps):
@@ -124,13 +97,6 @@ def train_input_synthetic_fn(batch_size, num_steps):
     dataset = dataset.batch(batch_size) #No shuffling or repeating needed because samples are randomly generated for all training steps.
     dataset.prefetch(1)
 
-#    data = dataset.make_initializable_iterator()
-#
-#    #needed without eager execution
-#    tf.add_to_collection(tf.GraphKeys.TABLE_INITIALIZERS, data.initializer)
-#    features, labels = data.get_next()
-#    features, labels = dataset.make_one_shot_iterator().get_next()
-#    return features, labels
     return dataset
 
 #Define evaluation function
@@ -140,10 +106,6 @@ def eval_input_fn(filenames,batch_size,label_name):
     dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
     dataset.prefetch(1)
 
-#    dataset = dataset.map(lambda line:_parse_function(line,label_name))
-#    dataset = dataset.batch(batch_size)
-#    features, labels = dataset.make_one_shot_iterator().get_next()
-#    return features, labels
     return dataset    
 
 #Define function for splitting the training and validation set
