@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Loading modules
+module purge
+module load surfsara
 module load Python/3.6.1-intel-2016b
 module load netCDF/4.4.1.1-intel-2016b
 module load netCDF-C++4/4.3.0-intel-2016b

@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Loading modules
+module purge
+module load surfsara
 module load Python/3.6.3-foss-2017b
 module load netCDF/4.5.0-foss-2017b
 module load netCDF-C++4/4.3.0-foss-2017b
