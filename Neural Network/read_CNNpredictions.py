@@ -8,7 +8,7 @@ mpl.rcParams.update({'figure.autolayout':True})
 import matplotlib.pyplot as plt
 
 #Fetch predictions made by CNN
-a=nc.Dataset('CNN_predictions.nc','r')
+a=nc.Dataset('/projects/1/flowsim/simulation1/CNN_checkpoints/CNN_predictions.nc','r')
 
 #Read variables
 preds_values = a['preds_values'][:]
@@ -52,6 +52,8 @@ plt.close()
 
 plt.figure()
 plt.hist(residuals,bins=20)
+plt.xlim(-0.01,0.01)
+#plt.ylim(-0.01,0.01)
 plt.xlabel("Magnitude",fontsize = 20)
 plt.ylabel("Count",fontsize = 20)
 plt.xticks(fontsize = 16, rotation = 90)
@@ -61,6 +63,8 @@ plt.close()
 
 plt.figure()
 plt.hist(residuals_random,bins=20)
+plt.xlim(-0.01,0.01)
+#plt.ylim(-0.01,0.01)
 plt.xlabel("Magnitude",fontsize = 20)
 plt.ylabel("Count",fontsize = 20)
 plt.xticks(fontsize = 16, rotation = 90)
@@ -70,6 +74,8 @@ plt.close()
 
 plt.figure()
 plt.hist(preds_values,bins=20)
+plt.xlim(-0.01,0.01)
+#plt.ylim(-0.01,0.01)
 plt.xlabel("Magnitude",fontsize = 20)
 plt.ylabel("Count",fontsize = 20)
 plt.xticks(fontsize = 16, rotation = 90)
@@ -79,6 +85,8 @@ plt.close()
 
 plt.figure()
 plt.hist(lbls_values,bins=20)
+plt.xlim(-0.01,0.01)
+#plt.ylim(-0.01,0.01)
 plt.xlabel("Magnitude",fontsize = 20)
 plt.ylabel("Count",fontsize = 20)
 plt.xticks(fontsize = 16, rotation = 90)
@@ -88,6 +96,8 @@ plt.close()
 
 plt.figure()
 plt.hist(preds_values_random,bins=20)
+plt.xlim(-0.01,0.01)
+#plt.ylim(-0.01,0.01)
 plt.xlabel("Magnitude",fontsize = 20)
 plt.ylabel("Count",fontsize = 20)
 plt.xticks(fontsize = 16, rotation = 90)

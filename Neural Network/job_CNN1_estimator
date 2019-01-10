@@ -1,8 +1,8 @@
 #!/bin/bash
 ####SBATCH -t 1-00:00:00
 #SBATCH -t 1:00:00
-####SBATCH -N 1
-#SBATCH -N 2 --ntasks-per-node=2 -c 12
+#SBATCH -N 1
+####SBATCH -N 2 --ntasks-per-node=2 -c 12
 #SBATCH -p short
 ####SBATCH -p gpu_short
 ####SBATCH -p gpu
@@ -10,13 +10,14 @@
 PORT=40600
 
 cd
-cd microhh/cases/moser600/simulation2
+#cd microhh/cases/moser600/simulation2
+cd /projects/1/flowsim/simulation1
 
 module purge
 module load eb
 module load surfsara
 module load CMake/3.7.2-intel-2016b
-module load cuDNN/7.0.5-CUDA-9.0.176
+#module load cuDNN/7.0.5-CUDA-9.0.176
 module load netCDF/4.4.1.1-intel-2016b
 module load netCDF-C++4/4.3.0-intel-2016b
 module load FFTW/3.3.5-intel-2016b
@@ -35,11 +36,13 @@ export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared
 #module load Doxygen/1.8.13-GCCcore-6.4.0
 #module unload ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20
 
-source ~/virtualenv/firstCNN_intel/bin/activate
+source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 #python3 CNN1_estimator.py > output_CNN1_estimator.txt
-srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
+#srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
+python3 /projects/1/flowsim/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/training_time_step*[0-9]_of*[0-9].tfrecords' --checkpoint_dir '/projects/1/flowsim/simulation1/CNN_checkpoints/linear1_synthetic' --synthetic --num_steps 100000 --batch_size 100
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
-#tensorboard --logdir=/home/robins/microhh/cases/moser600/simulation2/CNN_checkpoints --port=$PORT
+#tensorboard --logdir=/projects/1/flowsim/simulation1/CNN_checkpoints --port=$PORT
+##On LOCAL terminal: ssh -N -L40600:localhost:40600 robinst@int3-bb.cartesius.surfsara.nl.
