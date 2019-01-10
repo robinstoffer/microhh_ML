@@ -12,4 +12,7 @@ If you want to alter the resolution for the coarse data, you need to change the 
 
 The generate_samples script cuts the flow field into pieces. Size of the pieces is already stored in the netCDF files (by the func_generate_training script). You can choose to store as netCDF, binary, or both.
 
-## 
+## Neural Network
+CNN1_estimator.py: contains the network, the tensorflow code etc. Outputs 1 prediction per input sample: the unresolved transport of the e.g. 5x5x5 input sample. In addition to the prediction, the original label is output. These are stored in a netCDF file, in 2 arrays (e.g. element 1 in array 1 is the prediction corresponding to the element 1 in array 2, which contains the label).
+job_CNN1_estimater: job script
+read_CNNpredictions.py: plots the netCDF array in a scatter plot
