@@ -188,7 +188,7 @@ def CNN_model_fn(features,labels,mode,params):
     metrics = {'rmse':(rmse_tau_total,update_op)}
     tf.summary.scalar('rmse',rmse_tau_total)
     if mode == tf.estimator.ModeKeys.EVAL:
-        return tf.estimator.EstimatorSpec(mode, loss=log_loss, eval_metric_ops=metrics)
+        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
         #return tf.estimator.EstimatorSpec(mode, loss=loss)
 
     #Create training op.
