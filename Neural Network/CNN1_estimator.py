@@ -72,8 +72,11 @@ def _parse_function(example_proto,label_name):
 #Define training input function
 def train_input_fn(filenames,batch_size,label_name):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
-    dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
+    dataset = dataset.shuffle(batch_size).repeat()
+    dataset = dataset.map(lambda line:_parse_function(line,label_name))
+    dataset = dataset.batch(batch_size)
+    #dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
+    #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
     dataset.prefetch(1)
     return dataset
 
@@ -106,8 +109,10 @@ def train_input_synthetic_fn(batch_size, num_steps):
 #Define evaluation function
 def eval_input_fn(filenames,batch_size,label_name):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen
-    dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
+    #dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen NOTE: only needed when evaluation is not done on whole validation set (i.e. steps is not None)
+    dataset = dataset.map(lambda line:_parse_function(line,label_name))
+    dataset = dataset.batch(batch_size)
+    #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
     dataset.prefetch(1)
 
     return dataset    
@@ -144,11 +149,14 @@ def CNN_model_fn(features,labels,mode,params):
     print(conv1_layer.weights[0])
     acts_filters = tf.unstack(conv1_layer.weights[0], axis=4)
     for i, acts_filter in enumerate(acts_filters):
-        twodim_slices = tf.unstack(acts_filter, axis=1) #Each slice corresponds to one of the five vertical levels (y,x)
-
-        for j, twodim_slice in enumerate(twodim_slices):
-            #twodim_slice = tf.transpose(twodim_slice, perm=[1,0]) #swap y,x dimensions such that dimensions become (x,y)
-            tf.summary.image('filter'+str(i)+', height'+str(j), tf.expand_dims(twodim_slice, axis=3))
+        threedim_slices = tf.unstack(acts_filter, axis=0) #Each slice corresponds to one of the five vertical levels (y,x)
+        #print(acts_filter.shape)
+        for j, threedim_slice in enumerate(threedim_slices):
+            twodim_slices = tf.unstack(threedim_slice, axis=2) #Each slice correponds to one vertical level for one of the four variables
+            #print(threedim_slice.shape)
+            for k, twodim_slice in enumerate(twodim_slices):
+                #print(twodim_slice.shape)
+                tf.summary.image('filter'+str(i)+', height'+str(j)+', variable'+str(k), tf.expand_dims(tf.expand_dims(twodim_slice, axis=2), axis=0)) #Two times tf.expand_dims to construct a 4D Tensor from the resulting 2D Tensor, which is required by tf.summary.image.
     ###
 
     ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
@@ -172,13 +180,15 @@ def CNN_model_fn(features,labels,mode,params):
     #Compute loss
     mse_tau_total = tf.losses.mean_squared_error(labels, output)
     loss = tf.reduce_mean(mse_tau_total)
+    log_loss = tf.math.log(loss)
+    tf.summary.scalar('log_loss', log_loss)
 
     #Compute evaluation metrics.
     rmse_tau_total,update_op = tf.metrics.root_mean_squared_error(labels, output)
     metrics = {'rmse':(rmse_tau_total,update_op)}
     tf.summary.scalar('rmse',rmse_tau_total)
     if mode == tf.estimator.ModeKeys.EVAL:
-        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
+        return tf.estimator.EstimatorSpec(mode, loss=log_loss, eval_metric_ops=metrics)
         #return tf.estimator.EstimatorSpec(mode, loss=loss)
 
     #Create training op.
@@ -198,6 +208,9 @@ def CNN_model_fn(features,labels,mode,params):
 #Define filenames for training and validation
 files = glob.glob(args.input_dir)
 train_filenames, val_filenames = split_train_val(files,0.1) #Set aside 10% of files for validation. Pleas note that a separate, independent test set should be created separately.
+print('Files used for training: ' + str(train_filenames))
+print('Files used for validation: ' + str(val_filenames))
+
 
 ##Define feature columns
 #feature_columns = [tf.feature_column.numeric_column(key  = 'uc_sample',shape = [5,5,5],dtype=tf.float64),tf.feature_column.numeric_column('vc_sample',shape = [5,5,5],dtype=tf.float64),tf.feature_column.numeric_column('wc_sample',shape = [5,5,5],dtype=tf.float64),tf.feature_column.numeric_column('pc_sample',shape = [5,5,5],dtype=tf.float64)]
@@ -267,10 +280,11 @@ else:
     print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))  
     print('Used synthetic data')
 
+
 #'Hacky' solution to compare the predictions of the CNN to the true labels stored in the TFRecords files. NOTE: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
 if args.benchmark is None:
    
-    val_filenames = train_filenames #NOTE: this line only implemented to test the script. REMOVE it later on!!!
+    #val_filenames = train_filenames #NOTE: this line only implemented to test the script. REMOVE it later on!!!
  
     #Loop over val files to prevent memory overflow issues
     if args.synthetic is not None:
@@ -292,10 +306,12 @@ if args.benchmark is None:
     tot_sample_begin = tot_sample_end
 
     for val_filename in val_filenames:
+
+        tf.reset_default_graph() #Reset the graph for each iteration
  
         #Generate iterator to extra features and labels from input data
         if args.synthetic is None:
-            iterator = eval_input_fn(val_filename, batch_size, output_variable).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
+            iterator = eval_input_fn([val_filename], batch_size, output_variable).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
  
         else:
 #           iterator = train_input_synthetic_fn(batch_size, 1000).make_one_shot_iterator() #1000 samples are generated and subsequently used for validation, NOTE: this line raises error message because the one_shot_iterator cannot capture statefull nodes contained in train_input_synthetic_fn.
@@ -319,7 +335,12 @@ if args.benchmark is None:
 
         with tf.Session(config=config) as sess:
 
+#            for n in tf.get_default_graph().as_graph_def().node:
+#                if 'Variable' in n.op:
+#                    print(n)
+
             #Restore CNN_model within tf.Session()
+            #tf.reset_default_graph() #Make graph empty before restoring
             ckpt  = tf.train.get_checkpoint_state(checkpoint_dir)
             saver.restore(sess, ckpt.model_checkpoint_path)
 
