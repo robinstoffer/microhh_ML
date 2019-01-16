@@ -3,6 +3,7 @@ from custom_hooks import MetadataHook
 import numpy as np
 import netCDF4 as nc
 import tensorflow as tf
+import random
 import os
 import subprocess
 import glob
@@ -80,31 +81,47 @@ def train_input_fn(filenames,batch_size,label_name):
     dataset.prefetch(1)
     return dataset
 
-def train_input_synthetic_fn(batch_size, num_steps):
+def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: used for both training and evaluation with synthetic data
+
+    #For testing purpose num_steps is set equal to 3 million divided by batch_size, representing the case where 3 million examples are available for training (preventing memory issues when the number of training steps is high). 
+    #NOTE: If num_steps is not explicitly set anymore (but rather determined via the input), remove .repeat() below when train_mode is set to True.
+    #NOTE: in case of evaluation only 300.000 examples are being generated, representing the case where approximately 10% of the available examples is used for evaluation
+    num_steps_train = int((3*10**6)/batch_size)
+    if not train_mode:
+        num_steps_train = int(0.1*num_steps_train)
+
     #Get features
     features = {}
     distribution = tf.distributions.Uniform(low=[-1.0], high=[1.0])
-    features['uc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps, 5, 5, 5)))
-    features['vc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps, 5, 5, 5)))
-    features['wc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps, 5, 5, 5)))
-    features['pc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps, 5, 5, 5)))
+    features['uc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
+    features['vc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
+    features['wc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
+    features['pc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
     
     #Get labels
     #linear
-    labels = tf.reduce_sum(features['uc_sample'], [1,2,3])/125 + \
-             tf.reduce_sum(features['pc_sample'], [1,2,3])/125 + \
-             tf.reduce_sum(features['vc_sample'], [1,2,3])/125 + \
-             tf.reduce_sum(features['wc_sample'], [1,2,3])/125
+    #labels = tf.reduce_sum(features['uc_sample'], [1,2,3])/125 + \
+    #         tf.reduce_sum(features['pc_sample'], [1,2,3])/125 + \
+    #         tf.reduce_sum(features['vc_sample'], [1,2,3])/125 + \
+    #         tf.reduce_sum(features['wc_sample'], [1,2,3])/125
     #constant
-    #labels = [0.0] * batch_size * num_steps
+    #labels = [0.0] * batch_size * num_steps_train
+    #constant with random Gaussian noise
+    gaussian_noise = tf.distributions.Normal(loc=0., scale=0.01)
+    labels = gaussian_noise.sample(sample_shape=(batch_size*num_steps_train))
 
     #prepare the Dataset object
     dataset = tf.data.Dataset.from_tensor_slices((features, labels))
 
-    dataset = dataset.batch(batch_size) #No shuffling or repeating needed because samples are randomly generated for all training steps.
+    if train_mode:
+        dataset = dataset.batch(batch_size).repeat() #No shuffling needed because samples are randomly generated for all training steps.
+    else:
+        dataset = dataset.batch(batch_size) #No .repeat() method for evaluation to ensure all randomly generated samples are only evaluated once.
     dataset.prefetch(1)
 
     return dataset
+
+
 
 #Define evaluation function
 def eval_input_fn(filenames,batch_size,label_name):
@@ -180,19 +197,27 @@ def CNN_model_fn(features,labels,mode,params):
     #Compute loss
     mse_tau_total = tf.losses.mean_squared_error(labels, output)
     loss = tf.reduce_mean(mse_tau_total)
-    log_loss = tf.math.log(loss)
-    tf.summary.scalar('log_loss', log_loss)
+
+    #Define custom metric to store the logarithm of the los both during training and evaluation
+    def log_loss_metric(labels, output):
+        result, update_op = tf.metrics.mean_squared_error(labels, output)
+        return tf.math.log(result), update_op
 
     #Compute evaluation metrics.
-    rmse_tau_total,update_op = tf.metrics.root_mean_squared_error(labels, output)
-    metrics = {'rmse':(rmse_tau_total,update_op)}
-    tf.summary.scalar('rmse',rmse_tau_total)
+    rmse_tau_total,update_op_rmse = tf.metrics.root_mean_squared_error(labels, output)
+    log_loss_eval, update_op_loss = log_loss_metric(labels, output)
+    metrics = {'rmse':(rmse_tau_total,update_op_rmse),'log_loss':(log_loss_eval, update_op_loss)}
+    #tf.summary.scalar('rmse',rmse_tau_total)
+    #tf.summary.scalar('log_loss',log_loss)
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
         #return tf.estimator.EstimatorSpec(mode, loss=loss)
 
     #Create training op.
     assert mode == tf.estimator.ModeKeys.TRAIN
+
+    log_loss_training = tf.math.log(loss)
+    tf.summary.scalar('log_loss', log_loss_training)
 
     optimizer = tf.train.AdamOptimizer(params['learning_rate'])
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
@@ -238,7 +263,9 @@ hyperparams =  {
 'n_conv1':10,
 'kernelsize_conv1':5,
 'stride_conv1':1,
+#'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
 'activation_function':tf.nn.relu,
+#'kernel_initializer':tf.initializers.he_uniform(),
 'kernel_initializer':tf.glorot_uniform_initializer(),
 'learning_rate':0.0001
 }
@@ -255,7 +282,7 @@ profiler_hook = tf.train.ProfilerHook(save_steps = 10000, output_dir = checkpoin
 if args.synthetic is None:
     #Train and evaluate CNN
     train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable), max_steps=num_steps, hooks=[profiler_hook])
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps (which does not include all validation data)
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    #Train the CNN
@@ -269,14 +296,14 @@ if args.synthetic is None:
 #    NOTE: CNN.predict appeared to be unsuitable to compare the predictions from the CNN to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
 
 else:
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_synthetic_fn(batch_size, num_steps), max_steps=num_steps, hooks=[profiler_hook])
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:train_input_synthetic_fn(batch_size, 1000), steps=1000, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps (and thus also no more than 1000 random samples need to be generated)
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = True), max_steps=num_steps, hooks=[profiler_hook])
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    #Train the CNN
 #    CNN.train(input_fn=lambda:train_input_synthetic_fn(batch_size, num_steps), steps=num_steps, hooks=[profiler_hook])
     #Evaluate the CNN afterwards
-    eval_results = CNN.evaluate(input_fn=lambda:train_input_synthetic_fn(batch_size, 1000), steps=None) #NOTE: putting steps at None or 1000 is equivalent.
+    eval_results = CNN.evaluate(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None) #NOTE: putting steps at None or 1000 is equivalent.
     print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))  
     print('Used synthetic data')
 
@@ -315,7 +342,7 @@ if args.benchmark is None:
  
         else:
 #           iterator = train_input_synthetic_fn(batch_size, 1000).make_one_shot_iterator() #1000 samples are generated and subsequently used for validation, NOTE: this line raises error message because the one_shot_iterator cannot capture statefull nodes contained in train_input_synthetic_fn.
-            iterator = train_input_synthetic_fn(batch_size, 1000).make_initializable_iterator()
+            iterator = input_synthetic_fn(batch_size, num_steps, train_mode = False).make_initializable_iterator()
  
 #            #needed without eager execution
 #            tf.add_to_collection(tf.GraphKeys.TABLE_INITIALIZERS, iterator.initializer)
@@ -332,6 +359,26 @@ if args.benchmark is None:
 
         #Save CNN_model such that it can be restored in the tf.Session() below
         saver = tf.train.Saver()
+
+
+        #Create/open netCDF-file
+        if create_file:
+            filepath = checkpoint_dir + '/CNN_predictions.nc'
+            predictions_file = nc.Dataset(filepath, 'w')
+            dim_ns = predictions_file.createDimension("ns",None)
+
+            #Create variables for storage
+            var_pred = predictions_file.createVariable("preds_values","f8",("ns",))
+            var_pred_random = predictions_file.createVariable("preds_values_random","f8",("ns",))
+            var_lbl = predictions_file.createVariable("lbls_values","f8",("ns",))
+            var_res = predictions_file.createVariable("residuals","f8",("ns",))
+            var_res_random = predictions_file.createVariable("residuals_random","f8",("ns",))
+
+            create_file=False #Make sure file is only created once
+
+        else:
+            predictions_file = nc.Dataset(filepath, 'r+')
+
 
         with tf.Session(config=config) as sess:
 
@@ -359,34 +406,22 @@ if args.benchmark is None:
                     residuals = []
                     residuals_random = []
 
+                    print(preds['label'])
                     for pred,lbl in zip(preds['value'],preds['label']):
                         #print('\nPrediction is "{:.10e}", expectation is "{:.10e}".'.format(pred[0],lbl)) #Index 0 needed to index single value in ndarray
                         preds_values += [pred[0]]
+                        print('prediction :' + str(pred[0]))
                         lbls_values += [lbl[0]]
+                        print('label :' + str(lbl[0]))
                         residuals += [abs(pred[0]-lbl[0])]
-                        pred_random = np.random.choice(preds['label'][:][0]) #Generate random prediction
+                        pred_random = random.choice(preds['label'][:][:]) #Generate random prediction
+                        print('random prediction:' + str(pred_random[0]))
                         preds_values_random += [pred_random]
                         residuals_random += [abs(pred_random-lbl[0])]
                         tot_sample_end +=1
+                        print('next sample')
+                    print('next batch')
                     
-                    #Create/open netCDF-file
-                    if create_file:
-                        filepath = checkpoint_dir + '/CNN_predictions.nc'
-                        predictions_file = nc.Dataset(filepath, 'w')
-                        dim_ns = predictions_file.createDimension("ns",None)
-        
-                        #Create variables for storage
-                        var_pred = predictions_file.createVariable("preds_values","f8",("ns",))
-                        var_pred_random = predictions_file.createVariable("preds_values_random","f8",("ns",))
-                        var_lbl = predictions_file.createVariable("lbls_values","f8",("ns",))
-                        var_res = predictions_file.createVariable("residuals","f8",("ns",))
-                        var_res_random = predictions_file.createVariable("residuals_random","f8",("ns",))
-        
-                        create_file=False #Make sure file is only created once
-        
-                    else:
-                        predictions_file = nc.Dataset(filepath, 'r+')
-        
                     #Store variables
                     var_pred[tot_sample_begin:tot_sample_end] = preds_values[:]
                     var_pred_random[tot_sample_begin:tot_sample_end] = preds_values_random[:]
@@ -397,8 +432,8 @@ if args.benchmark is None:
 
                 except tf.errors.OutOfRangeError:
                     break #Break out of while-loop after one epoch. NOTE: for this part of the code it is important that the eval_input_fn and train_input_synthetic_fn do not implement the .repeat() method on the created tf.Dataset.
-    
-    predictions_file.close() #Close netCDF-file after loop over test files
+        print('next_file')
+    predictions_file.close() #Close netCDF-file after each validation file
 #        results = pandas.DataFrame.from_records({\
 #            'index':range(len(preds_values)),
 #            'var_pred':preds_values, \
