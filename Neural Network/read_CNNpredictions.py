@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import argparse
 
 parser = argparse.ArgumentParser(description='microhh_ML')
-parser.add_argument('--prediction_file', type=int, default=None, \
+parser.add_argument('--prediction_file', default=None, \
         help='NetCDF file that contains the predictions')
 args = parser.parse_args()
 
 #Fetch predictions made by CNN
-a=nc.Dataset(args.prediction_file,':r')
+a=nc.Dataset(args.prediction_file,'r')
 
 #Read variables
 preds_values = a['preds_values'][:]
