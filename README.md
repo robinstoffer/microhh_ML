@@ -33,3 +33,7 @@ E.g.
 python3 read_CNNpredictions.py --prediction_file '/home/casparl/DL4HPC/microhh_ML/runs/checkpoints/synthetic/20190123_150239/CNN_predictions.nc'
 read_CNNpredictions.py is located in the Neural Networks directory.
 This command will create a number of .png files in the current directory.
+
+## Evaluating performance using chrome traces
+The 'profiler_hook' in the CNN1_estimator.py produces 'timeline-XXX.json' files in the checkpoint directory, with a frequency determined by the --profile_steps argument passed to CNN1_estimator.py.
+Transfer these files to your local desktop, open chome and go to 'chrome://tracing/'. Then, load the tracer file you are interested in.
