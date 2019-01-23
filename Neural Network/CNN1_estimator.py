@@ -161,7 +161,7 @@ def CNN_model_fn(features,labels,mode,params):
 #    print(features)
     #input_layer = tf.feature_column.input_layer(features, params['feature_columns'])
     input_layer = tf.stack([features['uc_sample'],features['vc_sample'],features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
-    print(input_layer.shape)
+#    print(input_layer.shape)
 
     #Define layers
     conv1_layer = tf.layers.Conv3D(filters=params['n_conv1'], kernel_size=params['kernelsize_conv1'], \
@@ -172,7 +172,7 @@ def CNN_model_fn(features,labels,mode,params):
 #    print(conv1.shape)
 
     ###Visualize filters convolutional layer###
-    print(conv1_layer.weights[0])
+#    print(conv1_layer.weights[0])
     acts_filters = tf.unstack(conv1_layer.weights[0], axis=4)
     for i, acts_filter in enumerate(acts_filters):
         threedim_slices = tf.unstack(acts_filter, axis=0) #Each slice corresponds to one of the five vertical levels (y,x)
@@ -186,8 +186,8 @@ def CNN_model_fn(features,labels,mode,params):
     ###
 
     ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
-    tf.summary.histogram('activations hidden layer1', conv1)
-    tf.summary.scalar('fraction of zeros in activations hidden layer1', tf.nn.zero_fraction(conv1))
+    tf.summary.histogram('activations_hidden_layer1', conv1)
+    tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1', tf.nn.zero_fraction(conv1))
 
     flatten = tf.layers.flatten(conv1, name='flatten')
 #    print(flatten.shape)
