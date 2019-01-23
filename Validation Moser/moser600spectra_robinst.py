@@ -1,3 +1,4 @@
+import sys
 import numpy
 import struct
 import netCDF4
@@ -6,7 +7,8 @@ import netCDF4
 import matplotlib as mpl
 mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
-from microhh_tools_robins import *
+sys.path.append("/home/robinst/microhh/python")
+from microhh_tools_robinst import *
 
 nx = 768
 ny = 384
@@ -21,10 +23,10 @@ nt = 11
 #nt = 1
 
 # read Moser's data
-Moserxspec_z5 = numpy.loadtxt("chan590.xspec.5", skiprows=25)
-Moserzspec_z5 = numpy.loadtxt("chan590.zspec.5", skiprows=25)
-Moserxspec_z99 = numpy.loadtxt("chan590.xspec.99", skiprows=25)
-Moserzspec_z99 = numpy.loadtxt("chan590.zspec.99", skiprows=25)
+Moserxspec_z5 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.xspec.5", skiprows=25)
+Moserzspec_z5 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.zspec.5", skiprows=25)
+Moserxspec_z99 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.xspec.99", skiprows=25)
+Moserzspec_z99 = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/spectra/chan590.zspec.99", skiprows=25)
 
 kMoser = Moserxspec_z5[1:,0]  # +1; Should be the same for all spectra, +1 to get the actual wave number kappa
 Euu_xspec_z5_moser = Moserxspec_z5[1:,1]
@@ -50,7 +52,7 @@ Epp_zspec_z99_moser = Moserzspec_z99[1:,4]
 # read the grid data
 n = nx*ny*nz
 
-fin = open("grid.{:07d}".format(0),"rb")
+fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -73,7 +75,7 @@ for t in range(nt):
 	prociter = iter + iterstep*t
 	print("Processing iter = {:07d}".format(prociter))
 	
-	fin = open("u.{:07d}".format(prociter),"rb")
+	fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(prociter),"rb")
 	raw = fin.read(n*8)
 	tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 	del(raw)
@@ -83,7 +85,7 @@ for t in range(nt):
 	
 	uavgt[t,:] = numpy.nanmean(numpy.nanmean(u,2),1)
 	
-	fin = open("v.{:07d}".format(prociter),"rb")
+	fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(prociter),"rb")
 	raw = fin.read(n*8)
 	tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
 	del(raw)
@@ -133,7 +135,7 @@ for crossname in variables:
 	locy = 'y' if loc[1] == 0 else 'yh'
 	locz = 'z' if loc[2] == 0 else 'zh'
 	
-	indexes_local = get_cross_indices(crossname, 'xy')
+	indexes_local = get_cross_indices(crossname, 'xy', filepath='/projects/1/flowsim/simulation1/')
 	stop = False
 	for t in range(nt):
 		prociter = iter + iterstep*t

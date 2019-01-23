@@ -43,7 +43,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 #python3 CNN1_estimator.py > output_CNN1_estimator.txt
 #srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
-python3 /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/training_time_step*[0-9]_of*[0-9].tfrecords' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN1' --num_steps 200000 --batch_size 100
+python3 /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/training_time_step*[0-9]_of*[0-9].tfrecords' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN2' --num_steps 100000 --batch_size 100
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
