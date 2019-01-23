@@ -6,9 +6,15 @@ mpl.use('Agg')
 #from matplotlib import rcParams
 mpl.rcParams.update({'figure.autolayout':True})
 import matplotlib.pyplot as plt
+import argparse
+
+parser = argparse.ArgumentParser(description='microhh_ML')
+parser.add_argument('--prediction_file', type=int, default=None, \
+        help='NetCDF file that contains the predictions')
+args = parser.parse_args()
 
 #Fetch predictions made by CNN
-a=nc.Dataset('/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN1/CNN_predictions.nc','r')
+a=nc.Dataset(args.prediction_file,':r')
 
 #Read variables
 preds_values = a['preds_values'][:]
