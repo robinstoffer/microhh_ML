@@ -110,12 +110,18 @@ from sample_training_data_tfrecord import generate_samples
 #print('Volume integral p coarsegrid: ' + str(volume_coarsegrid_p))
 
 
-input_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/'
-output_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/Training data/'
-settings_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/moser600.ini'
-grid_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/grid.0000000'
+input_directory = '/projects/1/flowsim/simulation1/'
+output_directory = '/projects/1/flowsim/simulation1/lesscoarse/'
+settings_filepath = '/projects/1/flowsim/simulation1/moser600.ini'
+grid_filepath = '/projects/1/flowsim/simulation1/grid.0000000'
+#input_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/'
+#output_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/Training data/'
+#settings_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/moser600.ini'
+#grid_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/grid.0000000'
 training_filepath = output_directory + 'training_data.nc'
 sampling_filepath = output_directory + 'samples_training.nc'
 
-generate_training_data((64,16,32), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath)
+#NOTE:Original downsampling (to downsample from 100m to 4m in horizontal directions): (64,16,32)
+#NOTE: Resolution of high-resolution simulations is (256,384,768)
+generate_training_data((64,48,96), input_directory, output_directory, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath)
 generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, create_binary = True, create_netcdf = True)

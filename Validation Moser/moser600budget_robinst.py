@@ -1,3 +1,4 @@
+import sys
 import numpy
 import struct
 import netCDF4
@@ -6,7 +7,8 @@ import netCDF4
 import matplotlib as mpl
 mpl.use('Agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
-from microhh_tools_robins import *
+sys.path.append("/home/robinst/microhh/python")
+from microhh_tools import *
 
 nx = 768
 ny = 384
@@ -22,10 +24,10 @@ nbegin_nc = 2 #Don't take average over all time samples for variables from netCD
 nend_nc = 13
 
 # read Moser's data
-Moseruubal = numpy.loadtxt("chan590.uubal", skiprows=25)
-Moservvbal = numpy.loadtxt("chan590.wwbal", skiprows=25) #In Moser case v and w are switched
-Moserwwbal = numpy.loadtxt("chan590.vvbal", skiprows=25)
-Moserkbal = numpy.loadtxt("chan590.kbal", skiprows=25)
+Moseruubal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.uubal", skiprows=25)
+Moservvbal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.wwbal", skiprows=25) #In Moser case v and w are switched
+Moserwwbal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.vvbal", skiprows=25)
+Moserkbal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.kbal", skiprows=25)
 
 yplusMoser = Moseruubal[:,1] #Should be the same for u,v,w,TKE
 P_umoser = Moseruubal[:,4]
@@ -55,7 +57,7 @@ Tp_kmoser = Moserkbal[:,5]
 # read the grid data
 n = nx*ny*nz
 
-fin = open("grid.{:07d}".format(0),"rb")
+fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -78,7 +80,7 @@ for t in range(nt):
   prociter = iter + iterstep*t
   print("Processing iter = {:07d}".format(prociter))
 
-  fin = open("u.{:07d}".format(prociter),"rb")
+  fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -88,7 +90,7 @@ for t in range(nt):
 
   uavgt[t,:] = numpy.nanmean(numpy.nanmean(u,2),1)
 
-  fin = open("v.{:07d}".format(prociter),"rb")
+  fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -118,7 +120,7 @@ starty = 0
 endy   = int(z.size / 2)
 
 # read statistics file
-f = Read_statistics("moser600.default.0000000.nc")
+f = Read_statistics("/projects/1/flowsim/simulation1/moser600.default.0000000.nc")
 P_ut = numpy.array(f['u2_rdstr'][nbegin_nc:nend_nc,:])
 S_ut = numpy.array(f['u2_shear'][nbegin_nc:nend_nc,:])
 Tt_ut = numpy.array(f['u2_turb'][nbegin_nc:nend_nc,:])

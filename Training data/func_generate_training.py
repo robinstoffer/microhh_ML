@@ -144,7 +144,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
         v_uxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
  
         #yz-boundary
-        #NOTE: At the upstream boundary 1 ghostcell needs to be implemented, which aligns the coordinates such that u_uyzint is located upstream of the center of the control volume. Make use of periodic BC's.
         u_uyzint = _interpolate_side_cell(finegrid['output']['u']['variable'], (finegrid['grid']['z'],  finegrid['grid']['y'],  finegrid['grid']['xh']), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend],          coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
         #u_uyzint = np.zeros((u_uyzint_noghost.shape[0], u_uyzint_noghost.shape[1], u_uyzint_noghost.shape[2]+1))
         #u_uyzint[:,:,1:] = u_uyzint_noghost.copy()

@@ -20,8 +20,8 @@ iterstep = 600
 nt = 11
 
 # read Moser's data
-Mosermean = numpy.loadtxt("chan590.means", skiprows=25)
-Moserrey  = numpy.loadtxt("chan590.reystress", skiprows=25)
+Mosermean = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590.means", skiprows=25)
+Moserrey  = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590.reystress", skiprows=25)
 
 yplusMoser = Mosermean[:,1]
 uavgMoser  = Mosermean[:,2]
@@ -32,7 +32,7 @@ wvarMoser  = Moserrey[:,3]
 # read the grid data
 n = nx*ny*nz
 
-fin = open("grid.{:07d}".format(0),"rb")
+fin = open("/projects/1/flowsim/simulation1/grid.{:07d}".format(0),"rb")
 raw = fin.read(nx*8)
 x   = numpy.array(struct.unpack('<{}d'.format(nx), raw))
 raw = fin.read(nx*8)
@@ -59,7 +59,7 @@ for t in range(nt):
   prociter = iter + iterstep*t
   print("Processing iter = {:07d}".format(prociter))
 
-  fin = open("u.{:07d}".format(prociter),"rb")
+  fin = open("/projects/1/flowsim/simulation1/u.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -72,7 +72,7 @@ for t in range(nt):
     uvart[t,k] = numpy.var(u[k,:,:] - uavgt[t,k])
   del(u)
 
-  fin = open("v.{:07d}".format(prociter),"rb")
+  fin = open("/projects/1/flowsim/simulation1/v.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)
@@ -85,7 +85,7 @@ for t in range(nt):
     vvart[t,k] = numpy.var(v[k,:,:] - vavgt[t,k])
   del(v)
 
-  fin = open("w.{:07d}".format(prociter),"rb")
+  fin = open("/projects/1/flowsim/simulation1/w.{:07d}".format(prociter),"rb")
   raw = fin.read(n*8)
   tmp = numpy.array(struct.unpack('<{}d'.format(n), raw))
   del(raw)

@@ -1,14 +1,14 @@
 #!/bin/bash
-####SBATCH -t 5-00:00:00
-#SBATCH -t 1:00:00
+#SBATCH -t 5-00:00:00
+####SBATCH -t 1:00:00
 #SBATCH -N 1
 ####SBATCH -n 48
-#SBATCH -p short
+###SBATCH -p short
 ###SBATCH -p gpu_short
 ###SBATCH -p gpu
 
 cd
-cd microhh/cases/moser600/simulation2_new/Training\ data/
+cd microhh/cases/moser600/git_repository/Training\ data/
 
 module purge
 module load eb
@@ -33,7 +33,7 @@ export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared
 #module load Doxygen/1.8.13-GCCcore-6.4.0
 #module unload ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20
 
-source ~/virtualenv/firstCNN_intel/bin/activate
+source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 ####srun ./microhh init moser600
 ####srun ./microhh run moser600

@@ -14,6 +14,9 @@ matplotlib.use('agg')
 #sns.set(style="ticks")
 #import pandas
 
+#Set logging info
+tf.logging.set_verbosity(tf.logging.INFO)
+
 ##Enable eager execution
 #tf.enable_eager_execution()
 
@@ -149,7 +152,7 @@ def CNN_model_fn(features,labels,mode,params):
     '''CNN model with 1 convolutional layer'''
 
     #Define input layer
-    print(features)
+#    print(features)
     #input_layer = tf.feature_column.input_layer(features, params['feature_columns'])
     input_layer = tf.stack([features['uc_sample'],features['vc_sample'],features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
     print(input_layer.shape)
@@ -160,7 +163,7 @@ def CNN_model_fn(features,labels,mode,params):
             kernel_initializer=params['kernel_initializer'], data_format = 'channels_last') 
     # x = tf.layers.batch_normalization(conv1, training=True, name='block4_sepconv1_bn')
     conv1 = conv1_layer.apply(input_layer)
-    print(conv1.shape)
+#    print(conv1.shape)
 
     ###Visualize filters convolutional layer###
     print(conv1_layer.weights[0])
@@ -181,10 +184,10 @@ def CNN_model_fn(features,labels,mode,params):
     tf.summary.scalar('fraction of zeros in activations hidden layer1', tf.nn.zero_fraction(conv1))
 
     flatten = tf.layers.flatten(conv1, name='flatten')
-    print(flatten.shape)
+#    print(flatten.shape)
     output = tf.layers.dense(flatten, units=num_labels, name="outputs", \
             activation=None, kernel_initializer=params['kernel_initializer'], reuse = tf.AUTO_REUSE) #reuse needed for second part of this script to work properly
-    print(output.shape)
+#    print(output.shape)
 
     ###Visualize outputs (NOTE: consider other visualization when producing more than 1 output)
     tf.summary.histogram('output', output) 
@@ -232,9 +235,9 @@ def CNN_model_fn(features,labels,mode,params):
 
 #Define filenames for training and validation
 files = glob.glob(args.input_dir)
-train_filenames, val_filenames = split_train_val(files,0.1) #Set aside 10% of files for validation. Pleas note that a separate, independent test set should be created separately.
-print('Files used for training: ' + str(train_filenames))
-print('Files used for validation: ' + str(val_filenames))
+train_filenames, val_filenames = split_train_val(files,0.1) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created separately.
+#print('Files used for training: ' + str(train_filenames))
+#print('Files used for validation: ' + str(val_filenames))
 
 
 ##Define feature columns
@@ -261,6 +264,7 @@ my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_ran
 hyperparams =  {
 #'feature_columns':feature_columns,
 'n_conv1':10,
+#'n_conv1':40,
 'kernelsize_conv1':5,
 'stride_conv1':1,
 #'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
