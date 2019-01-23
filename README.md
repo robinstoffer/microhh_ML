@@ -16,3 +16,24 @@ The generate_samples script cuts the flow field into pieces. Size of the pieces 
 CNN1_estimator.py: contains the network, the tensorflow code etc. Outputs 1 prediction per input sample: the unresolved transport of the e.g. 5x5x5 input sample. In addition to the prediction, the original label is output. These are stored in a netCDF file, in 2 arrays (e.g. element 1 in array 1 is the prediction corresponding to the element 1 in array 2, which contains the label).
 job_CNN1_estimater: job script
 read_CNNpredictions.py: plots the netCDF array in a scatter plot
+
+## Running the network
+E.g.
+sbatch job_CNN1_estimater
+
+## Evaluating in TensorBoard
+Specify port, e.g.
+PORT=40200
+tensorboard --logdir=[dir_with_.ckpt-files] --port=$PORT
+Then, in local terminal
+ssh -N -L port:localhost:port [login]@int1-bb.cartesius.surfsara.nl
+
+## Evaluating output scatter plot
+E.g.
+python3 read_CNNpredictions.py --prediction_file '/home/casparl/DL4HPC/microhh_ML/runs/checkpoints/synthetic/20190123_150239/CNN_predictions.nc'
+read_CNNpredictions.py is located in the Neural Networks directory.
+This command will create a number of .png files in the current directory.
+
+## Evaluating performance using chrome traces
+The 'profiler_hook' in the CNN1_estimator.py produces 'timeline-XXX.json' files in the checkpoint directory, with a frequency determined by the --profile_steps argument passed to CNN1_estimator.py.
+Transfer these files to your local desktop, open chome and go to 'chrome://tracing/'. Then, load the tracer file you are interested in.
