@@ -43,6 +43,12 @@ parser.add_argument('--num_steps', type=int, default=10000, \
         help='Number of steps, i.e. number of batches times number of epochs')
 parser.add_argument('--batch_size', type=int, default=100, \
         help='Number of samples selected in each batch')
+parser.add_argument('--profile_steps', type=int, default=10000, \
+        help='Every nth step, a profile measurement is performed')
+parser.add_argument('--summary_steps', type=int, default=100, \
+        help='Every nth step, a summary is written for Tensorboard visualization')
+parser.add_argument('--checkpoint_steps', type=int, default=10000, \
+        help='Every nth step, a checkpoint of the model is written')
 args = parser.parse_args()
 
 #Define settings
@@ -176,7 +182,7 @@ def CNN_model_fn(features,labels,mode,params):
             #print(threedim_slice.shape)
             for k, twodim_slice in enumerate(twodim_slices):
                 #print(twodim_slice.shape)
-                tf.summary.image('filter'+str(i)+', height'+str(j)+', variable'+str(k), tf.expand_dims(tf.expand_dims(twodim_slice, axis=2), axis=0)) #Two times tf.expand_dims to construct a 4D Tensor from the resulting 2D Tensor, which is required by tf.summary.image.
+                tf.summary.image('filter'+str(i)+'_height'+str(j)+'_variable'+str(k), tf.expand_dims(tf.expand_dims(twodim_slice, axis=2), axis=0)) #Two times tf.expand_dims to construct a 4D Tensor from the resulting 2D Tensor, which is required by tf.summary.image.
     ###
 
     ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
@@ -258,7 +264,7 @@ os.environ['OMP_NUM_THREADS'] = str(args.intra_op_parallelism_threads)
 checkpoint_dir = args.checkpoint_dir
 
 #Create RunConfig object to save check_point in the model_dir according to the specified schedule, and to define the session config
-my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_random_seed=random_seed,save_summary_steps=100,save_checkpoints_steps=10000,session_config=config,keep_checkpoint_max=None,keep_checkpoint_every_n_hours=10000,log_step_count_steps=10,train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
+my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_random_seed=random_seed,save_summary_steps=args.summary_steps,save_checkpoints_steps=args.checkpoint_steps, session_config=config,keep_checkpoint_max=None,keep_checkpoint_every_n_hours=10000,log_step_count_steps=10,train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
 
 #Instantiate an Estimator with model defined by model_fn
 hyperparams =  {
@@ -281,7 +287,7 @@ CNN = tf.estimator.Estimator(model_fn = CNN_model_fn,config=my_checkpointing_con
 
 #custom_hook = MetadataHook(save_steps = 1000, output_dir = checkpoint_dir) #Initialize custom hook designed for storing runtime statistics that can be read using TensorBoard in combination with tf.Estimator.NOTE:an unavoidable consequence is unfortunately that the other summaries are not stored anymore. The only option to store all summaries and the runtime statistics in Tensorboard is to use low-level Tensorflow API.
 
-profiler_hook = tf.train.ProfilerHook(save_steps = 10000, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
+profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
 
 if args.synthetic is None:
     #Train and evaluate CNN
