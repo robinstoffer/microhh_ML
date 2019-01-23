@@ -330,11 +330,11 @@ if args.benchmark is None:
     create_file = True #Make sure netCDF file is initialized
  
     #Print used data
-    if args.synthetic is None:
-        print('Validation filenames:')
-        print(val_filenames)
-    else:
-        print('Used synthetic data')
+    #if args.synthetic is None:
+        #print('Validation filenames:')
+        #print(val_filenames)
+    #else:
+        #print('Used synthetic data')
  
     create_file = True #Make sure netCDF file is initialized
  
@@ -416,21 +416,21 @@ if args.benchmark is None:
                     residuals = []
                     residuals_random = []
 
-                    print(preds['label'])
+                    #print(preds['label'])
                     for pred,lbl in zip(preds['value'],preds['label']):
                         #print('\nPrediction is "{:.10e}", expectation is "{:.10e}".'.format(pred[0],lbl)) #Index 0 needed to index single value in ndarray
                         preds_values += [pred[0]]
-                        print('prediction :' + str(pred[0]))
+                        #print('prediction :' + str(pred[0]))
                         lbls_values += [lbl[0]]
-                        print('label :' + str(lbl[0]))
+                        #print('label :' + str(lbl[0]))
                         residuals += [abs(pred[0]-lbl[0])]
                         pred_random = random.choice(preds['label'][:][:]) #Generate random prediction
-                        print('random prediction:' + str(pred_random[0]))
+                        #print('random prediction:' + str(pred_random[0]))
                         preds_values_random += [pred_random]
                         residuals_random += [abs(pred_random-lbl[0])]
                         tot_sample_end +=1
-                        print('next sample')
-                    print('next batch')
+                        #print('next sample')
+                    #print('next batch')
                     
                     #Store variables
                     var_pred[tot_sample_begin:tot_sample_end] = preds_values[:]
@@ -442,23 +442,5 @@ if args.benchmark is None:
 
                 except tf.errors.OutOfRangeError:
                     break #Break out of while-loop after one epoch. NOTE: for this part of the code it is important that the eval_input_fn and train_input_synthetic_fn do not implement the .repeat() method on the created tf.Dataset.
-        print('next_file')
+        #print('next_file')
     predictions_file.close() #Close netCDF-file after each validation file
-#        results = pandas.DataFrame.from_records({\
-#            'index':range(len(preds_values)),
-#            'var_pred':preds_values, \
-#            'var_pred_random':preds_values_random, \
-#            'var_lbl':lbls_values, \
-#            'var_res':residuals, \
-#            'var_res_random':residuals_random \
-#            })
-#
-#        import ipdb; ipdb.set_trace()
-#        plt = sns.pairplot(results)
-#        plt.savefig("diagonal_allresults.png")
-#        plt = sns.pairplot(results[['var_pred','var_lbl']])
-#        plt.savefig("diagonal_predlbl.png")
-#        plt = sns.pairplot(results[['var_pred_random','var_lbl']])
-#        plt.savefig("diagonal_randompredlbl.png")
-#        plt = sns.tsplot(results[['var_pred_random','var_lbl']])
-#        plt.savefig("diagonal_randompredlbl.png")
