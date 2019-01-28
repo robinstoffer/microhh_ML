@@ -269,14 +269,14 @@ my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_ran
 #Instantiate an Estimator with model defined by model_fn
 hyperparams =  {
 #'feature_columns':feature_columns,
-'n_conv1':10,
-#'n_conv1':40,
+#'n_conv1':10,
+'n_conv1':40,
 'kernelsize_conv1':5,
 'stride_conv1':1,
-#'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
-'activation_function':tf.nn.relu,
-#'kernel_initializer':tf.initializers.he_uniform(),
-'kernel_initializer':tf.glorot_uniform_initializer(),
+'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
+#'activation_function':tf.nn.relu,
+'kernel_initializer':tf.initializers.he_uniform(),
+#'kernel_initializer':tf.glorot_uniform_initializer(),
 'learning_rate':0.0001
 }
 
