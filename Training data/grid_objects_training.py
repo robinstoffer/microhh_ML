@@ -57,6 +57,7 @@ class Finegrid:
         self.var['output'] = {}
         self.var['grid'] = {}
         self.var['time'] = {}
+        self.var['fields'] = {}
         
         #Check whether specified period_bc satisfies needed format and subsequently store it in object
         if not isinstance(periodic_bc, tuple):
@@ -147,6 +148,9 @@ class Finegrid:
         self.var['grid']['xsize'] = settings['grid']['xsize']
         self.var['grid']['ysize'] = settings['grid']['ysize']
         self.var['grid']['zsize'] = settings['grid']['zsize']
+        self.var['grid']['channel_half_width'] = self.var['grid']['zsize'] * 0.5 #Channel half-width is equal to 0.5 * channel height.
+
+        self.var['fields']['visc'] = settings['fields']['visc']
 
         self.var['time']['starttime'] = int(settings['time']['starttime'])
         #self.var['time']['starttime'] = 0
@@ -185,8 +189,8 @@ class Finegrid:
         #Add ghostcells to grid
         self.__add_ghostcells_grid()
 
-    def read_binary_variables(self, filepath, variable_name, timestep, bool_edge_gridcell = (False, False, False)):
-        """ Read specified variable at a certain time step from binary files of a MicroHH simulation stored in filepath. Furthermore, ghost cells are added consistent with the specified order of spatial interpolation."""
+    def read_binary_variables(self, filepath, variable_name, timestep, bool_edge_gridcell = (False, False, False), normalisation_factor = None):
+        """ Read specified variable at a certain time step from binary files of a MicroHH simulation stored in filepath. Furthermore, ghost cells are added consistent with the specified order of spatial interpolation, and the variable is normalized when normalisation_factor is not None."""
         if not self.read_grid_flag:
             raise RuntimeError("Object defined to use grid explicitly set by user (via the define_grid method). Create a new Finegrid object with read_grid_flag = True to read settings from an already existing binary file.")
 
@@ -225,6 +229,14 @@ class Finegrid:
         self.var['output'][variable_name]['variable'] = np.fromfile(var_filepath, dtype = self.prec).reshape((self.var['grid']['ktot'], self.var['grid']['jtot'], self.var['grid']['itot']))
         self.var['output'][variable_name]['orientation'] = bool_edge_gridcell
         
+        #Normalise variable with specified normalisation_factor (except when specified as None)
+        if normalisation_factor is not None:
+            #Test whether normalisation_factor is an integer or float
+            if not (isinstance(normalisation_factor, int) or isinstance(normalisation_factor, float)):
+                raise TypeError("Specified normalisation_factor should be an integer or float.")
+            self.var['output'][variable_name]['variable'] = self.var['output'][variable_name]['variable'] / normalisation_factor
+
+
         #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
         self.__add_ghostcells(variable_name)
 

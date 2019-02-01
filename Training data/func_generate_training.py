@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 #Actual functions to generate the training data
 ###############################################
 
-def generate_training_data(dim_new_grid, input_directory, output_directory, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts. igc and jgc specify the amount of ghost cells to be added in the downsampled coarse grid for the x- and y-direction respectively.
+def generate_training_data(dim_new_grid, input_directory, output_directory, reynolds_number_tau, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts. igc and jgc specify the amount of ghost cells to be added in the downsampled coarse grid for the x- and y-direction respectively.
 
     #Check types input variables
     if not isinstance(output_directory,str):
@@ -62,6 +62,9 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
     bool_edge_gridcell_v = (False, True, False)
     bool_edge_gridcell_w = (True, False, False)
     bool_edge_gridcell_p = (False, False, False)
+
+    #Define reference friction velocity based on viscosity and channel half-width read from the settings files produced by Microhh, and the user-defined Reynolds number
+    utau_ref = (reynolds_number_tau * finegrid['fields']['visc'])/ finegrid['grid']['channel_half_width']
     
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. NOTE: when testing, the # of timesteps is by default set equal to 1.
@@ -92,10 +95,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, size
             finegrid.create_variables('p', output_array, bool_edge_gridcell_p)
             
         else:
-            finegrid.read_binary_variables(input_directory, 'u', t, bool_edge_gridcell_u)
-            finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v)
-            finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w)
-            finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p)
+            finegrid.read_binary_variables(input_directory, 'u', t, bool_edge_gridcell_u, normalisation_factor = utau_ref)
+            finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v, normalisation_factor = utau_ref)
+            finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w, normalisation_factor = utau_ref)
+            finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p, normalisation_factor = utau_ref)
             
         #Initialize coarsegrid object
         coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc)

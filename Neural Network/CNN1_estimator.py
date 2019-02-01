@@ -27,8 +27,10 @@ ncores = int(subprocess.check_output(["nproc", "--all"]))
 parser = argparse.ArgumentParser(description='microhh_ML')
 parser.add_argument('--checkpoint_dir', type=str, default='/projects/1/flowsim/simulation1/CNN_checkpoints',
                     help='Checkpoint directory (for rank 0)')
-parser.add_argument('--input_dir', type=str, default='/projects/1/flowsim/simulation1/training_time_step*[0-9]_of*[0-9].tfrecords',
+parser.add_argument('--input_dir', type=str, default='/projects/1/flowsim/simulation1/',
                     help='tfrecords filepaths')
+parser.add_argument('--stored_means_stdevs_filepath', type=str, default='/projects/1/flowsim/simulation1/means_stdevs_allfields.nc', \
+        help='filepath for stored means and standard deviations of input variables, whihc should refer to a nc-file created as part of the training data')
 parser.add_argument('--synthetic', default=None, \
         action='store_true', \
         help='Synthetic data is used as input when this is true, otherwhise real data from specified input_dir is used')
@@ -59,9 +61,14 @@ output_variable = 'unres_tau_zu_sample'
 num_labels = 1
 random_seed = 1234
 
+#Define function for standardization
+def _standardization(variable, mean, standard_dev):
+    standardized_variable = (variable - mean)/(standard_dev ** 2)
+    return standardized_variable
+
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
-#the output in format (dict(features),labels)
-def _parse_function(example_proto,label_name):
+#the output in format (dict(features),labels) and normalizes according to specified means and variances.
+def _parse_function(example_proto,label_name,means,stdevs):
     keys_to_features = {
         'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
         'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
@@ -74,16 +81,20 @@ def _parse_function(example_proto,label_name):
     }
 
     parsed_features = tf.parse_single_example(example_proto, keys_to_features)
+    parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc_sample'], stdevs['uc_sample'])
+    parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc_sample'],stdevs['vc_sample'])
+    parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc_sample'], stdevs['wc_sample'])
+    parsed_features['pc_sample'] = _standardization(parsed_features['pc_sample'], means['pc_sample'], stdevs['pc_sample'])
 
     labels = parsed_features.pop(label_name)
     return parsed_features,labels
 
 
 #Define training input function
-def train_input_fn(filenames,batch_size,label_name):
+def train_input_fn(filenames,batch_size,label_name,means,stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.shuffle(batch_size).repeat()
-    dataset = dataset.map(lambda line:_parse_function(line,label_name))
+    dataset = dataset.map(lambda line:_parse_function(line,label_name,means,stdevs))
     dataset = dataset.batch(batch_size)
     #dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
     #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
@@ -93,8 +104,8 @@ def train_input_fn(filenames,batch_size,label_name):
 def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: used for both training and evaluation with synthetic data
 
     #For testing purpose num_steps is set equal to 3 million divided by batch_size, representing the case where 3 million examples are available for training (preventing memory issues when the number of training steps is high). 
-    #NOTE: If num_steps is not explicitly set anymore (but rather determined via the input), remove .repeat() below when train_mode is set to True.
-    #NOTE: in case of evaluation only 300.000 examples are being generated, representing the case where approximately 10% of the available examples is used for evaluation
+    #NOTE1: If num_steps is not explicitly set anymore (but rather determined via the input), remove .repeat() below when train_mode is set to True.
+    #NOTE2: in case of evaluation only 300.000 examples are being generated, representing the case where approximately 10% of the available examples is used for evaluation
     num_steps_train = int((3*10**6)/batch_size)
     if not train_mode:
         num_steps_train = int(0.1*num_steps_train)
@@ -130,13 +141,11 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
 
     return dataset
 
-
-
 #Define evaluation function
-def eval_input_fn(filenames,batch_size,label_name):
+def eval_input_fn(filenames,batch_size,label_name,means,stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
     #dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen NOTE: only needed when evaluation is not done on whole validation set (i.e. steps is not None)
-    dataset = dataset.map(lambda line:_parse_function(line,label_name))
+    dataset = dataset.map(lambda line:_parse_function(line,label_name,means,stdevs))
     dataset = dataset.batch(batch_size)
     #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
     dataset.prefetch(1)
@@ -144,13 +153,13 @@ def eval_input_fn(filenames,batch_size,label_name):
     return dataset    
 
 #Define function for splitting the training and validation set
-def split_train_val(files,val_ratio):
+def split_train_val(time_steps, val_ratio, random_seed):
     np.random.seed(random_seed)
-    shuffled_files = np.random.permutation(files)
-    val_set_size = int(len(files) * val_ratio)
-    val_files = shuffled_files[:val_set_size]
-    train_files = shuffled_files[val_set_size:]
-    return train_files,val_files
+    shuffled_steps = np.random.permutation(time_steps)
+    val_set_size = int(len(time_steps) * val_ratio)
+    val_steps = shuffled_steps[:val_set_size]
+    train_steps = shuffled_steps[val_set_size:]
+    return train_steps,val_steps
 
 
 #Define model function for CNN estimator
@@ -240,14 +249,54 @@ def CNN_model_fn(features,labels,mode,params):
 
 
 #Define filenames for training and validation
-files = glob.glob(args.input_dir)
-train_filenames, val_filenames = split_train_val(files,0.1) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created separately.
-#print('Files used for training: ' + str(train_filenames))
-#print('Files used for validation: ' + str(val_filenames))
+nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
+nt_total = 100 #Amount of time steps INCLUDING the test set
+time_numbers = np.arange(nt_available)
+#files = glob.glob(args.input_dir)
+train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1, random_seed=random_seed) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created manually.
+train_filenames = np.zeros((len(train_stepnumbers),), dtype=object)
+val_filenames   = np.zeros((len(val_stepnumbers),), dtype=object)
+
+i=0
+for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
+    train_filenames[i] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(train_stepnumber+1, nt_total)
+    i+=1
+
+j=0
+for val_stepnumber in val_stepnumbers: #Generate validation filenames from selected step numbers and total steps
+    val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(val_stepnumber+1, nt_total)
+    j+=1
+
+#Calculate means and stdevs for input variables
+means_stdevs_filepath = args.stored_means_stdevs_filepath
+means_stdevs_file     = nc.Dataset(means_stdevs_filepath, 'r')
+
+means_dict_t  = {}
+stdevs_dict_t = {}
+
+means_dict_t['uc'] = np.array(means_stdevs_file['mean_uc'][:])
+means_dict_t['vc'] = np.array(means_stdevs_file['mean_vc'][:])
+means_dict_t['wc'] = np.array(means_stdevs_file['mean_wc'][:])
+means_dict_t['pc'] = np.array(means_stdevs_file['mean_pc'][:])
+
+stdevs_dict_t['uc'] = np.array(means_stdevs_file['stdev_uc'][:])
+stdevs_dict_t['vc'] = np.array(means_stdevs_file['stdev_vc'][:])
+stdevs_dict_t['wc'] = np.array(means_stdevs_file['stdev_wc'][:])
+stdevs_dict_t['pc'] = np.array(means_stdevs_file['stdev_pc'][:])
+
+means_dict_avgt  = {}
+stdevs_dict_avgt = {}
+
+means_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
+means_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
+means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
+means_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
 
 
-##Define feature columns
-#feature_columns = [tf.feature_column.numeric_column(key  = 'uc_sample',shape = [5,5,5],dtype=tf.float64),tf.feature_column.numeric_column('vc_sample',shape = [5,5,5],dtype=tf.float64),tf.feature_column.numeric_column('wc_sample',shape = [5,5,5],dtype=tf.float64),tf.feature_column.numeric_column('pc_sample',shape = [5,5,5],dtype=tf.float64)]
+stdevs_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
+stdevs_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
+stdevs_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
+stdevs_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
 
 #Set configuration
 config = tf.ConfigProto(log_device_placement=False)
@@ -291,15 +340,15 @@ profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_di
 
 if args.synthetic is None:
     #Train and evaluate CNN
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable), max_steps=num_steps, hooks=[profiler_hook])
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), max_steps=num_steps, hooks=[profiler_hook])
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    #Train the CNN
 #    CNN.train(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable),steps=num_steps, hooks=[profiler_hook])
 
     #Evaluate the CNN on all validation data (no imposed limit on training steps)
-    eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable), steps=None)
+    eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), steps=None)
     print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))
     print('Used real data')
 #    predictions = CNN.predict(input_fn = lambda:eval_input_fn(val_filenames, batch_size, output_variable))
@@ -348,7 +397,7 @@ if args.benchmark is None:
  
         #Generate iterator to extra features and labels from input data
         if args.synthetic is None:
-            iterator = eval_input_fn([val_filename], batch_size, output_variable).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
+            iterator = eval_input_fn([val_filename], batch_size, output_variable, means_dict_avgt,stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
  
         else:
 #           iterator = train_input_synthetic_fn(batch_size, 1000).make_one_shot_iterator() #1000 samples are generated and subsequently used for validation, NOTE: this line raises error message because the one_shot_iterator cannot capture statefull nodes contained in train_input_synthetic_fn.

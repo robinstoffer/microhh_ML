@@ -116,7 +116,7 @@ endy   = int(z.size / 2)
 
 # read cross-sections
 variables=["u","v","w","p"]
-#Note: quick and dirty solution: should actually depend on the ammount of grid cells!
+#NOTE: quick and dirty solution: should actually depend on the ammount of grid cells!
 nwave_modes_x = 384
 nwave_modes_y = 192
 spectra_x5t = numpy.zeros((4,nt,nwave_modes_x))
