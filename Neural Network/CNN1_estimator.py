@@ -31,6 +31,9 @@ parser.add_argument('--input_dir', type=str, default='/projects/1/flowsim/simula
                     help='tfrecords filepaths')
 parser.add_argument('--stored_means_stdevs_filepath', type=str, default='/projects/1/flowsim/simulation1/means_stdevs_allfields.nc', \
         help='filepath for stored means and standard deviations of input variables, whihc should refer to a nc-file created as part of the training data')
+parser.add_argument('--gradients', default=None, \
+        action='store_true', \
+        help='Wind velocity gradients are used as input for the NN when this is true, otherwhise absolute wind velocities are used.')
 parser.add_argument('--synthetic', default=None, \
         action='store_true', \
         help='Synthetic data is used as input when this is true, otherwhise real data from specified input_dir is used')
@@ -69,22 +72,60 @@ def _standardization(variable, mean, standard_dev):
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
 #the output in format (dict(features),labels) and normalizes according to specified means and variances.
 def _parse_function(example_proto,label_name,means,stdevs):
-    keys_to_features = {
-        'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-        'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-        'wc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-        'pc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-        label_name :tf.FixedLenFeature([],tf.float32),
-        'x_sample_size':tf.FixedLenFeature([],tf.int64),
-        'y_sample_size':tf.FixedLenFeature([],tf.int64),
-        'z_sample_size':tf.FixedLenFeature([],tf.int64)
-    }
 
-    parsed_features = tf.parse_single_example(example_proto, keys_to_features)
-    parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc_sample'], stdevs['uc_sample'])
-    parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc_sample'],stdevs['vc_sample'])
-    parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc_sample'], stdevs['wc_sample'])
-    parsed_features['pc_sample'] = _standardization(parsed_features['pc_sample'], means['pc_sample'], stdevs['pc_sample'])
+    if args.gradients is none: #NOTE: args.gradients is a global variable defined outside this function
+
+        keys_to_features = {
+            'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'wc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'pc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            label_name :tf.FixedLenFeature([],tf.float32),
+            'x_sample_size':tf.FixedLenFeature([],tf.int64),
+            'y_sample_size':tf.FixedLenFeature([],tf.int64),
+            'z_sample_size':tf.FixedLenFeature([],tf.int64)
+        }
+    
+        parsed_features = tf.parse_single_example(example_proto, keys_to_features)
+        parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
+        parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'],stdevs['vc'])
+        parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc'], stdevs['wc'])
+        parsed_features['pc_sample'] = _standardization(parsed_features['pc_sample'], means['pc'], stdevs['pc'])
+
+    else:
+
+        keys_to_features = {
+            'ugradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'ugrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'ugradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'vgradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'vgrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'vgradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'wgradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'wgrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'wgradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'pgradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'pgrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'pgradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            label_name     :tf.FixedLenFeature([],tf.float32),
+            'x_sample_size':tf.FixedLenFeature([],tf.int64),
+            'y_sample_size':tf.FixedLenFeature([],tf.int64),
+            'z_sample_size':tf.FixedLenFeature([],tf.int64)
+        }
+
+        parsed_features = tf.parse_single_example(example_proto, keys_to_features)
+        parsed_features['ugradx_sample'] = _standardization(parsed_features['ugradx_sample'], means['ugradx'], stdevs['ugradx'])
+        parsed_features['ugrady_sample'] = _standardization(parsed_features['ugrady_sample'], means['ugrady'], stdevs['ugrady'])
+        parsed_features['ugradz_sample'] = _standardization(parsed_features['ugradz_sample'], means['ugradz'], stdevs['ugradz'])
+        parsed_features['vgradx_sample'] = _standardization(parsed_features['vgradx_sample'], means['vgradx'], stdevs['vgradx'])
+        parsed_features['vgrady_sample'] = _standardization(parsed_features['vgrady_sample'], means['vgrady'], stdevs['vgrady'])
+        parsed_features['vgradz_sample'] = _standardization(parsed_features['vgradz_sample'], means['vgradz'], stdevs['vgradz'])
+        parsed_features['wgradx_sample'] = _standardization(parsed_features['wgradx_sample'], means['wgradx'], stdevs['wgradx'])
+        parsed_features['wgrady_sample'] = _standardization(parsed_features['wgrady_sample'], means['wgrady'], stdevs['wgrady'])
+        parsed_features['wgradz_sample'] = _standardization(parsed_features['wgradz_sample'], means['wgradz'], stdevs['wgradz'])
+        parsed_features['pgradx_sample'] = _standardization(parsed_features['pgradx_sample'], means['pgradx'], stdevs['pgradx'])
+        parsed_features['pgrady_sample'] = _standardization(parsed_features['pgrady_sample'], means['pgrady'], stdevs['pgrady'])
+        parsed_features['pgradz_sample'] = _standardization(parsed_features['pgradz_sample'], means['pgradz'], stdevs['pgradz'])
 
     labels = parsed_features.pop(label_name)
     return parsed_features,labels
@@ -169,8 +210,13 @@ def CNN_model_fn(features,labels,mode,params):
     #Define input layer
 #    print(features)
     #input_layer = tf.feature_column.input_layer(features, params['feature_columns'])
-    input_layer = tf.stack([features['uc_sample'],features['vc_sample'],features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
-#    print(input_layer.shape)
+    if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
+        input_layer = tf.stack([features['uc_sample'],features['vc_sample'],features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
+    else:
+        input_layer = tf.stack([features['ugradx'],features['ugrady'],features['ugradz'], \
+                features['vgradx'],features['vgrady'],features['vgradz'], \
+                features['wgradx'],features['wgrady'],features['wgradz'], \
+                features['pgradx'],features['pgrady'],features['pgradz']],axis=4)
 
     #Define layers
     conv1_layer = tf.layers.Conv3D(filters=params['n_conv1'], kernel_size=params['kernelsize_conv1'], \
@@ -259,12 +305,18 @@ val_filenames   = np.zeros((len(val_stepnumbers),), dtype=object)
 
 i=0
 for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
-    train_filenames[i] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(train_stepnumber+1, nt_total)
+    if args.gradients is None:
+        train_filenames[i] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(train_stepnumber+1, nt_total)
+    else:
+        train_filenames[i] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(train_stepnumber+1,nt_total)
     i+=1
 
 j=0
 for val_stepnumber in val_stepnumbers: #Generate validation filenames from selected step numbers and total steps
-    val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(val_stepnumber+1, nt_total)
+    if args.gradients is None:
+        val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(val_stepnumber+1, nt_total)
+    else:
+        val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
     j+=1
 
 #Calculate means and stdevs for input variables
@@ -273,30 +325,96 @@ means_stdevs_file     = nc.Dataset(means_stdevs_filepath, 'r')
 
 means_dict_t  = {}
 stdevs_dict_t = {}
+if args.gradients is None:
+    means_dict_t['uc'] = np.array(means_stdevs_file['mean_uc'][:])
+    means_dict_t['vc'] = np.array(means_stdevs_file['mean_vc'][:])
+    means_dict_t['wc'] = np.array(means_stdevs_file['mean_wc'][:])
+    means_dict_t['pc'] = np.array(means_stdevs_file['mean_pc'][:])
+    
+    stdevs_dict_t['uc'] = np.array(means_stdevs_file['stdev_uc'][:])
+    stdevs_dict_t['vc'] = np.array(means_stdevs_file['stdev_vc'][:])
+    stdevs_dict_t['wc'] = np.array(means_stdevs_file['stdev_wc'][:])
+    stdevs_dict_t['pc'] = np.array(means_stdevs_file['stdev_pc'][:])
 
-means_dict_t['uc'] = np.array(means_stdevs_file['mean_uc'][:])
-means_dict_t['vc'] = np.array(means_stdevs_file['mean_vc'][:])
-means_dict_t['wc'] = np.array(means_stdevs_file['mean_wc'][:])
-means_dict_t['pc'] = np.array(means_stdevs_file['mean_pc'][:])
+else:
+    means_dict_t['ugradx'] = np.array(means_stdevs_file['mean_ugradx'][:])
+    means_dict_t['ugrady'] = np.array(means_stdevs_file['mean_ugrady'][:])
+    means_dict_t['ugradz'] = np.array(means_stdevs_file['mean_ugradz'][:])
 
-stdevs_dict_t['uc'] = np.array(means_stdevs_file['stdev_uc'][:])
-stdevs_dict_t['vc'] = np.array(means_stdevs_file['stdev_vc'][:])
-stdevs_dict_t['wc'] = np.array(means_stdevs_file['stdev_wc'][:])
-stdevs_dict_t['pc'] = np.array(means_stdevs_file['stdev_pc'][:])
+    means_dict_t['vgradx'] = np.array(means_stdevs_file['mean_vgradx'][:])
+    means_dict_t['vgrady'] = np.array(means_stdevs_file['mean_vgrady'][:])
+    means_dict_t['vgradz'] = np.array(means_stdevs_file['mean_vgradz'][:])
+
+    means_dict_t['wgradx'] = np.array(means_stdevs_file['mean_wgradx'][:])
+    means_dict_t['wgrady'] = np.array(means_stdevs_file['mean_wgrady'][:])
+    means_dict_t['wgradz'] = np.array(means_stdevs_file['mean_wgradz'][:])
+
+    means_dict_t['pgradx'] = np.array(means_stdevs_file['mean_pgradx'][:])
+    means_dict_t['pgrady'] = np.array(means_stdevs_file['mean_pgrady'][:])
+    means_dict_t['pgradz'] = np.array(means_stdevs_file['mean_pgradz'][:])
+
+    stdevs_dict_t['ugradx'] = np.array(means_stdevs_file['stdev_ugradx'][:])
+    stdevs_dict_t['ugrady'] = np.array(means_stdevs_file['stdev_ugrady'][:])
+    stdevs_dict_t['ugradz'] = np.array(means_stdevs_file['stdev_ugradz'][:])
+
+    stdevs_dict_t['vgradx'] = np.array(means_stdevs_file['stdev_vgradx'][:])
+    stdevs_dict_t['vgrady'] = np.array(means_stdevs_file['stdev_vgrady'][:])
+    stdevs_dict_t['vgradz'] = np.array(means_stdevs_file['stdev_vgradz'][:])
+
+    stdevs_dict_t['wgradx'] = np.array(means_stdevs_file['stdev_wgradx'][:])
+    stdevs_dict_t['wgrady'] = np.array(means_stdevs_file['stdev_wgrady'][:])
+    stdevs_dict_t['wgradz'] = np.array(means_stdevs_file['stdev_wgradz'][:])
+
+    stdevs_dict_t['pgradx'] = np.array(means_stdevs_file['stdev_pgradx'][:])
+    stdevs_dict_t['pgrady'] = np.array(means_stdevs_file['stdev_pgrady'][:])
+    stdevs_dict_t['pgradz'] = np.array(means_stdevs_file['stdev_pgradz'][:])
 
 means_dict_avgt  = {}
 stdevs_dict_avgt = {}
 
-means_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
-means_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
-means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
-means_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
+if args.gradients is None:
+    means_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
+    means_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
+    means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
+    means_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
+    
+    stdevs_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
+    stdevs_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
+    stdevs_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
+    stdevs_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
 
+else:
+    means_dict_avgt['ugradx'] = np.mean(means_dict_t['ugradx'][train_stepnumbers])
+    means_dict_avgt['ugrady'] = np.mean(means_dict_t['ugrady'][train_stepnumbers])
+    means_dict_avgt['ugradz'] = np.mean(means_dict_t['ugradz'][train_stepnumbers])
 
-stdevs_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
-stdevs_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
-stdevs_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
-stdevs_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
+    means_dict_avgt['vgradx'] = np.mean(means_dict_t['vgradx'][train_stepnumbers])
+    means_dict_avgt['vgrady'] = np.mean(means_dict_t['vgrady'][train_stepnumbers])
+    means_dict_avgt['vgradz'] = np.mean(means_dict_t['vgradz'][train_stepnumbers])
+
+    means_dict_avgt['wgradx'] = np.mean(means_dict_t['wgradx'][train_stepnumbers])
+    means_dict_avgt['wgrady'] = np.mean(means_dict_t['wgrady'][train_stepnumbers])
+    means_dict_avgt['wgradz'] = np.mean(means_dict_t['wgradz'][train_stepnumbers])
+
+    means_dict_avgt['pgradx'] = np.mean(means_dict_t['pgradx'][train_stepnumbers])
+    means_dict_avgt['pgrady'] = np.mean(means_dict_t['pgrady'][train_stepnumbers])
+    means_dict_avgt['pgradz'] = np.mean(means_dict_t['pgradz'][train_stepnumbers])
+
+    stdevs_dict_avgt['ugradx'] = np.mean(stdevs_dict_t['ugradx'][train_stepnumbers])
+    stdevs_dict_avgt['ugrady'] = np.mean(stdevs_dict_t['ugrady'][train_stepnumbers])
+    stdevs_dict_avgt['ugradz'] = np.mean(stdevs_dict_t['ugradz'][train_stepnumbers])
+
+    stdevs_dict_avgt['vgradx'] = np.mean(stdevs_dict_t['vgradx'][train_stepnumbers])
+    stdevs_dict_avgt['vgrady'] = np.mean(stdevs_dict_t['vgrady'][train_stepnumbers])
+    stdevs_dict_avgt['vgradz'] = np.mean(stdevs_dict_t['vgradz'][train_stepnumbers])
+
+    stdevs_dict_avgt['wgradx'] = np.mean(stdevs_dict_t['wgradx'][train_stepnumbers])
+    stdevs_dict_avgt['wgrady'] = np.mean(stdevs_dict_t['wgrady'][train_stepnumbers])
+    stdevs_dict_avgt['wgradz'] = np.mean(stdevs_dict_t['wgradz'][train_stepnumbers])
+
+    stdevs_dict_avgt['pgradx'] = np.mean(stdevs_dict_t['pgradx'][train_stepnumbers])
+    stdevs_dict_avgt['pgrady'] = np.mean(stdevs_dict_t['pgrady'][train_stepnumbers])
+    stdevs_dict_avgt['pgradz'] = np.mean(stdevs_dict_t['pgradz'][train_stepnumbers])
 
 #Set configuration
 config = tf.ConfigProto(log_device_placement=False)

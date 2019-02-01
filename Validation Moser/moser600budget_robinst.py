@@ -20,8 +20,8 @@ nz = 256
 iter = 1200
 iterstep = 600
 nt = 11
-nbegin_nc = 2 #Don't take average over all time samples for variables from netCDF files.
-nend_nc = 13
+nbegin_nc = 20 #Don't take average over all time samples for variables from netCDF files (i.e. exclude spin-up period).
+nend_nc = 120
 
 # read Moser's data
 Moseruubal = numpy.loadtxt("/home/robinst/microhh/cases/moser600/chan590/balances/chan590.uubal", skiprows=25)

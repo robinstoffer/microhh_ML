@@ -116,14 +116,14 @@ endy   = int(z.size / 2)
 
 # read cross-sections
 variables=["u","v","w","p"]
-#NOTE: quick and dirty solution: should actually depend on the ammount of grid cells!
-nwave_modes_x = 384
-nwave_modes_y = 192
+nwave_modes_x = int(nx * 0.5)
+nwave_modes_y = int(ny * 0.5)
 spectra_x5t = numpy.zeros((4,nt,nwave_modes_x))
 spectra_y5t = numpy.zeros((4,nt,nwave_modes_y))
 spectra_x99t = numpy.zeros((4,nt,nwave_modes_x))
 spectra_y99t = numpy.zeros((4,nt,nwave_modes_y))
 index_spectra = 0
+input_dir = '/projects/1/flowsim/simulation1/'
 for crossname in variables:
 
 	if(crossname == 'u'): loc = [1,0,0]
@@ -135,7 +135,7 @@ for crossname in variables:
 	locy = 'y' if loc[1] == 0 else 'yh'
 	locz = 'z' if loc[2] == 0 else 'zh'
 	
-	indexes_local = get_cross_indices(crossname, 'xy', filepath='/projects/1/flowsim/simulation1/')
+	indexes_local = get_cross_indices(crossname, 'xy', filepath=input_dir)
 	stop = False
 	for t in range(nt):
 		prociter = iter + iterstep*t
@@ -149,7 +149,7 @@ for crossname in variables:
 			zplus = yplus if locz=='z' else yplush
 			f_in  = "{0:}.xy.{1:05d}.{2:07d}".format(crossname, index, prociter)
 			try:
-				fin = open(f_in, "rb")
+				fin = open(input_dir + f_in, "rb")
 			except:
 				print('Stopping: cannot find file {}'.format(f_in))
 				crossfile.sync()
