@@ -73,7 +73,7 @@ def _standardization(variable, mean, standard_dev):
 #the output in format (dict(features),labels) and normalizes according to specified means and variances.
 def _parse_function(example_proto,label_name,means,stdevs):
 
-    if args.gradients is none: #NOTE: args.gradients is a global variable defined outside this function
+    if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
 
         keys_to_features = {
             'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
@@ -197,7 +197,7 @@ def eval_input_fn(filenames,batch_size,label_name,means,stdevs):
 def split_train_val(time_steps, val_ratio, random_seed):
     np.random.seed(random_seed)
     shuffled_steps = np.random.permutation(time_steps)
-    val_set_size = int(len(time_steps) * val_ratio)
+    val_set_size = max(int(len(time_steps) * val_ratio),1) #max(..) makes sure that always at least 1 file is selected for validation
     val_steps = shuffled_steps[:val_set_size]
     train_steps = shuffled_steps[val_set_size:]
     return train_steps,val_steps
@@ -211,7 +211,8 @@ def CNN_model_fn(features,labels,mode,params):
 #    print(features)
     #input_layer = tf.feature_column.input_layer(features, params['feature_columns'])
     if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
-        input_layer = tf.stack([features['uc_sample'],features['vc_sample'],features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
+        input_layer = tf.stack([features['uc_sample'],features['vc_sample'], \
+                features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
     else:
         input_layer = tf.stack([features['ugradx'],features['ugrady'],features['ugradz'], \
                 features['vgradx'],features['vgrady'],features['vgradz'], \
@@ -220,7 +221,7 @@ def CNN_model_fn(features,labels,mode,params):
 
     #Define layers
     conv1_layer = tf.layers.Conv3D(filters=params['n_conv1'], kernel_size=params['kernelsize_conv1'], \
-            strides=params['stride_conv1'], activation=params['activation_function'], padding="valid", name='conv1', \
+         strides=params['stride_conv1'], activation=params['activation_function'], padding="valid", name='conv1', \
             kernel_initializer=params['kernel_initializer'], data_format = 'channels_last') 
     # x = tf.layers.batch_normalization(conv1, training=True, name='block4_sepconv1_bn')
     conv1 = conv1_layer.apply(input_layer)
@@ -297,6 +298,8 @@ def CNN_model_fn(features,labels,mode,params):
 #Define filenames for training and validation
 nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
 nt_total = 100 #Amount of time steps INCLUDING the test set
+#nt_available = 2 #FOR TESTING PURPOSES ONLY!
+#nt_total = 2 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
 #files = glob.glob(args.input_dir)
 train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1, random_seed=random_seed) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created manually.
@@ -378,10 +381,10 @@ if args.gradients is None:
     means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
     means_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
     
-    stdevs_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
-    stdevs_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
-    stdevs_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
-    stdevs_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
+    stdevs_dict_avgt['uc'] = np.mean(stdevs_dict_t['uc'][train_stepnumbers])
+    stdevs_dict_avgt['vc'] = np.mean(stdevs_dict_t['vc'][train_stepnumbers])
+    stdevs_dict_avgt['wc'] = np.mean(stdevs_dict_t['wc'][train_stepnumbers])
+    stdevs_dict_avgt['pc'] = np.mean(stdevs_dict_t['pc'][train_stepnumbers])
 
 else:
     means_dict_avgt['ugradx'] = np.mean(means_dict_t['ugradx'][train_stepnumbers])
@@ -436,12 +439,13 @@ my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_ran
 #Instantiate an Estimator with model defined by model_fn
 hyperparams =  {
 #'feature_columns':feature_columns,
-#'n_conv1':10,
-'n_conv1':40,
+'n_conv1':10,
+#'n_conv1':40,
 'kernelsize_conv1':5,
 'stride_conv1':1,
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
 #'activation_function':tf.nn.relu,
+#'kernel_initializer':tf.initializers.random_uniform(0,0.0001), #NOTE: small range weights ensures that the output is already from the beginning in the correct order of magnitude
 'kernel_initializer':tf.initializers.he_uniform(),
 #'kernel_initializer':tf.glorot_uniform_initializer(),
 'learning_rate':0.0001
