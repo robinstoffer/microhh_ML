@@ -2,6 +2,7 @@ import numpy as np
 import netCDF4 as nc
 import os
 import tensorflow as tf
+from sklearn.utils import shuffle
 
 def generate_samples(output_directory, training_filepath = 'training_data.nc', samples_filepath = 'samples_training.nc', means_stdev_filepath = 'means_stdevs_allfields.nc', create_binary = True, create_netcdf = True, store_means_stdevs = True):
     
@@ -32,12 +33,16 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     
     #Define shapes of output arrays based on stored training data
     nt,nz,ny,nx = a['unres_tau_xu'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
-#    nt = 2 ###NOTE:FOR TESTING PURPOSES!!! REMOVE LATER ON!!!!
+#    nt = 3 ###NOTE:FOR TESTING PURPOSES!!! REMOVE LATER ON!!!!
     size_samples = int(a['size_samples'][:])
+    size_samples_gradients = size_samples - 2 #NOTE:To calculate the gradients, 2 additional grid points need to be used in each direction. To ensure that the considered region is the same for the absolute wind velocities and the gradients, the samples of the gradients therefore need to be 2 grid points shorter.
+    if size_samples_gradients < 1:
+        raise ValueError('The samples of the wind velocity components are too smal to calculate gradients. Please increase the sample size.')
     cells_around_centercell = int(a['cells_around_centercell'][:])
+    cells_around_centercell_gradients = int(size_samples_gradients // 2.0)
     if nz < size_samples:
         raise ValueError("The number of vertical layers should at least be equal to the specified sample size.")
-    nsamples = (nz - 2*cells_around_centercell) * ny * nx #-2*size_samples needed to account for the vertical layers that are discarded in the sampling
+    nsamples = (nz - 2*cells_around_centercell) * ny * nx #NOTE: '-2*size_samples' needed to account for the vertical layers that are discarded in the sampling
     
     #Define arrays to store means and stdevs according to store_means_stdevs flag
     if store_means_stdevs:
@@ -57,7 +62,17 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         mean_pgradx = np.zeros((nt,1))
         mean_pgrady = np.zeros((nt,1))
         mean_pgradz = np.zeros((nt,1))
-     
+        #
+        mean_unres_tau_xu = np.zeros((nt,1))
+        mean_unres_tau_yu = np.zeros((nt,1))
+        mean_unres_tau_zu = np.zeros((nt,1))
+        mean_unres_tau_xv = np.zeros((nt,1))
+        mean_unres_tau_yv = np.zeros((nt,1))
+        mean_unres_tau_zv = np.zeros((nt,1))
+        mean_unres_tau_xw = np.zeros((nt,1))
+        mean_unres_tau_yw = np.zeros((nt,1))
+        mean_unres_tau_zw = np.zeros((nt,1))
+        #
         stdev_uc = np.zeros((nt,1))
         stdev_vc = np.zeros((nt,1))
         stdev_wc = np.zeros((nt,1))
@@ -74,6 +89,17 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         stdev_pgradx = np.zeros((nt,1))
         stdev_pgrady = np.zeros((nt,1))
         stdev_pgradz = np.zeros((nt,1))
+        #
+        stdev_unres_tau_xu = np.zeros((nt,1))
+        stdev_unres_tau_yu = np.zeros((nt,1))
+        stdev_unres_tau_zu = np.zeros((nt,1))
+        stdev_unres_tau_xv = np.zeros((nt,1))
+        stdev_unres_tau_yv = np.zeros((nt,1))
+        stdev_unres_tau_zv = np.zeros((nt,1))
+        stdev_unres_tau_xw = np.zeros((nt,1))
+        stdev_unres_tau_yw = np.zeros((nt,1))
+        stdev_unres_tau_zw = np.zeros((nt,1))
+
 
     #Loop over timesteps, take for each timestep samples of 5x5x5
     tot_sample_num = 0
@@ -97,18 +123,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         vc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
         wc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
         pc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        ugradx_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        ugrady_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        ugradz_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        vgradx_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        vgrady_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        vgradz_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        wgradx_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        wgrady_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        wgradz_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        pgradx_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        pgrady_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        pgradz_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+        ugradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ugrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ugradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        vgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        vgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        vgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        wgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        wgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        wgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        pgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        pgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        pgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
         unres_tau_xu_samples = np.zeros((nsamples,1))
         unres_tau_xv_samples = np.zeros((nsamples,1))
         unres_tau_xw_samples = np.zeros((nsamples,1))
@@ -143,7 +169,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         unres_tau_zw_singlefield = np.array(a["unres_tau_zw"][t,:,:,:])
 
         #Calculate gradients of wind speed and pressure fields#
-        #NOTE: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
+        #NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
+        #NOTE2: if the half-channel width delta is not equal to 1, revise the gradients calculation below!
         zhgc = np.array(a['zhgc'][:])
         zgc  = np.array(a['zgc'][:])
         yhgc  = np.array(a['yhgc'][:])
@@ -173,7 +200,17 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             mean_pgradx[t] = np.mean(pgradx)
             mean_pgrady[t] = np.mean(pgrady)
             mean_pgradz[t] = np.mean(pgradz)
-            
+            #
+            mean_unres_tau_xu[t] = np.mean(unres_tau_xu_singlefield)
+            mean_unres_tau_yu[t] = np.mean(unres_tau_yu_singlefield)
+            mean_unres_tau_zu[t] = np.mean(unres_tau_zu_singlefield)
+            mean_unres_tau_xv[t] = np.mean(unres_tau_xv_singlefield)
+            mean_unres_tau_yv[t] = np.mean(unres_tau_yv_singlefield)
+            mean_unres_tau_zv[t] = np.mean(unres_tau_zv_singlefield)
+            mean_unres_tau_xw[t] = np.mean(unres_tau_xw_singlefield)
+            mean_unres_tau_yw[t] = np.mean(unres_tau_yw_singlefield)
+            mean_unres_tau_zw[t] = np.mean(unres_tau_zw_singlefield)
+            #
             stdev_uc[t] = np.std(uc_singlefield)
             stdev_vc[t] = np.std(vc_singlefield)
             stdev_wc[t] = np.std(wc_singlefield)
@@ -190,41 +227,61 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             stdev_pgradx[t] = np.std(pgradx)
             stdev_pgrady[t] = np.std(pgrady)
             stdev_pgradz[t] = np.std(pgradz)
-        
+            #
+            stdev_unres_tau_xu[t] = np.std(unres_tau_xu_singlefield)
+            stdev_unres_tau_yu[t] = np.std(unres_tau_yu_singlefield)
+            stdev_unres_tau_zu[t] = np.std(unres_tau_zu_singlefield)
+            stdev_unres_tau_xv[t] = np.std(unres_tau_xv_singlefield)
+            stdev_unres_tau_yv[t] = np.std(unres_tau_yv_singlefield)
+            stdev_unres_tau_zv[t] = np.std(unres_tau_zv_singlefield)
+            stdev_unres_tau_xw[t] = np.std(unres_tau_xw_singlefield)
+            stdev_unres_tau_yw[t] = np.std(unres_tau_yw_singlefield)
+            stdev_unres_tau_zw[t] = np.std(unres_tau_zw_singlefield)
+
         ###Do the actual sampling.###
         for index_z in range(kgc_center + cells_around_centercell, kend - cells_around_centercell): #Make sure no vertical levels are sampled where because of the vicintiy to the wall no samples of 5X5X5 grid cells can be taken.
             #NOTE: Since the grid edges in the vertical direction contain no ghost cells, no use can be made of the ghost cell present for the grid centers in the vertical direction.
-            index_zlow      = index_z - cells_around_centercell
-            index_zhigh     = index_z + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
-            index_z_noghost = index_z - kgc_center
+            index_zlow                    = index_z - cells_around_centercell
+            index_zhigh                   = index_z + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
+            index_z_noghost               = index_z - kgc_center
+            # Idem for gradients
+            index_zlow_gradients          = index_z - cells_around_centercell_gradients
+            index_zhigh_gradients         = index_z + cells_around_centercell_gradients + 1
             
             for index_y in range(jgc,jend): 
-                index_ylow      = index_y - cells_around_centercell
-                index_yhigh     = index_y + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
-                index_y_noghost = index_y - jgc
+                index_ylow                = index_y - cells_around_centercell
+                index_yhigh               = index_y + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
+                index_y_noghost           = index_y - jgc
+                # Idem for gradients
+                index_ylow_gradients      = index_y - cells_around_centercell_gradients
+                index_yhigh_gradients     = index_y + cells_around_centercell_gradients + 1
     
                 for index_x in range(igc,iend):
-                    index_xlow      = index_x - cells_around_centercell
-                    index_xhigh     = index_x + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
-                    index_x_noghost = index_x - igc
+                    index_xlow            = index_x - cells_around_centercell
+                    index_xhigh           = index_x + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
+                    index_x_noghost       = index_x - igc
+                    # Idem for gradients
+                    index_xlow_gradients  = index_x - cells_around_centercell_gradients
+                    index_xhigh_gradients = index_x + cells_around_centercell_gradients + 1
     
                     #Take samples of 5x5x5 and store them
                     uc_samples[sample_num,:,:,:]     = uc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
                     vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
                     wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow-1:index_zhigh-1,index_ylow:index_yhigh,index_xlow:index_xhigh] #NOTE: -1 needed to account for missing ghost cells in vertical direction when considering the grid edges.
                     pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow:index_zhigh,index_ylow:index_yhigh, index_xlow:index_xhigh]
-                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
-                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow:index_zhigh,index_ylow:index_yhigh,  index_xlow:index_xhigh]
+                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients-1:index_zhigh_gradients-1,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients-1:index_zhigh_gradients-1,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients-1:index_zhigh_gradients-1,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+        
                     #Store corresponding unresolved transports
                     unres_tau_xu_samples[sample_num] = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
                     unres_tau_xv_samples[sample_num] = unres_tau_xv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
@@ -239,6 +296,27 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     sample_num +=1
                     tot_sample_num+=1
         ###
+        #Randomly shuffle the input and output data in a consistent manner, such there is no specific order in the samples stored. This will likely help the machine learning algorithm to converge faster towards the global minimum.
+        uc_samples, vc_samples, wc_samples, pc_samples, \
+        ugradx_samples, ugrady_samples, ugradz_samples, \
+        vgradx_samples, vgrady_samples, vgradz_samples, \
+        wgradx_samples, wgrady_samples, wgradz_samples, \
+        pgradx_samples, pgrady_samples, pgradz_samples, \
+        unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples, \
+        unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples, \
+        unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples \
+        = shuffle(
+        uc_samples, vc_samples, wc_samples, pc_samples,
+        ugradx_samples, ugrady_samples, ugradz_samples,
+        vgradx_samples, vgrady_samples, vgradz_samples,
+        wgradx_samples, wgrady_samples, wgradz_samples,
+        pgradx_samples, pgrady_samples, pgradz_samples,
+        unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples,
+        unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples,
+        unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples)
+
+
+
         #Store samples in nc-file if required by create_netcdf flag
         if create_netcdf:
 
@@ -258,6 +336,9 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 samples_file.createDimension("boxx", size_samples)
                 samples_file.createDimension("boxy", size_samples)
                 samples_file.createDimension("boxz", size_samples)
+                samples_file.createDimension("boxx_gradients", size_samples_gradients)
+                samples_file.createDimension("boxy_gradients", size_samples_gradients)
+                samples_file.createDimension("boxz_gradients", size_samples_gradients)
     
     
                 #Create new variables
@@ -265,18 +346,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 varvc           = samples_file.createVariable("vc_samples","f8",("ns","boxz","boxy","boxx"))
                 varwc           = samples_file.createVariable("wc_samples","f8",("ns","boxz","boxy","boxx"))
                 varpc           = samples_file.createVariable("pc_samples","f8",("ns","boxz","boxy","boxx"))
-                varugradx       = samples_file.createVariable("ugradx_samples","f8",("ns","boxz","boxy","boxx"))
-                varugrady       = samples_file.createVariable("ugrady_samples","f8",("ns","boxz","boxy","boxx"))
-                varugradz       = samples_file.createVariable("ugradz_samples","f8",("ns","boxz","boxy","boxx"))
-                varvgradx       = samples_file.createVariable("vgradx_samples","f8",("ns","boxz","boxy","boxx"))
-                varvgrady       = samples_file.createVariable("vgrady_samples","f8",("ns","boxz","boxy","boxx"))
-                varvgradz       = samples_file.createVariable("vgradz_samples","f8",("ns","boxz","boxy","boxx"))
-                varwgradx       = samples_file.createVariable("wgradx_samples","f8",("ns","boxz","boxy","boxx"))
-                varwgrady       = samples_file.createVariable("wgrady_samples","f8",("ns","boxz","boxy","boxx"))
-                varwgradz       = samples_file.createVariable("wgradz_samples","f8",("ns","boxz","boxy","boxx"))
-                varpgradx       = samples_file.createVariable("pgradx_samples","f8",("ns","boxz","boxy","boxx"))
-                varpgrady       = samples_file.createVariable("pgrady_samples","f8",("ns","boxz","boxy","boxx"))
-                varpgradz       = samples_file.createVariable("pgradz_samples","f8",("ns","boxz","boxy","boxx"))
+                varugradx       = samples_file.createVariable("ugradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varugrady       = samples_file.createVariable("ugrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varugradz       = samples_file.createVariable("ugradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varvgradx       = samples_file.createVariable("vgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varvgrady       = samples_file.createVariable("vgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varvgradz       = samples_file.createVariable("vgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varwgradx       = samples_file.createVariable("wgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varwgrady       = samples_file.createVariable("wgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varwgradz       = samples_file.createVariable("wgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varpgradx       = samples_file.createVariable("pgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varpgrady       = samples_file.createVariable("pgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                varpgradz       = samples_file.createVariable("pgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
                 varunres_tau_xu = samples_file.createVariable("unres_tau_xu_samples","f8",("ns",))
                 varunres_tau_xv = samples_file.createVariable("unres_tau_xv_samples","f8",("ns",))
                 varunres_tau_xw = samples_file.createVariable("unres_tau_xw_samples","f8",("ns",))
@@ -586,7 +667,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     
                 for ugradx_sample, ugrady_sample, ugradz_sample, vgradx_sample, vgrady_sample, vgradz_sample, wgradx_sample, wgrady_sample, wgradz_sample,  pgradx_sample, pgrady_sample, pgradz_sample, unres_tau_xu_sample, unres_tau_xv_sample, unres_tau_xw_sample, unres_tau_yu_sample, unres_tau_yv_sample, unres_tau_yw_sample, unres_tau_zu_sample, unres_tau_zv_sample, unres_tau_zw_sample in zip(ugradx_samples, ugrady_samples, ugradz_samples, vgradx_samples, vgrady_samples, vgradz_samples, wgradx_samples, wgrady_samples, wgradz_samples, pgradx_samples, pgrady_samples, pgradz_samples, unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples, unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples, unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples):
 
-                    example = _convert_to_example_gradients(ugradx_sample, ugrady_sample, ugradz_sample, vgradx_sample, vgrady_sample, vgradz_sample, wgradx_sample, wgrady_sample, wgradz_sample,  pgradx_sample, pgrady_sample, pgradz_sample, unres_tau_xu_sample, unres_tau_xv_sample, unres_tau_xw_sample, unres_tau_yu_sample, unres_tau_yv_sample, unres_tau_yw_sample, unres_tau_zu_sample, unres_tau_zv_sample, unres_tau_zw_sample, size_samples, size_samples, size_samples)
+                    example = _convert_to_example_gradients(ugradx_sample, ugrady_sample, ugradz_sample, vgradx_sample, vgrady_sample, vgradz_sample, wgradx_sample, wgrady_sample, wgradz_sample,  pgradx_sample, pgrady_sample, pgradz_sample, unres_tau_xu_sample, unres_tau_xv_sample, unres_tau_xw_sample, unres_tau_yu_sample, unres_tau_yv_sample, unres_tau_yw_sample, unres_tau_zu_sample, unres_tau_zv_sample, unres_tau_zw_sample, x_sample_size,y_sample_size,z_sample_size)
                     writer.write(example.SerializeToString())
             
                 writer.close()
@@ -598,7 +679,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
 
             #Create training data based on gradients
             output_file_gradients = os.path.join(output_directory, '{}_time_step_{}_of_{}_gradients.tfrecords'.format('training', t+1,nt)) 
-            _process_image_files_batch_gradient(output_file_gradients, ugradx_samples, ugrady_samples, ugradz_samples, vgradx_samples, vgrady_samples, vgradz_samples, wgradx_samples, wgrady_samples, wgradz_samples, pgradx_samples, pgrady_samples, pgradz_samples, unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples, unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples, unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples, size_samples, size_samples, size_samples)
+            _process_image_files_batch_gradient(output_file_gradients, ugradx_samples, ugrady_samples,ugradz_samples, vgradx_samples, vgrady_samples, vgradz_samples, wgradx_samples, wgrady_samples, wgradz_samples, pgradx_samples, pgrady_samples, pgradz_samples, unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples, unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples, unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples, size_samples_gradients, size_samples_gradients, size_samples_gradients)
 
     #Close data file
     a.close()
@@ -612,22 +693,31 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         means_stdev_file.createDimension("nt", nt)
 
         #Create new variables
-        varmeanuc           = means_stdev_file.createVariable("mean_uc","f8",("nt",))
-        varmeanvc           = means_stdev_file.createVariable("mean_vc","f8",("nt",))
-        varmeanwc           = means_stdev_file.createVariable("mean_wc","f8",("nt",))
-        varmeanpc           = means_stdev_file.createVariable("mean_pc","f8",("nt",))
-        varmeanugradx       = means_stdev_file.createVariable("mean_ugradx","f8",("nt",))
-        varmeanugrady       = means_stdev_file.createVariable("mean_ugrady","f8",("nt",))
-        varmeanugradz       = means_stdev_file.createVariable("mean_ugradz","f8",("nt",))
-        varmeanvgradx       = means_stdev_file.createVariable("mean_vgradx","f8",("nt",))
-        varmeanvgrady       = means_stdev_file.createVariable("mean_vgrady","f8",("nt",))
-        varmeanvgradz       = means_stdev_file.createVariable("mean_vgradz","f8",("nt",))
-        varmeanwgradx       = means_stdev_file.createVariable("mean_wgradx","f8",("nt",))
-        varmeanwgrady       = means_stdev_file.createVariable("mean_wgrady","f8",("nt",))
-        varmeanwgradz       = means_stdev_file.createVariable("mean_wgradz","f8",("nt",))
-        varmeanpgradx       = means_stdev_file.createVariable("mean_pgradx","f8",("nt",))
-        varmeanpgrady       = means_stdev_file.createVariable("mean_pgrady","f8",("nt",))
-        varmeanpgradz       = means_stdev_file.createVariable("mean_pgradz","f8",("nt",))
+        varmeanuc            = means_stdev_file.createVariable("mean_uc","f8",("nt",))
+        varmeanvc            = means_stdev_file.createVariable("mean_vc","f8",("nt",))
+        varmeanwc            = means_stdev_file.createVariable("mean_wc","f8",("nt",))
+        varmeanpc            = means_stdev_file.createVariable("mean_pc","f8",("nt",))
+        varmeanugradx        = means_stdev_file.createVariable("mean_ugradx","f8",("nt",))
+        varmeanugrady        = means_stdev_file.createVariable("mean_ugrady","f8",("nt",))
+        varmeanugradz        = means_stdev_file.createVariable("mean_ugradz","f8",("nt",))
+        varmeanvgradx        = means_stdev_file.createVariable("mean_vgradx","f8",("nt",))
+        varmeanvgrady        = means_stdev_file.createVariable("mean_vgrady","f8",("nt",))
+        varmeanvgradz        = means_stdev_file.createVariable("mean_vgradz","f8",("nt",))
+        varmeanwgradx        = means_stdev_file.createVariable("mean_wgradx","f8",("nt",))
+        varmeanwgrady        = means_stdev_file.createVariable("mean_wgrady","f8",("nt",))
+        varmeanwgradz        = means_stdev_file.createVariable("mean_wgradz","f8",("nt",))
+        varmeanpgradx        = means_stdev_file.createVariable("mean_pgradx","f8",("nt",))
+        varmeanpgrady        = means_stdev_file.createVariable("mean_pgrady","f8",("nt",))
+        varmeanpgradz        = means_stdev_file.createVariable("mean_pgradz","f8",("nt",))
+        varmeanunrestauxu    = means_stdev_file.createVariable("mean_unres_tau_xu_sample","f8",("nt",))
+        varmeanunrestauyu    = means_stdev_file.createVariable("mean_unres_tau_yu_sample","f8",("nt",))
+        varmeanunrestauzu    = means_stdev_file.createVariable("mean_unres_tau_zu_sample","f8",("nt",))
+        varmeanunrestauxv    = means_stdev_file.createVariable("mean_unres_tau_xv_sample","f8",("nt",))
+        varmeanunrestauyv    = means_stdev_file.createVariable("mean_unres_tau_yv_sample","f8",("nt",))
+        varmeanunrestauzv    = means_stdev_file.createVariable("mean_unres_tau_zv_sample","f8",("nt",))
+        varmeanunrestauxw    = means_stdev_file.createVariable("mean_unres_tau_xw_sample","f8",("nt",))
+        varmeanunrestauyw    = means_stdev_file.createVariable("mean_unres_tau_yw_sample","f8",("nt",))
+        varmeanunrestauzw    = means_stdev_file.createVariable("mean_unres_tau_zw_sample","f8",("nt",))
 
         varstdevuc           = means_stdev_file.createVariable("stdev_uc","f8",("nt",))
         varstdevvc           = means_stdev_file.createVariable("stdev_vc","f8",("nt",))
@@ -645,6 +735,15 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varstdevpgradx       = means_stdev_file.createVariable("stdev_pgradx","f8",("nt",))
         varstdevpgrady       = means_stdev_file.createVariable("stdev_pgrady","f8",("nt",))
         varstdevpgradz       = means_stdev_file.createVariable("stdev_pgradz","f8",("nt",))
+        varstdevunrestauxu   = means_stdev_file.createVariable("stdev_unres_tau_xu_sample","f8",("nt",))
+        varstdevunrestauyu   = means_stdev_file.createVariable("stdev_unres_tau_yu_sample","f8",("nt",))
+        varstdevunrestauzu   = means_stdev_file.createVariable("stdev_unres_tau_zu_sample","f8",("nt",))
+        varstdevunrestauxv   = means_stdev_file.createVariable("stdev_unres_tau_xv_sample","f8",("nt",))
+        varstdevunrestauyv   = means_stdev_file.createVariable("stdev_unres_tau_yv_sample","f8",("nt",))
+        varstdevunrestauzv   = means_stdev_file.createVariable("stdev_unres_tau_zv_sample","f8",("nt",))
+        varstdevunrestauxw   = means_stdev_file.createVariable("stdev_unres_tau_xw_sample","f8",("nt",))
+        varstdevunrestauyw   = means_stdev_file.createVariable("stdev_unres_tau_yw_sample","f8",("nt",))
+        varstdevunrestauzw   = means_stdev_file.createVariable("stdev_unres_tau_zw_sample","f8",("nt",))
 
         #Store variables
         varmeanuc[:]         = mean_uc[:]
@@ -663,6 +762,15 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varmeanpgradx[:]     = mean_pgradx[:]
         varmeanpgrady[:]     = mean_pgrady[:]
         varmeanpgradz[:]     = mean_pgradz[:]
+        varmeanunrestauxu[:] = mean_unres_tau_xu[:]
+        varmeanunrestauyu[:] = mean_unres_tau_yu[:]
+        varmeanunrestauzu[:] = mean_unres_tau_zu[:]
+        varmeanunrestauxv[:] = mean_unres_tau_xv[:]
+        varmeanunrestauyv[:] = mean_unres_tau_yv[:]
+        varmeanunrestauzv[:] = mean_unres_tau_zv[:]
+        varmeanunrestauxw[:] = mean_unres_tau_xw[:]
+        varmeanunrestauyw[:] = mean_unres_tau_yw[:]
+        varmeanunrestauzw[:] = mean_unres_tau_zw[:]
 
         varstdevuc[:]         = stdev_uc[:]
         varstdevvc[:]         = stdev_vc[:]
@@ -680,6 +788,15 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varstdevpgradx[:]     = stdev_pgradx[:]
         varstdevpgrady[:]     = stdev_pgrady[:]
         varstdevpgradz[:]     = stdev_pgradz[:]
+        varstdevunrestauxu[:] = stdev_unres_tau_xu[:]
+        varstdevunrestauyu[:] = stdev_unres_tau_yu[:]
+        varstdevunrestauzu[:] = stdev_unres_tau_zu[:]
+        varstdevunrestauxv[:] = stdev_unres_tau_xv[:]
+        varstdevunrestauyv[:] = stdev_unres_tau_yv[:]
+        varstdevunrestauzv[:] = stdev_unres_tau_zv[:]
+        varstdevunrestauxw[:] = stdev_unres_tau_xw[:]
+        varstdevunrestauyw[:] = stdev_unres_tau_yw[:]
+        varstdevunrestauzw[:] = stdev_unres_tau_zw[:]
 
         #Close storage file
         means_stdev_file.close()

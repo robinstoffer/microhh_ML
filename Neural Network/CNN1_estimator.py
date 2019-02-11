@@ -10,6 +10,7 @@ import glob
 import argparse
 import matplotlib
 matplotlib.use('agg')
+from tensorflow.python import debug as tf_debug
 #import seaborn as sns
 #sns.set(style="ticks")
 #import pandas
@@ -40,6 +41,9 @@ parser.add_argument('--synthetic', default=None, \
 parser.add_argument('--benchmark', dest='benchmark', default=None, \
         action='store_true', \
         help='fullrun includes testing and plotting, otherwise it ends after validation loss to facilitate benchmark tests')
+parser.add_argument('--debug', default=None, \
+        action='store_true', \
+        help='Run script in debug mode to inspect tensor values while the Estimator is in training mode.')
 parser.add_argument('--intra_op_parallelism_threads', type=int, default=ncores-1, \
         help='intra_op_parallelism_threads')
 parser.add_argument('--inter_op_parallelism_threads', type=int, default=1, \
@@ -95,18 +99,18 @@ def _parse_function(example_proto,label_name,means,stdevs):
     else:
 
         keys_to_features = {
-            'ugradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'ugrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'ugradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'vgradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'vgrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'vgradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'wgradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'wgrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'wgradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'pgradx_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'pgrady_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            'pgradz_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+            'ugradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'ugrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'ugradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'vgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'vgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'vgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'wgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'wgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'wgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'pgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'pgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+            'pgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
             label_name     :tf.FixedLenFeature([],tf.float32),
             'x_sample_size':tf.FixedLenFeature([],tf.int64),
             'y_sample_size':tf.FixedLenFeature([],tf.int64),
@@ -128,6 +132,7 @@ def _parse_function(example_proto,label_name,means,stdevs):
         parsed_features['pgradz_sample'] = _standardization(parsed_features['pgradz_sample'], means['pgradz'], stdevs['pgradz'])
 
     labels = parsed_features.pop(label_name)
+    #labels = _standardization(labels, means[label_name], stdevs[label_name]) UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
     return parsed_features,labels
 
 
@@ -154,6 +159,8 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
     #Get features
     features = {}
     distribution = tf.distributions.Uniform(low=[-1.0], high=[1.0])
+    if args.gradients is not None:
+        raise ValueError("The usage of gradients in combination with synthetic data has not been implemented yet. Please adjust the settings accordingly.")
     features['uc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
     features['vc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
     features['wc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
@@ -296,10 +303,10 @@ def CNN_model_fn(features,labels,mode,params):
 
 
 #Define filenames for training and validation
-nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
-nt_total = 100 #Amount of time steps INCLUDING the test set
-#nt_available = 2 #FOR TESTING PURPOSES ONLY!
-#nt_total = 2 #FOR TESTING PURPOSES ONLY!
+#nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
+#nt_total = 100 #Amount of time steps INCLUDING the test set
+nt_available = 2 #FOR TESTING PURPOSES ONLY!
+nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
 #files = glob.glob(args.input_dir)
 train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1, random_seed=random_seed) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created manually.
@@ -372,6 +379,10 @@ else:
     stdevs_dict_t['pgrady'] = np.array(means_stdevs_file['stdev_pgrady'][:])
     stdevs_dict_t['pgradz'] = np.array(means_stdevs_file['stdev_pgradz'][:])
 
+#Extract mean & standard deviation labels
+#means_dict_t[output_variable]  = np.array(means_stdevs_file['mean_'+output_variable][:])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+#stdevs_dict_t[output_variable] = np.array(means_stdevs_file['stdev_'+output_variable][:])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+
 means_dict_avgt  = {}
 stdevs_dict_avgt = {}
 
@@ -419,6 +430,10 @@ else:
     stdevs_dict_avgt['pgrady'] = np.mean(stdevs_dict_t['pgrady'][train_stepnumbers])
     stdevs_dict_avgt['pgradz'] = np.mean(stdevs_dict_t['pgradz'][train_stepnumbers])
 
+#Extract temporally averaged mean & standard deviation labels
+#means_dict_avgt[output_variable]  = np.mean(means_dict_t[output_variable][train_stepnumbers])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+#stdevs_dict_avgt[output_variable] = np.mean(stdevs_dict_t[output_variable][train_stepnumbers])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+
 #Set configuration
 config = tf.ConfigProto(log_device_placement=False)
 # config.gpu_options.allow_growth = True
@@ -439,8 +454,8 @@ my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_ran
 #Instantiate an Estimator with model defined by model_fn
 hyperparams =  {
 #'feature_columns':feature_columns,
-'n_conv1':10,
-#'n_conv1':40,
+#'n_conv1':10,
+'n_conv1':40,
 'kernelsize_conv1':5,
 'stride_conv1':1,
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
@@ -460,9 +475,15 @@ CNN = tf.estimator.Estimator(model_fn = CNN_model_fn,config=my_checkpointing_con
 
 profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
 
+if args.debug:
+    debug_hook = tf_debug.LocalCLIDebugHook()
+    hooks = [profiler_hook, debug_hook]
+else:
+    hooks = [profiler_hook]
+
 if args.synthetic is None:
     #Train and evaluate CNN
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), max_steps=num_steps, hooks=[profiler_hook])
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
@@ -477,7 +498,7 @@ if args.synthetic is None:
 #    NOTE: CNN.predict appeared to be unsuitable to compare the predictions from the CNN to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
 
 else:
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = True), max_steps=num_steps, hooks=[profiler_hook])
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = True), max_steps=num_steps, hooks=hooks)
     eval_spec = tf.estimator.EvalSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
