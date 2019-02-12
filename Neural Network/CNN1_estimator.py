@@ -70,7 +70,7 @@ random_seed = 1234
 
 #Define function for standardization
 def _standardization(variable, mean, standard_dev):
-    standardized_variable = (variable - mean)/(standard_dev ** 2)
+    standardized_variable = (variable - mean)/ standard_dev
     return standardized_variable
 
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
@@ -92,7 +92,7 @@ def _parse_function(example_proto,label_name,means,stdevs):
     
         parsed_features = tf.parse_single_example(example_proto, keys_to_features)
         parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
-        parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'],stdevs['vc'])
+        parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'], stdevs['vc'])
         parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc'], stdevs['wc'])
         parsed_features['pc_sample'] = _standardization(parsed_features['pc_sample'], means['pc'], stdevs['pc'])
 
@@ -220,17 +220,40 @@ def CNN_model_fn(features,labels,mode,params):
     if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
         input_layer = tf.stack([features['uc_sample'],features['vc_sample'], \
                 features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
+    
+        #Visualize inputs
+        tf.summary.histogram('input_u', input_layer[:,:,:,:,0])
+        tf.summary.histogram('input_v', input_layer[:,:,:,:,1])
+        tf.summary.histogram('input_w', input_layer[:,:,:,:,2])
+        tf.summary.histogram('input_p', input_layer[:,:,:,:,3])
+
     else:
         input_layer = tf.stack([features['ugradx'],features['ugrady'],features['ugradz'], \
                 features['vgradx'],features['vgrady'],features['vgradz'], \
                 features['wgradx'],features['wgrady'],features['wgradz'], \
                 features['pgradx'],features['pgrady'],features['pgradz']],axis=4)
 
+        #Visualize inputs
+        tf.summary.histogram('input_ugradx', input_layer[:,:,:,:,0])
+        tf.summary.histogram('input_ugrady', input_layer[:,:,:,:,1])
+        tf.summary.histogram('input_ugradz', input_layer[:,:,:,:,2])
+        tf.summary.histogram('input_vgradx', input_layer[:,:,:,:,3])
+        tf.summary.histogram('input_vgrady', input_layer[:,:,:,:,4])
+        tf.summary.histogram('input_vgradz', input_layer[:,:,:,:,5])
+        tf.summary.histogram('input_wgradx', input_layer[:,:,:,:,6])
+        tf.summary.histogram('input_wgrady', input_layer[:,:,:,:,7])
+        tf.summary.histogram('input_wgradz', input_layer[:,:,:,:,8])
+        tf.summary.histogram('input_pgradx', input_layer[:,:,:,:,9])
+        tf.summary.histogram('input_pgrady', input_layer[:,:,:,:,10])
+        tf.summary.histogram('input_pgradz', input_layer[:,:,:,:,11])
+
+#    print(input_layer[:,:,:,:,0])
+    
     #Define layers
     conv1_layer = tf.layers.Conv3D(filters=params['n_conv1'], kernel_size=params['kernelsize_conv1'], \
          strides=params['stride_conv1'], activation=params['activation_function'], padding="valid", name='conv1', \
             kernel_initializer=params['kernel_initializer'], data_format = 'channels_last') 
-    # x = tf.layers.batch_normalization(conv1, training=True, name='block4_sepconv1_bn')
+#    x = tf.layers.batch_normalization(conv1, training=True, name='block4_sepconv1_bn')
     conv1 = conv1_layer.apply(input_layer)
 #    print(conv1.shape)
 
@@ -238,13 +261,13 @@ def CNN_model_fn(features,labels,mode,params):
 #    print(conv1_layer.weights[0])
     acts_filters = tf.unstack(conv1_layer.weights[0], axis=4)
     for i, acts_filter in enumerate(acts_filters):
-        threedim_slices = tf.unstack(acts_filter, axis=0) #Each slice corresponds to one of the five vertical levels (y,x)
-        #print(acts_filter.shape)
+        threedim_slices = tf.unstack(acts_filter, axis=0) #Each slice corresponds to one of the filters applied
+#        print(acts_filter.shape)
         for j, threedim_slice in enumerate(threedim_slices):
-            twodim_slices = tf.unstack(threedim_slice, axis=2) #Each slice correponds to one vertical level for one of the four variables
-            #print(threedim_slice.shape)
+            twodim_slices = tf.unstack(threedim_slice, axis=2) #Each slice correponds to one vertical level for all four variables
+#            print(threedim_slice.shape)
             for k, twodim_slice in enumerate(twodim_slices):
-                #print(twodim_slice.shape)
+#                print(twodim_slice.shape)
                 tf.summary.image('filter'+str(i)+'_height'+str(j)+'_variable'+str(k), tf.expand_dims(tf.expand_dims(twodim_slice, axis=2), axis=0)) #Two times tf.expand_dims to construct a 4D Tensor from the resulting 2D Tensor, which is required by tf.summary.image.
     ###
 
@@ -277,6 +300,7 @@ def CNN_model_fn(features,labels,mode,params):
 
     #Compute evaluation metrics.
     rmse_tau_total,update_op_rmse = tf.metrics.root_mean_squared_error(labels, output)
+    tf.summary.histogram('labels', labels) #Visualize labels
     log_loss_eval, update_op_loss = log_loss_metric(labels, output)
     metrics = {'rmse':(rmse_tau_total,update_op_rmse),'log_loss':(log_loss_eval, update_op_loss)}
     #tf.summary.scalar('rmse',rmse_tau_total)
@@ -301,12 +325,11 @@ def CNN_model_fn(features,labels,mode,params):
     #Return tf.estimator.Estimatorspec for training mode
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
-
 #Define filenames for training and validation
-#nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
-#nt_total = 100 #Amount of time steps INCLUDING the test set
-nt_available = 2 #FOR TESTING PURPOSES ONLY!
-nt_total = 3 #FOR TESTING PURPOSES ONLY!
+nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
+nt_total = 100 #Amount of time steps INCLUDING the test set
+#nt_available = 2 #FOR TESTING PURPOSES ONLY!
+#nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
 #files = glob.glob(args.input_dir)
 train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1, random_seed=random_seed) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created manually.
@@ -328,6 +351,9 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
     else:
         val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
     j+=1
+
+print('Train files: ' + str(train_filenames))
+print('Validation files: ' + str(val_filenames))
 
 #Calculate means and stdevs for input variables
 means_stdevs_filepath = args.stored_means_stdevs_filepath
