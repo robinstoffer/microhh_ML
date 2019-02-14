@@ -315,8 +315,6 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples,
         unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples)
 
-
-
         #Store samples in nc-file if required by create_netcdf flag
         if create_netcdf:
 
@@ -339,8 +337,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 samples_file.createDimension("boxx_gradients", size_samples_gradients)
                 samples_file.createDimension("boxy_gradients", size_samples_gradients)
                 samples_file.createDimension("boxz_gradients", size_samples_gradients)
-    
-    
+                
                 #Create new variables
                 varuc           = samples_file.createVariable("uc_samples","f8",("ns","boxz","boxy","boxx"))
                 varvc           = samples_file.createVariable("vc_samples","f8",("ns","boxz","boxy","boxx"))

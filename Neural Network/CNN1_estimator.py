@@ -477,12 +477,16 @@ checkpoint_dir = args.checkpoint_dir
 #Create RunConfig object to save check_point in the model_dir according to the specified schedule, and to define the session config
 my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_random_seed=random_seed,save_summary_steps=args.summary_steps,save_checkpoints_steps=args.checkpoint_steps, session_config=config,keep_checkpoint_max=None,keep_checkpoint_every_n_hours=10000,log_step_count_steps=10,train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
 
-#Instantiate an Estimator with model defined by model_fn
+#Define hyperparameters
+if args.gradients is None:
+    kernelsize_conv1 = 5
+else:
+    kernelsize_conv1 = 3
 hyperparams =  {
 #'feature_columns':feature_columns,
 #'n_conv1':10,
 'n_conv1':40,
-'kernelsize_conv1':5,
+'kernelsize_conv1':kernelsize_conv1,
 'stride_conv1':1,
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
 #'activation_function':tf.nn.relu,
@@ -495,6 +499,7 @@ hyperparams =  {
 ##val whether tfrecords files are correctly read.
 #dataset_samples = train_input_fn(train_filenames, batch_size, output_variable)
 
+#Instantiate an Estimator with model defined by model_fn
 CNN = tf.estimator.Estimator(model_fn = CNN_model_fn,config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir)
 
 #custom_hook = MetadataHook(save_steps = 1000, output_dir = checkpoint_dir) #Initialize custom hook designed for storing runtime statistics that can be read using TensorBoard in combination with tf.Estimator.NOTE:an unavoidable consequence is unfortunately that the other summaries are not stored anymore. The only option to store all summaries and the runtime statistics in Tensorboard is to use low-level Tensorflow API.
