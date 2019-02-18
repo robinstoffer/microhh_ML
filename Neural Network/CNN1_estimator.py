@@ -228,10 +228,10 @@ def CNN_model_fn(features,labels,mode,params):
         tf.summary.histogram('input_p', input_layer[:,:,:,:,3])
 
     else:
-        input_layer = tf.stack([features['ugradx'],features['ugrady'],features['ugradz'], \
-                features['vgradx'],features['vgrady'],features['vgradz'], \
-                features['wgradx'],features['wgrady'],features['wgradz'], \
-                features['pgradx'],features['pgrady'],features['pgradz']],axis=4)
+        input_layer = tf.stack([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
+                features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
+                features['wgradx_sample'],features['wgrady_sample'],features['wgradz_sample'], \
+                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']],axis=4)
 
         #Visualize inputs
         tf.summary.histogram('input_ugradx', input_layer[:,:,:,:,0])
