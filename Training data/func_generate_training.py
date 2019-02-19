@@ -14,9 +14,43 @@ import matplotlib.pyplot as plt
 #Actual functions to generate the training data
 ###############################################
 
-def generate_training_data(dim_new_grid, input_directory, output_directory, reynolds_number_tau, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): #Filenames should be strings. Default input corresponds to names files from MicroHH and the provided scripts. igc and jgc specify the amount of ghost cells to be added in the downsampled coarse grid for the x- and y-direction respectively.
+def generate_training_data(dim_new_grid, input_directory, output_directory, reynolds_number_tau, size_samples = 5, precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, name_output_file = 'training_data.nc', create_file = True, testing = False, settings_filepath = None, grid_filepath = 'grid.0000000'): 
+    
+    ''' Generates the training data required for a supervised machine learning algorithm, making use of the Finegrid and Coarsegrid objects defined in grid_objects_training.py. NOTE: the script  does not yet extract individual samples out of the flow fields; this is done in sample_training_data_tfrecord.py. \\ 
+    For each available time step in the MicroHH output, the steps in this script are as follows: 
+        1) Read the wind velocity variables and the pressure from the output files produced by MicroHH in the specified input_directory (which should be a string).
+        In this procedure, the wind velocities are normalized using a reference friction velocity that is calculated from the specified friction Reynolds number (via the variable reynolds_number_tau, which should be an integer or float). This should ensure that the training data is conistent for flows with similar Reynolds numbers.\\
+        2) Downsample these variables to a user-defined coarse grid. \\ 
+        The dimensions of this new grid are defined via the dim_new_grid variable, which should be a tuple existing of three integers each specifying the amount of grid cells in the z,y,x-directions respectively. \\ 
+        The script implicitly assumes that the grid distances are uniform in all three directions, and that the sizes of the domain are the same as in the original grid produced by MicroHH. \\
+        3) Interpolate the wind velocities on the fine grid to the grid boundaries of the coarse grid. \\
+        4) Use the interpolated wind velocities calculated in step 3 to calculate all nine total turbulent transport components by integrating them over the corresponding grid boundaries. This includes calculating weights (or to be precise, fractions) that compensate for the relative contributions to the total integral.
+        5) Interpolate the wind velocities on the coarse grid cells to the grid boundaries of the coarse grid. \\
+        6) Calculate all nine resolved turbulent transport components by multiplying the corresponding interpolated wind velocities calculated in step 5, and calculate all nine unresolved turbulent transport components by taking the difference between the total and resolved turbulent transport components. \\
+        7) Store all variables in a netCDF-file with user-specified name (the variable name_output_file, which should be a string) in user-specified output directory (via the variable output_directory, which should be a string), which serves as input for the script sample_training_data_tfrecord.py. \\
+        
+        NOTE: In the steps above the script implicitly assumes that the variables are located on a staggered Arakawa C-grid, where the variables located on the grid edges are always upstream/down of the corresponding grid centers (as is the case in MicroHH. \\
 
-    #Check types input variables
+   The input variables for this script are: \\
+        -dim_new_grid: a tuple existing of three integers, which specifies for each coordinate directions (z,y,x) the amount of grid cells in the user-defined coarse grid. \\
+        -input_directory: a string specifying where the MicroHH output binary files are stored. \\
+        -output_directory: a string specifying where the created netCDF-file should be stored. \\
+        -reynolds_number_tau: an integer or float specifying a reference friction Reynolds number for the flow being considered. \\
+        -size_samples: an integer specifying the size of the samples that are eventually extracted in the sample_training_data_tfrecord.py script. This is used to determine the correct amount of ghost cells. \\
+        -precision: should be either 'double' or 'single'; specifies the required floating point precision for the calculations. \\
+        -fourth_order: a boolean flag specifying the order of the interpolations. When False, second-order interpolation is used. When True, an error is thrown because fourth-order interpolation has not been implemented yet. \\
+        -periodic_bc: a tuple existing of three booleans, who specifies for each coordinate direction (z,y,x) whether a periodic bc should be implemented. \\ 
+        NOTE1: for the required ghost cells in the horizontal directions this is the only implemented way to include them. Consequently, setting the booleans equal to False in the horizontal directions will result in errors being thrown. \\
+        NOTE2: no periodic bc has been implemented in the vertical direction. Consequently, setting the boolean in the vertical direction equal to True will results in an error being thrown. \\
+        -zero_w_topbottom: boolean specifying whether the vertical wind velocities is 0 at the bottom and top levels of the domain or not. Since this is currently the only implemented way to include ghost cells in the vertical direction, setting the boolean equal to False will results in an error being thrown. \\
+        -name_output_file: string defining the name of the produced output file. \\
+        -create_file: boolean specifying whether a new netCDF file should be created or an existing one should be read. \\
+        -testing: boolean specifying whether for testing-purposes user-defined input variables and grids should be used. Furthermore, plots of the turbulent transport components are made to check whether the calculated transports are correct. \\
+        -settings_filepath: string specifying the filepath of the *.ini file produced by MicroHH containing the settings of the simulations. \\
+        -grid_filepath: string specifying the filepath of the *.grid file produced by MicroHH containing information about the simulation grid. \\
+        '''
+
+    #Check types input variables (not all of them, some are already checked in grid_objects_training.py.
     if not isinstance(output_directory,str):
         raise TypeError("Specified output directory should be a string.")
         
@@ -25,6 +59,26 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
 
     if not isinstance(grid_filepath,str):
         raise TypeError("Specified grid filepath should be a string.")
+
+    if not (isinstance(reynolds_number_tau,int) or isinstance(reynolds_number_tau,float):
+        raise TypeError("Specified friction Reynolds number should be either a integer or float.")
+
+    if not isinstance(name_output_file,str):
+        raise TypeError("Specified name of output file should be a string.")
+
+    if not isinstance(create_file,bool):
+        raise TypeError("Specified create_file flag should be a boolean.")
+
+    if not isinstance(testing,bool):
+        raise TypeError("Specified testing flag should be a boolean.")
+
+    if not isinstance(settings_filepath,str):
+        raise TypeError("Specified settings filepath should be a string.")
+
+    if not isinstance(grid_filepath,str):
+        raise TypeError("Specified grid filepath should be a string.")
+
+    
 
     #Check that size_samples is an integer, uneven, and larger than 1. This is necessary for the sampling strategy currently implemented
     if not isinstance(size_samples,int):
@@ -69,8 +123,8 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. NOTE: when testing, the # of timesteps is by default set equal to 1.
  
-        ##Downsampling from fine DNS data to user specified coarse grid and calculation total transport momentum ##
-        ###########################################################################################################
+        ##Read or define fine-resolution DNS data ##
+        ############################################
 
         #Read variables from fine resolution data into finegrid or manually define them when testing
         if testing:
@@ -99,7 +153,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v, normalisation_factor = utau_ref)
             finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w, normalisation_factor = utau_ref)
             finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p, normalisation_factor = utau_ref)
-            
+
+        ##Downsample from fine DNS data to user specified coarse grid ##
+        ################################################################
+
         #Initialize coarsegrid object
         coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc)
 
@@ -108,19 +165,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         coarsegrid.downsample('v')
         coarsegrid.downsample('w')
         coarsegrid.downsample('p')
- 
-        #Calculate total transport on coarse grid from fine grid, initialize first arrays
-        total_tau_xu = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
-        total_tau_yu = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_zu = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_xv = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_yv = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
-        total_tau_zv = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
-        total_tau_xw = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_yw = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
-        total_tau_zw = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
- 
-        #Interpolate to side boundaries coarse gridcell
+
+        ##Interpolate from fine grid to side boundaries coarse gridcells ##
+        ###################################################################
+
         def _interpolate_side_cell(variable, coord_variable_ghost, coord_boundary):
  
             #Define variables
@@ -138,10 +186,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
  
             return var_int
 
-        #NOTE: because the controle volume for the wind velocity component differs due to the staggered grid, the transport terms (total and resolved) need to be calculated on different location in the coarse grid depending on the wind component considered.
+        #NOTE: because the controle volume for the wind velocity componenta differs due to the staggered grid, the transport terms (total and resolved) need to be calculated on different locations in the coarse grid depending on the wind component considered.
         
         #Controle volume u-momentum
-        #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+        #NOTE: all transport terms need to be calculated on the upstream boundaries of the u control volume
         #xz-boundary
         u_uxzint = _interpolate_side_cell(finegrid['output']['u']['variable'], (finegrid['grid']['z'],  finegrid['grid']['y'],  finegrid['grid']['xh']), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
         v_uxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
@@ -157,7 +205,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         w_uxyint = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'], finegrid['grid']['y'],  finegrid['grid']['x']),  (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend],   finegrid['grid']['y'][finegrid.jgc:finegrid.jend],          finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
         
         #Controle volume v-momentum
-        #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+        #NOTE: all transport terms need to be calculated on the upstream boundaries of the v control volume
         #xz-boundary
         v_vxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend],   finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
         #v_vxzint = np.zeros((v_vxzint_noghost.shape[0], v_vxzint_noghost.shape[1]+1, v_vxzint_noghost.shape[2]))
@@ -173,7 +221,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         w_vxyint = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'], finegrid['grid']['y'],  finegrid['grid']['x']),  (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend],   finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend],          finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
         
         #Controle volume w-momentum
-        #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+        #NOTE: all transport terms need to be calculated on the upstream boundaries of the w control volume
         #xz-boundary
         v_wxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
         w_wxzint = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'],  finegrid['grid']['y'], finegrid['grid']['x']),  (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
@@ -188,9 +236,24 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #w_wxyint[1:,:,:] = w_wxyint_noghost.copy()
         #w_wxyint[0,:,:] = 0 - w_wxyint_noghost[0,:,:]
 
-        #Calculate TOTAL transport of momentum over xz-, yz-, and xy-boundary. 
-        #NOTE: only centercell functions needed because the boundaries are always located on the grid centers along the two directions over which the values have to be integrated
-        #NOTE: at len+1 iteration for any given coordinate, only weights have to be known for other two coordinates. Furthermore, only part of the total transport terms need to be calculated (i.e. the terms located on the grid side boundaries for the coordinate in the len+1 iteration).
+        ##Calculate TOTAL transport of momentum over xz-, yz-, and xy-boundary for all three wind velocity components. ##
+        #################################################################################################################
+        
+        #NOTE1: the staggered dimensions are 1 unit longer than the 'normal' dimensions. This is taken into account by iterating over len+1 iterations.
+        #NOTE2: As a consequence of NOTE1, at len+1 iteration for any given coordinate, only weights have to be known at the grid centers for other two coordinates: only part of the total transport terms need to be calculated (i.e. the terms located on the grid side boundaries for the coordinate in the len+1 iteration). This is ensured by additonal if-statements that evaluate to False at the len+1 iteration.
+        
+        #Initialize first arrays for total transport components
+        total_tau_xu = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+        total_tau_yu = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_zu = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_xv = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_yv = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zv = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
+        total_tau_xw = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_yw = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zw = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+ 
+        
         for izc in range(len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])+1):
             
             zcor_c_middle_edge = coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend][izc]
@@ -214,6 +277,8 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                     if ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]):
                         xcor_c_middle_center = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend][ixc]
                         weights_x_center, points_indices_x_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle_center, dist_corc = coarsegrid['grid']['xdist'], finegrid = finegrid)
+
+                    ##Apply 1-dimensional weights calculated above to calculate the total transport terms. This is done by: 1) choosing the correct interpolated velocities calculated before and multiplying those, 2) calculating the corresponding 2-dimensional weight arrays that take the relative contributions to the total integral into account, and 3) summing over the multiplied velocities compensated by the 2-dimensional weight arrays. ##
 
                     #x,y,z: center coarse grid cell
                     if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])) and (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])) and (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the z-, y- and x-coordinates.
@@ -248,38 +313,16 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                         total_tau_yw[izc,iyc,ixc] = np.sum(weights_x_center_z_edge * v_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center] * w_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center])
                         
                         weights_x_center_y_edge   = weights_x_center[np.newaxis,:]*weights_y_edge[:,np.newaxis]
-                        total_tau_zv[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * w_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center] * v_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center])
-                    
- 
-#                    #xz-boundary
-#                    if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])) and (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the z- and x-coordinates.
-#                        weights_xz = weights_x[np.newaxis,:]*weights_z[:,np.newaxis]
-#                        total_tau_yu[izc,iyc,ixc] = np.sum(weights_xz * v_uxzint[:,iyc,:][points_indices_z,:][:,points_indices_x] * u_uxzint[:,iyc,:][points_indices_z,:][:,points_indices_x])
-#                        total_tau_yv[izc,iyc,ixc] = np.sum(weights_xz * v_vxzint[:,iyc,:][points_indices_z,:][:,points_indices_x] ** 2)
-#                        total_tau_yw[izc,iyc,ixc] = np.sum(weights_xz * v_wxzint[:,iyc,:][points_indices_z,:][:,points_indices_x] * w_wxzint[:,iyc,:][points_indices_z,:][:,points_indices_x])
-# 
-#                    #yz-boundary
-#                    if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])) and (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])): #Make sure this not evaluated for the len+1 iteration in the z- and y-coordinates.
-#                        weights_yz = weights_y[np.newaxis,:]*weights_z[:,np.newaxis]
-#                        total_tau_xu[izc,iyc,ixc] = np.sum(weights_yz * u_uyzint[:,:,ixc][points_indices_z,:][:,points_indices_y] ** 2)
-#                        total_tau_xv[izc,iyc,ixc] = np.sum(weights_yz * u_vyzint[:,:,ixc][points_indices_z,:][:,points_indices_y] * v_vyzint[:,:,ixc][points_indices_z,:][:,points_indices_y])
-#                        total_tau_xw[izc,iyc,ixc] = np.sum(weights_yz * u_wyzint[:,:,ixc][points_indices_z,:][:,points_indices_y] * w_wyzint[:,:,ixc][points_indices_z,:][:,points_indices_y])
-# 
-#                    #xy-boundary
-#                    if (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])) and (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the y- and x-coordinates.
-#                        weights_xy = weights_x[np.newaxis,:]*weights_y[:,np.newaxis]
-#                        total_tau_zu[izc,iyc,ixc] = np.sum(weights_xy * w_uxyint[izc,:,:][points_indices_y,:][:,points_indices_x] * u_uxyint[izc,:,:][points_indices_y,:][:,points_indices_x])
-#                        total_tau_zv[izc,iyc,ixc] = np.sum(weights_xy * w_vxyint[izc,:,:][points_indices_y,:][:,points_indices_x] * v_vxyint[izc,:,:][points_indices_y,:][:,points_indices_x])
-#                        total_tau_zw[izc,iyc,ixc] = np.sum(weights_xy * w_wxyint[izc,:,:][points_indices_y,:][:,points_indices_x] ** 2)
+                        total_tau_zv[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * w_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center] * v_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center]) 
  
  
-        ##Calculate resolved and unresolved transport user specified coarse grid ##
-        ###########################################################################
+        ##Interpolate wind velocities on user-defined coarse grid to the corresponding grid boundaries ##
+        #################################################################################################
         
         #NOTE: because the controle volume for the wind velocity component differs due to the staggered grid, the transport terms (total and resolved) need to be calculated on different location in the coarse grid depending on the wind component considered.
         
         #Control volume u-momentum
-        #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+        #NOTE: all transport terms need to be calculated on the upstream boundaries of the u control volume
         #xz-boundary
         uc_uxzint = _interpolate_side_cell(coarsegrid['output']['u']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['y'],  coarsegrid['grid']['xh']), (coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
         vc_uxzint = _interpolate_side_cell(coarsegrid['output']['v']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['yh'], coarsegrid['grid']['x']),  (coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
@@ -295,7 +338,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         wc_uxyint = _interpolate_side_cell(coarsegrid['output']['w']['variable'], (coarsegrid['grid']['zh'], coarsegrid['grid']['y'],  coarsegrid['grid']['x']),  (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend],   coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend],          coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
         
         #Control volume v-momentum
-        #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+        #NOTE: all transport terms need to be calculated on the upstream boundaries of the v control volume
         #xz-boundary
         vc_vxzint = _interpolate_side_cell(coarsegrid['output']['v']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['yh'], coarsegrid['grid']['x']),  (coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend],   coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
         #vc_vxzint = np.zeros((vc_vxzint_noghost.shape[0], vc_vxzint_noghost.shape[1]+1, vc_vxzint_noghost.shape[2]))
@@ -311,7 +354,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         wc_vxyint = _interpolate_side_cell(coarsegrid['output']['w']['variable'], (coarsegrid['grid']['zh'], coarsegrid['grid']['y'],  coarsegrid['grid']['x']),  (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend],   coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],          coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
         
         #Control volume w-momentum
-        #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+        #NOTE: all transport terms need to be calculated on the upstream boundaries of the w control volume
         #xz-boundary
         vc_wxzint = _interpolate_side_cell(coarsegrid['output']['v']['variable'], (coarsegrid['grid']['z'],  coarsegrid['grid']['yh'], coarsegrid['grid']['x']),  (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
         wc_wxzint = _interpolate_side_cell(coarsegrid['output']['w']['variable'], (coarsegrid['grid']['zh'],  coarsegrid['grid']['y'], coarsegrid['grid']['x']),  (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend],         coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend],  coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
@@ -327,7 +370,9 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #wc_wxyint[1:,:,:] = wc_wxyint_noghost.copy()
         #wc_wxyint[0,:,:] = 0 - wc_wxyint_noghost[0,:,:]
 
-        #Calculate resolved and unresolved transport from interpolated velocities defined above
+        ##Calculate resolved and unresolved transport user specified coarse grid ##
+        ###########################################################################
+        
         #xz-boundary
         res_tau_yu = vc_uxzint * uc_uxzint
         res_tau_yv = vc_vxzint ** 2
@@ -362,7 +407,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             #NOTE: because the controle volume for the wind velocity component differs due to the staggered grid, the transport terms (total and resolved) need to be calculated on different location in the coarse grid depending on the wind component considered.
             
             #Controle volume u-momentum
-            #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+            #NOTE: all transport terms need to be calculated on the upstream boundaries of the u control volume
             #xz-boundary
             ut_uxzint = _interpolate_side_cell(finegrid['output']['u']['variable'], (finegrid['grid']['z'],  finegrid['grid']['y'],  finegrid['grid']['xh']), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend],         finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend],  finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
             vt_uxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend],         finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend],  finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
@@ -378,7 +423,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             wt_uxyint = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'], finegrid['grid']['y'],  finegrid['grid']['x']),  (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend],   finegrid['grid']['y'][finegrid.jgc:finegrid.jend],          finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
             
             #Controle volume v-momentum
-            #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+            #NOTE: all transport terms need to be calculated on the upstream boundaries of the v control volume
             #xz-boundary
             #NOTE: At the upstream boundary 1 ghostcell needs to be implemented, which aligns the coordinates such that v_vxzint is located upstream of the center of the control volume.Make use of periodic BC's.
             vt_vxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend],   finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
@@ -395,7 +440,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             wt_vxyint = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'], finegrid['grid']['y'],  finegrid['grid']['x']),  (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend],         finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend],          finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
             
             #Controle volume w-momentum
-            #NOTE: all transport terms need to be calculated on the upstream boundaries of the control volume
+            #NOTE: all transport terms need to be calculated on the upstream boundaries of the w control volume
             #xz-boundary
             vt_wxzint = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'], finegrid['grid']['x']),  (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend],         finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend],  finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
             wt_wxzint = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'],  finegrid['grid']['y'], finegrid['grid']['x']),  (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend],         finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend],  finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
@@ -587,8 +632,8 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
 #            plt.legend()
 #            plt.show()
 
-        ##Store flow fields coarse grid and unresolved transport ##
-        ###########################################################
+        ##Store flow fields coarse grid and total/resolved/unresolved transports in netCDF-file ##
+        ##########################################################################################
  
         #Create/open netCDF file
         if create_file:
