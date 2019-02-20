@@ -16,7 +16,7 @@ output_filepath_smag  = '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_
 #calculate_eddy_diffusivity(input_filepath = input_filepath, output_filepath = output_filepath_evisc, mvisc = 1e-5)
 
 #Calculate turbulent fluxes
-calculate_turbulent_fluxes(flowfields_filepath = input_filepath, eddy_diffusivity_filepath = output_filepath_evisc, output_filepath = output_filepath_smag)
+calculate_turbulent_fluxes(flowfields_filepath = input_filepath, eddy_diffusivity_filepath = output_filepath_evisc, output_filepath = output_filepath_smag, zero_w_topbottom = True)
 
 print('Finished')
 

@@ -82,8 +82,8 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
     return strain2, mlen
 
 
-def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filepath = 'eddy_diffusivity.nc', mvisc = 1e-5):
-    '''Calculates the eddy diffusivity [m2s-1] required in the Smagorinsky sub-grid model to calculate the sub-grid scale turbulent fluxes. The specified molecular visocity (i.e. mvisc) should be a float with units in m2s-1.'''
+def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filepath = 'eddy_diffusivity.nc', mvisc = 1e-5, utau_ref = 0.0059, half_channel_width = 1):
+    '''Calculates the eddy diffusivity [m2s-1] required in the Smagorinsky sub-grid model to calculate the sub-grid scale turbulent fluxes. The specified molecular visocity (i.e. mvisc) should be a float with units in m2s-1. This viscosity is normalized by a reference friction velocity (as defined by utau_ref [ms-1], which should be a float) and specified half channel width [m] (which should be an integer or float).'''
 
     #Check types input 
     if not isinstance(input_filepath,str):
@@ -95,8 +95,17 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
     if not isinstance(mvisc,float):
         raise TypeError("Specified molecular viscosity should be a float with units in m2s-1.")
 
+    if not isinstance(utau_ref,float):
+        raise TypeError("Specified reference friction velocity should be a float.")
+
+    if not (isinstance(half_channel_width,float) or isinstance(half_channel_width,int)):
+        raise TypeError("Specified half channel width should be either a float or integer.")
+
     #Fetch training data
     a = nc.Dataset(input_filepath, 'r')
+
+    #Normalize specified molecular viscosity
+    mvisc = mvisc/(utau_ref*half_channel_width)
 
     #Extract information about the grid
     igc            = int(a['igc'][:])
@@ -156,14 +165,22 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
             
             #Create new dimensions
             smagorinsky_file.createDimension("nt",nt)
-            smagorinsky_file.createDimension("nzc",nz+2*kgc_center) #+2*igc/jgc/kgc_center added because of the implemented ghost cells (see _calculate_strain2 function above).
-            smagorinsky_file.createDimension("nyc",ny+2*jgc)
-            smagorinsky_file.createDimension("nxc",nx+2*igc)
+            smagorinsky_file.createDimension("zgc",len(zgc))
+            smagorinsky_file.createDimension("ygc",len(ygc))
+            smagorinsky_file.createDimension("xgc",len(xgc))
 
             #Create new variables
-            varmlen             = smagorinsky_file.createVariable("mlen","f8",("nt","nzc","nyc","nxc"))
-            varstrain2          = smagorinsky_file.createVariable("strain2","f8",("nt","nzc","nyc","nxc"))
-            vareddy_diffusivity = smagorinsky_file.createVariable("eddy_diffusivity","f8",("nt","nzc","nyc","nxc"))
+            varzgc              = smagorinsky_file.createVariable("zgc","f8",("zgc"))
+            varygc              = smagorinsky_file.createVariable("ygc","f8",("ygc"))
+            varxgc              = smagorinsky_file.createVariable("xgc","f8",("xgc"))
+            varmlen             = smagorinsky_file.createVariable("mlen","f8",("nt","zgc","ygc","xgc"))
+            varstrain2          = smagorinsky_file.createVariable("strain2","f8",("nt","zgc","ygc","xgc"))
+            vareddy_diffusivity = smagorinsky_file.createVariable("eddy_diffusivity","f8",("nt","zgc","ygc","xgc"))
+
+            #Store coordinate variables
+            varzgc[:]           = zgc[:]
+            varygc[:]           = ygc[:]
+            varxgc[:]           = xgc[:]
 
             create_variables = False #Make sure the variables are only created once
 

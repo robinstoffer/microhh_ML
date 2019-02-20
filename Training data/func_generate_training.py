@@ -54,7 +54,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     if not isinstance(output_directory,str):
         raise TypeError("Specified output directory should be a string.")
         
-    if not (isinstance(settings_filepath,str)) and not (settings_filepath is None):
+    if not (isinstance(settings_filepath,str) or (settings_filepath is None)):
         raise TypeError("Specified settings filepath should be a string or NoneType.")
 
     if not isinstance(grid_filepath,str):
@@ -77,8 +77,6 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
 
     if not isinstance(grid_filepath,str):
         raise TypeError("Specified grid filepath should be a string.")
-
-    
 
     #Check that size_samples is an integer, uneven, and larger than 1. This is necessary for the sampling strategy currently implemented
     if not isinstance(size_samples,int):
