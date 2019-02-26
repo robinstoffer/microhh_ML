@@ -82,8 +82,8 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
     return strain2, mlen
 
 
-def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filepath = 'eddy_diffusivity.nc', mvisc = 1e-5, utau_ref = 0.0059, half_channel_width = 1):
-    '''Calculates the eddy diffusivity [m2s-1] required in the Smagorinsky sub-grid model to calculate the sub-grid scale turbulent fluxes. The specified molecular visocity (i.e. mvisc) should be a float with units in m2s-1. This viscosity is normalized by a reference friction velocity (as defined by utau_ref [ms-1], which should be a float) and specified half channel width [m] (which should be an integer or float).'''
+def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filepath = 'eddy_diffusivity.nc'):
+    '''Calculates the dimensionless eddy diffusivity [-] required in the Smagorinsky sub-grid model to calculate the sub-grid scale turbulent fluxes. The specified input and output filepaths should be strings that indicate name and location of netCDF files. The input file should be produced by func_generate_training.py.'''
 
     #Check types input 
     if not isinstance(input_filepath,str):
@@ -92,20 +92,20 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
     if not isinstance(output_filepath,str):
         raise TypeError("Specified output filepath should be a string.")
 
-    if not isinstance(mvisc,float):
-        raise TypeError("Specified molecular viscosity should be a float with units in m2s-1.")
-
-    if not isinstance(utau_ref,float):
-        raise TypeError("Specified reference friction velocity should be a float.")
-
-    if not (isinstance(half_channel_width,float) or isinstance(half_channel_width,int)):
-        raise TypeError("Specified half channel width should be either a float or integer.")
+#    if not isinstance(mvisc,float):
+#        raise TypeError("Specified molecular viscosity should be a float with units in m2s-1.")
+#
+#    if not isinstance(utau_ref,float):
+#        raise TypeError("Specified reference friction velocity should be a float.")
+#
+#    if not (isinstance(half_channel_width,float) or isinstance(half_channel_width,int)):
+#        raise TypeError("Specified half channel width should be either a float or integer.")
 
     #Fetch training data
     a = nc.Dataset(input_filepath, 'r')
 
-    #Normalize specified molecular viscosity
-    mvisc = mvisc/(utau_ref*half_channel_width)
+    #Get normalize molecular viscosity
+    mvisc_ref = float(a['mvisc_ref'][:])
 
     #Extract information about the grid
     igc            = int(a['igc'][:])
@@ -151,14 +151,14 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
 
         #Calculate squared strain rate tensor
         strain2, mlen = _calculate_strain2(strain2,mlen,uc_singlefield,vc_singlefield,wc_singlefield,igc,jgc,kgc_center,iend,jend,kend,xgc,ygc,zgc,xhgc,yhgc,zhgc)
-        eddy_diffusivity = mlen * np.sqrt(strain2) + mvisc
+        eddy_diffusivity = mlen * np.sqrt(strain2) + mvisc_ref
 
         #For a resolved wall the viscosity at the wall is needed. For now, assume that the eddy viscosity is zero, so set ghost cell such that the viscosity interpolated to the surface equals the molecular viscosity
         if kgc_center != 1:
             raise ValueError("The Smagorinsky filter has been implemented only for 1 ghost cell in the vertical direction. Please change the specified ghost cells in the vertical direction accordingly.")
 
-        eddy_diffusivity[0,:,:] = 2 * mvisc - eddy_diffusivity[kgc_center,:,:]
-        eddy_diffusivity[kend:,:,:] = 2 * mvisc - eddy_diffusivity[kend-1,:,:]
+        eddy_diffusivity[0,:,:] = 2 * mvisc_ref - eddy_diffusivity[kgc_center,:,:]
+        eddy_diffusivity[kend:,:,:] = 2 * mvisc_ref - eddy_diffusivity[kend-1,:,:]
 
         #Store calculated values in nc-file
         if create_variables:

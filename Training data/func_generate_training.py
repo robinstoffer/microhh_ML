@@ -24,12 +24,12 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         The dimensions of this new grid are defined via the dim_new_grid variable, which should be a tuple existing of three integers each specifying the amount of grid cells in the z,y,x-directions respectively. \\ 
         The script implicitly assumes that the grid distances are uniform in all three directions, and that the sizes of the domain are the same as in the original grid produced by MicroHH. \\
         3) Interpolate the wind velocities on the fine grid to the grid boundaries of the coarse grid. \\
-        4) Use the interpolated wind velocities calculated in step 3 to calculate all nine total turbulent transport components by integrating them over the corresponding grid boundaries. This includes calculating weights (or to be precise, fractions) that compensate for the relative contributions to the total integral.
+        4) Use the interpolated wind velocities calculated in step 3 to calculate all nine total turbulent transport components by integrating them over the corresponding grid boundaries. This includes calculating weights (or to be precise, fractions) that compensate for the relative contributions to the total integral. \\
         5) Interpolate the wind velocities on the coarse grid cells to the grid boundaries of the coarse grid. \\
         6) Calculate all nine resolved turbulent transport components by multiplying the corresponding interpolated wind velocities calculated in step 5, and calculate all nine unresolved turbulent transport components by taking the difference between the total and resolved turbulent transport components. \\
         7) Store all variables in a netCDF-file with user-specified name (the variable name_output_file, which should be a string) in user-specified output directory (via the variable output_directory, which should be a string), which serves as input for the script sample_training_data_tfrecord.py. \\
         
-        NOTE: In the steps above the script implicitly assumes that the variables are located on a staggered Arakawa C-grid, where the variables located on the grid edges are always upstream/down of the corresponding grid centers (as is the case in MicroHH. \\
+        NOTE: In the steps above the script implicitly assumes that the variables are located on a staggered Arakawa C-grid, where the variables located on the grid edges are always upstream/down of the corresponding grid centers (as is the case in MicroHH). \\
 
    The input variables for this script are: \\
         -dim_new_grid: a tuple existing of three integers, which specifies for each coordinate directions (z,y,x) the amount of grid cells in the user-defined coarse grid. \\
@@ -42,7 +42,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         -periodic_bc: a tuple existing of three booleans, who specifies for each coordinate direction (z,y,x) whether a periodic bc should be implemented. \\ 
         NOTE1: for the required ghost cells in the horizontal directions this is the only implemented way to include them. Consequently, setting the booleans equal to False in the horizontal directions will result in errors being thrown. \\
         NOTE2: no periodic bc has been implemented in the vertical direction. Consequently, setting the boolean in the vertical direction equal to True will results in an error being thrown. \\
-        -zero_w_topbottom: boolean specifying whether the vertical wind velocities is 0 at the bottom and top levels of the domain or not. Since this is currently the only implemented way to include ghost cells in the vertical direction, setting the boolean equal to False will results in an error being thrown. \\
+        -zero_w_topbottom: boolean specifying whether the vertical wind velocities is 0 at the bottom and top levels of the domain or not. Since this is currently the only implemented way to include ghost cells in the vertical direction, setting the boolean equal to False will result in an error being thrown. \\
         -name_output_file: string defining the name of the produced output file. \\
         -create_file: boolean specifying whether a new netCDF file should be created or an existing one should be read. \\
         -testing: boolean specifying whether for testing-purposes user-defined input variables and grids should be used. Furthermore, plots of the turbulent transport components are made to check whether the calculated transports are correct. \\
@@ -60,7 +60,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     if not isinstance(grid_filepath,str):
         raise TypeError("Specified grid filepath should be a string.")
 
-    if not (isinstance(reynolds_number_tau,int) or isinstance(reynolds_number_tau,float):
+    if not (isinstance(reynolds_number_tau,int) or isinstance(reynolds_number_tau,float)):
         raise TypeError("Specified friction Reynolds number should be either a integer or float.")
 
     if not isinstance(name_output_file,str):
@@ -104,10 +104,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         coordz = np.array([0.1,0.3,0.5,0.7,0.9,1.1,1.3,1.5,1.7,1.9,2.1,2.3,2.5,2.7,2.9,3.1,3.3,3.5,3.7,3.9,4.1,4.3,4.5,4.7,4.9,5.1,5.3,5.5,5.7])
         zsize = 5.8
         
-        finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom)
+        finegrid = Finegrid(read_grid_flag = False, precision = precision, fourth_order = fourth_order, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = False)
             
     else:
-        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH
+        finegrid = Finegrid(precision = precision, fourth_order = fourth_order, periodic_bc = periodic_bc, zero_w_topbottom = zero_w_topbottom, normalisation_grid = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath) #Read settings and grid from .ini files produced by MicroHH, normalize grid with channel half width
  
     #Define orientation on grid for all the variables (z,y,x). True means variable is located on the sides in that direction, false means it is located in the grid centers.
     bool_edge_gridcell_u = (False, False, True)
@@ -116,8 +116,14 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     bool_edge_gridcell_p = (False, False, False)
 
     #Define reference friction velocity based on viscosity and channel half-width read from the settings files produced by Microhh, and the user-defined Reynolds number
-    utau_ref = (reynolds_number_tau * finegrid['fields']['visc'])/ finegrid['grid']['channel_half_width']
+    mvisc = finegrid['fields']['visc']
+    channel_half_width = finegrid['grid']['channel_half_width']
+    utau_ref = (reynolds_number_tau * mvisc) / channel_half_width
     
+    #Define reference kinematic viscosity based on reference friction velocity and channel_half_width
+    mvisc_ref = mvisc/ (utau_ref * channel_half_width)
+
+
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. NOTE: when testing, the # of timesteps is by default set equal to 1.
  
@@ -666,24 +672,30 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             var_ygc         = a.createVariable("ygc","f8",("ygc",))
             var_zhgc        = a.createVariable("zhgc","f8",("zhgc",))
             var_zgc         = a.createVariable("zgc","f8",("zgc",))
-            var_xhc        = a.createVariable("xhc","f8",("xhc",))
-            var_xc         = a.createVariable("xc","f8",("xc",))
-            var_yhc        = a.createVariable("yhc","f8",("yhc",))
-            var_yc         = a.createVariable("yc","f8",("yc",))
-            var_zhc        = a.createVariable("zhc","f8",("zhc",))
-            var_zc         = a.createVariable("zc","f8",("zc",))
-            var_igc        = a.createVariable("igc","i",())
-            var_jgc        = a.createVariable("jgc","i",())
-            var_kgc_center = a.createVariable("kgc_center","i",())
-            var_kgc_edge   = a.createVariable("kgc_edge","i",())
-            var_iend       = a.createVariable("iend","i",())
-            var_ihend      = a.createVariable("ihend","i",())
-            var_jend       = a.createVariable("jend","i",())
-            var_jhend      = a.createVariable("jhend","i",())
-            var_kend       = a.createVariable("kend","i",())
-            var_khend      = a.createVariable("khend","i",())
-            var_size_samples = a.createVariable("size_samples","i",())
+            var_xhc         = a.createVariable("xhc","f8",("xhc",))
+            var_xc          = a.createVariable("xc","f8",("xc",))
+            var_yhc         = a.createVariable("yhc","f8",("yhc",))
+            var_yc          = a.createVariable("yc","f8",("yc",))
+            var_zhc         = a.createVariable("zhc","f8",("zhc",))
+            var_zc          = a.createVariable("zc","f8",("zc",))
+            var_igc         = a.createVariable("igc","i",())
+            var_jgc         = a.createVariable("jgc","i",())
+            var_kgc_center  = a.createVariable("kgc_center","i",())
+            var_kgc_edge    = a.createVariable("kgc_edge","i",())
+            var_iend        = a.createVariable("iend","i",())
+            var_ihend       = a.createVariable("ihend","i",())
+            var_jend        = a.createVariable("jend","i",())
+            var_jhend       = a.createVariable("jhend","i",())
+            var_kend        = a.createVariable("kend","i",())
+            var_khend       = a.createVariable("khend","i",())
+            #
+            var_size_samples            = a.createVariable("size_samples","i",())
             var_cells_around_centercell = a.createVariable("cells_around_centercell","i",())
+            var_reynolds_number_tau     = a.createVariable("reynolds_number_tau","f8",())
+            var_mvisc                   = a.createVariable("mvisc","f8",())
+            var_mvisc_ref               = a.createVariable("mvisc_ref","f8",())
+            var_channel_half_width      = a.createVariable("channel_half_width","f8",())
+            var_utau_ref                = a.createVariable("utau_ref","f8",())
             
             #var_dist_midchannel = a.createVariable("dist_midchannel","f8",("zc",))
  
@@ -709,8 +721,15 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             var_jhend[:]      = coarsegrid.jhend
             var_kend[:]       = coarsegrid.kend
             var_khend[:]      = coarsegrid.khend
-            var_size_samples[:] = size_samples
+            #
+            var_size_samples[:]            = size_samples
             var_cells_around_centercell[:] = cells_around_centercell
+            var_reynolds_number_tau[:]     = reynolds_number_tau
+            var_mvisc[:]                   = mvisc
+            var_mvisc_ref[:]               = mvisc_ref
+            var_channel_half_width         = channel_half_width
+            var_utau_ref[:]                = utau_ref
+            
             #var_dist_midchannel[:] = dist_midchannel[:]
  
             #Create variables for coarse fields

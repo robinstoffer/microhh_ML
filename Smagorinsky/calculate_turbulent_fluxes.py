@@ -1,7 +1,7 @@
 import numpy as np
 import netCDF4 as nc
 
-def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc',eddy_diffusivity_filepath = 'eddy_diffusivity.nc', output_filepath = 'smagorinsky_fluxes.nc', zero_w_topbottom = True):
+def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_diffusivity_filepath = 'eddy_diffusivity.nc', output_filepath = 'smagorinsky_fluxes.nc', zero_w_topbottom = True):
     '''Calculate all nine turbulent transport components of the Reynolds stress tensor for stored flow fields according to the Smagorinsky sub-grid model, and store them in a netCDF-file. The inputs are as follows: \\
         -flowfields_filepath: string specifying the filepath of the file where the flow fields needed for the flux calculations are stored.\\
         -eddy_diffusivity_filepath: string specifying the filepath of the file in which the eddy diffusivities for the flux calculations are stored. \\
@@ -45,6 +45,13 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc',eddy_dif
     xhgc = np.array(a['xhgc'][:])
     xgc  = np.array(a['xgc'][:])
 
+    zhc = np.array(a['zhc'][:])
+    zc  = np.array(a['zc'][:])
+    yhc = np.array(a['yhc'][:])
+    yc  = np.array(a['yc'][:])
+    xhc = np.array(a['xhc'][:])
+    xc  = np.array(a['xc'][:])
+    
     #Open file with eddy diffusivity
     b = nc.Dataset(eddy_diffusivity_filepath, 'r')
 
@@ -116,13 +123,13 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc',eddy_dif
 
                     #Calculate turbulent fluxes accoring to Smagorinsky-Lilly model. NOTE: take into account that the Smagorinsky fluxes do not contain ghost cells
                     smag_tau_xu[k-kgc_center,j-jgc,i-igc] = evisc[k,j,i]  * (u[k,j,i+1] - u[k,j,i]) * dxi
-                    smag_tau_xv[k-kgc_center,j-jgc,i-igc] = eviscsu * ((u[k,j,i] - u[k,j-1,i]) * dyhib + (v[k,j,i] - v[k,j,i-1]) * dxhib)
-                    smag_tau_xw[k-kgc_center,j-jgc,i-igc] = eviscbu * ((u[k,j,i] - u[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib)
-                    smag_tau_yu[k-kgc_center,j-jgc,i-igc] = eviscwv * ((v[k,j,i] - v[k,j,i-1]) * dxhib + (u[k,j,i] - u[k,j-1,i]) * dyhib)
+                    smag_tau_xv[k-kgc_center,j-jgc,i-igc] = -eviscsu * ((u[k,j,i] - u[k,j-1,i]) * dyhib + (v[k,j,i] - v[k,j,i-1]) * dxhib)
+                    smag_tau_xw[k-kgc_center,j-jgc,i-igc] = -eviscbu * ((u[k,j,i] - u[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib)
+                    smag_tau_yu[k-kgc_center,j-jgc,i-igc] = -eviscwv * ((v[k,j,i] - v[k,j,i-1]) * dxhib + (u[k,j,i] - u[k,j-1,i]) * dyhib)
                     smag_tau_yv[k-kgc_center,j-jgc,i-igc] = evisc[k,j,i] * (v[k,j+1,i] - v[k,j,i]) * dyi
-                    smag_tau_yw[k-kgc_center,j-jgc,i-igc] = eviscbv * ((v[k,j,i] - v[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib)
-                    smag_tau_zu[k-kgc_center,j-jgc,i-igc] = eviscww * ((w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib + (u[k,j,i] - u[k-1,j,i]) * dzhib)
-                    smag_tau_zv[k-kgc_center,j-jgc,i-igc] = eviscsw * ((w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib + (v[k,j,i] - v[k-1,j,i]) * dzhib)
+                    smag_tau_yw[k-kgc_center,j-jgc,i-igc] = -eviscbv * ((v[k,j,i] - v[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib)
+                    smag_tau_zu[k-kgc_center,j-jgc,i-igc] = -eviscww * ((w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib + (u[k,j,i] - u[k-1,j,i]) * dzhib)
+                    smag_tau_zv[k-kgc_center,j-jgc,i-igc] = -eviscsw * ((w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib + (v[k,j,i] - v[k-1,j,i]) * dzhib)
                     smag_tau_zw[k-kgc_center,j-jgc,i-igc] = evisc[k,j,i] * (w[k_stag+1,j,i] - w[k_stag,j,i]) * dzi
                     
         #If there is no flux at the bottom/top boundaries (i.e. when zero_w_topbottom = True), the fluxes located at the bottom and top are set to 0.

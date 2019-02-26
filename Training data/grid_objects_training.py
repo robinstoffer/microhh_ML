@@ -24,7 +24,7 @@ class Finegrid:
          When read_grid flag is False, specifiy explicitly (using keywords) each spatial coordinate (coordz,coordy,coordx) as a 1d numpy array, e.g. Finegrid(read_grid_flag = False, coordx = np.array([1,2,3]),xsize = 4, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7, coordz = np.array([0.1,0.3,1]), zsize = 1.2).
          Furthermore, for each spatial dimension the length should be indicated (zsize,ysize,xsize), which has to be larger than the last spatial coordinate in each dimension. 
          Each coordinate should 1) refer to the center of the grid cell, 2) be larger than 0, 3) be larger than the previous coordinate in the same direction."""
-    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, **kwargs):
+    def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, normalisation_grid = False, **kwargs):
         
         # Test whether types of input variables are correct.
         if not isinstance(read_grid_flag, bool):
@@ -33,6 +33,9 @@ class Finegrid:
             raise TypeError('The fourth_order flag should be a boolean (True/False).')
         if not isinstance(zero_w_topbottom, bool):
             raise TypeError('The zero_w_topbottom flag should be a boolean (True/False).')
+        if not isinstance(normalisation_grid, bool):
+            raise TypeError('The normalisation_grid flag should be a boolean (True/False).')
+
             
         #Set correct precision and order of spatial interpolation with corresponding ghost cells
         self.prec  = tools._process_precision(precision)
@@ -79,8 +82,8 @@ class Finegrid:
             self.read_grid_flag = True
             self.settings_filepath = kwargs.get('settings_filepath', None)
             self.grid_filepath = kwargs.get('grid_filepath', 'grid.0000000')
-            self.__read_settings(settings_filepath = self.settings_filepath)
-            self.__read_binary_grid(grid_filepath = self.grid_filepath)
+            self.__read_settings(settings_filepath = self.settings_filepath, normalisation_grid = normalisation_grid)
+            self.__read_binary_grid(grid_filepath = self.grid_filepath, normalisation_grid = normalisation_grid)
             self.define_grid_flag = False
 
         else:
@@ -132,7 +135,7 @@ class Finegrid:
             #Store manually defined grid
             self.__define_grid(self.var['grid']['z'],self.var['grid']['y'],self.var['grid']['x'], self.var['grid']['zsize'], self.var['grid']['ysize'], self.var['grid']['xsize'])
 
-    def __read_settings(self,settings_filepath = None):
+    def __read_settings(self, normalisation_grid, settings_filepath = None):
         """ Read settings from specified file (default: .ini file in current directory). """
 
         if not self.read_grid_flag:
@@ -145,10 +148,19 @@ class Finegrid:
         self.var['grid']['itot'] = int(settings['grid']['itot'])
         self.var['grid']['jtot'] = int(settings['grid']['jtot'])
         self.var['grid']['ktot'] = int(settings['grid']['ktot'])
-        self.var['grid']['xsize'] = settings['grid']['xsize']
-        self.var['grid']['ysize'] = settings['grid']['ysize']
         self.var['grid']['zsize'] = settings['grid']['zsize']
         self.var['grid']['channel_half_width'] = self.var['grid']['zsize'] * 0.5 #Channel half-width is equal to 0.5 * channel height.
+
+        if normalisation_grid:
+            normalisation_factor_grid = self.var['grid']['channel_half_width'] #Use channel_half_width to normalize grid.
+            self.var['grid']['xsize'] = settings['grid']['xsize'] / normalisation_factor_grid
+            self.var['grid']['ysize'] = settings['grid']['ysize'] / normalisation_factor_grid
+            self.var['grid']['zsize'] = settings['grid']['zsize'] / normalisation_factor_grid
+        else:
+            self.var['grid']['xsize'] = settings['grid']['xsize']
+            self.var['grid']['ysize'] = settings['grid']['ysize']
+            self.var['grid']['zsize'] = settings['grid']['zsize']
+
 
         self.var['fields']['visc'] = settings['fields']['visc']
 
@@ -161,7 +173,7 @@ class Finegrid:
         self.var['time']['timesteps'] = int((self.var['time']['endtime'] - self.var['time']['starttime']) // self.var['time']['savetime'])
         #self.var['time']['timesteps'] = 13
 
-    def __read_binary_grid(self, grid_filepath):
+    def __read_binary_grid(self, grid_filepath, normalisation_grid):
         """ Read binary grid from specified file (default: grid.0000000). """
 
         if not self.read_grid_flag:
@@ -185,7 +197,19 @@ class Finegrid:
         __read_coordinate(f, nbytes, self.var['grid']['ktot'], 'z')
         __read_coordinate(f, nbytes, self.var['grid']['ktot'], 'zh')
         f.close()
-        
+
+        #Normalise coordinates with specified normalisation_factor (except when specified as None)
+        if normalisation_grid:
+
+            normalisation_factor_grid = self.var['grid']['channel_half_width'] #Use channel_half_width to normalize grid.
+            self.var['grid']['x']  = self.var['grid']['x']  / normalisation_factor_grid
+            self.var['grid']['xh'] = self.var['grid']['xh'] / normalisation_factor_grid
+            self.var['grid']['y']  = self.var['grid']['y']  / normalisation_factor_grid
+            self.var['grid']['yh'] = self.var['grid']['yh'] / normalisation_factor_grid
+            self.var['grid']['z']  = self.var['grid']['z']  / normalisation_factor_grid
+            self.var['grid']['zh'] = self.var['grid']['zh'] / normalisation_factor_grid
+
+
         #Add ghostcells to grid
         self.__add_ghostcells_grid()
 
