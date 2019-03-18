@@ -63,7 +63,7 @@ args = parser.parse_args()
 #Define settings
 batch_size = args.batch_size
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
-output_variable = 'unres_tau_zu_sample'
+#output_variable = 'unres_tau_zu_sample'
 
 num_labels = 1
 random_seed = 1234
@@ -74,8 +74,8 @@ def _standardization(variable, mean, standard_dev):
     return standardized_variable
 
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
-#the output in format (dict(features),labels) and normalizes according to specified means and variances.
-def _parse_function(example_proto,label_name,means,stdevs):
+#the output in format (dict(features),dict(labels)) and normalizes according to specified means and variances.
+def _parse_function(example_proto,means,stdevs):
 
     if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
 
@@ -84,10 +84,26 @@ def _parse_function(example_proto,label_name,means,stdevs):
             'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
             'wc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
             'pc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-            label_name :tf.FixedLenFeature([],tf.float32),
+#            label_name :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_xu_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_yu_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_zu_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_xv_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_yv_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_zv_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_xw_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_yw_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_zw_sample' :tf.FixedLenFeature([],tf.float32),
             'x_sample_size':tf.FixedLenFeature([],tf.int64),
             'y_sample_size':tf.FixedLenFeature([],tf.int64),
-            'z_sample_size':tf.FixedLenFeature([],tf.int64)
+            'z_sample_size':tf.FixedLenFeature([],tf.int64),
+            'tstep_sample':tf.FixedLenFeature([],tf.int64),
+            'xloc_sample':tf.FixedLenFeature([],tf.float32),
+            'xhloc_sample':tf.FixedLenFeature([],tf.float32),
+            'yloc_sample':tf.FixedLenFeature([],tf.float32),
+            'yhloc_sample':tf.FixedLenFeature([],tf.float32),
+            'zloc_sample':tf.FixedLenFeature([],tf.float32),
+            'zhloc_sample':tf.FixedLenFeature([],tf.float32)
         }
     
         parsed_features = tf.parse_single_example(example_proto, keys_to_features)
@@ -111,10 +127,26 @@ def _parse_function(example_proto,label_name,means,stdevs):
             'pgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
             'pgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
             'pgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-            label_name     :tf.FixedLenFeature([],tf.float32),
+#            label_name     :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_xu_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_yu_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_zu_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_xv_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_yv_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_zv_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_xw_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_yw_sample' :tf.FixedLenFeature([],tf.float32),
+            'unres_tau_zw_sample' :tf.FixedLenFeature([],tf.float32),
             'x_sample_size':tf.FixedLenFeature([],tf.int64),
             'y_sample_size':tf.FixedLenFeature([],tf.int64),
-            'z_sample_size':tf.FixedLenFeature([],tf.int64)
+            'z_sample_size':tf.FixedLenFeature([],tf.int64),
+            'tstep_sample':tf.FixedLenFeature([],tf.int64),
+            'xloc_sample':tf.FixedLenFeature([],tf.float32),
+            'xhloc_sample':tf.FixedLenFeature([],tf.float32),
+            'yloc_sample':tf.FixedLenFeature([],tf.float32),
+            'yhloc_sample':tf.FixedLenFeature([],tf.float32),
+            'zloc_sample':tf.FixedLenFeature([],tf.float32),
+            'zhloc_sample':tf.FixedLenFeature([],tf.float32)
         }
 
         parsed_features = tf.parse_single_example(example_proto, keys_to_features)
@@ -131,16 +163,31 @@ def _parse_function(example_proto,label_name,means,stdevs):
         parsed_features['pgrady_sample'] = _standardization(parsed_features['pgrady_sample'], means['pgrady'], stdevs['pgrady'])
         parsed_features['pgradz_sample'] = _standardization(parsed_features['pgradz_sample'], means['pgradz'], stdevs['pgradz'])
 
-    labels = parsed_features.pop(label_name)
-    #labels = _standardization(labels, means[label_name], stdevs[label_name]) UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+    #Extract labels from the features dictionary, store them in a new labels array, and standardize them
+    def _getlabel(parsed_features_array, label_name, means_array, stdevs_array):
+        single_label = parsed_features_array.pop(label_name)
+        single_label = _standardization(single_label, means_array[label_name], stdevs_array[label_name])
+        return single_label
+
+    labels = {}
+    labels['unres_tau_xu'] = _getlabel(parsed_features, 'unres_tau_xu_sample', means, stdevs)
+    labels['unres_tau_yu'] = _getlabel(parsed_features, 'unres_tau_yu_sample', means, stdevs)
+    labels['unres_tau_zu'] = _getlabel(parsed_features, 'unres_tau_zu_sample', means, stdevs)
+    labels['unres_tau_xv'] = _getlabel(parsed_features, 'unres_tau_xv_sample', means, stdevs)
+    labels['unres_tau_yv'] = _getlabel(parsed_features, 'unres_tau_yv_sample', means, stdevs)
+    labels['unres_tau_zv'] = _getlabel(parsed_features, 'unres_tau_zv_sample', means, stdevs)
+    labels['unres_tau_xw'] = _getlabel(parsed_features, 'unres_tau_xw_sample', means, stdevs)
+    labels['unres_tau_yw'] = _getlabel(parsed_features, 'unres_tau_yw_sample', means, stdevs)
+    labels['unres_tau_zw'] = _getlabel(parsed_features, 'unres_tau_zw_sample', means, stdevs)
+
     return parsed_features,labels
 
 
 #Define training input function
-def train_input_fn(filenames,batch_size,label_name,means,stdevs):
+def train_input_fn(filenames,batch_size,means,stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
     dataset = dataset.shuffle(batch_size).repeat()
-    dataset = dataset.map(lambda line:_parse_function(line,label_name,means,stdevs))
+    dataset = dataset.map(lambda line:_parse_function(line,means,stdevs))
     dataset = dataset.batch(batch_size)
     #dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
     #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
@@ -190,10 +237,10 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
     return dataset
 
 #Define evaluation function
-def eval_input_fn(filenames,batch_size,label_name,means,stdevs):
+def eval_input_fn(filenames, batch_size, means,stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
     #dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen NOTE: only needed when evaluation is not done on whole validation set (i.e. steps is not None)
-    dataset = dataset.map(lambda line:_parse_function(line,label_name,means,stdevs))
+    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
     dataset = dataset.batch(batch_size)
     #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
     dataset.prefetch(1)
@@ -277,7 +324,12 @@ def CNN_model_fn(features,labels,mode,params):
 
     flatten = tf.layers.flatten(conv1, name='flatten')
 #    print(flatten.shape)
-    output = tf.layers.dense(flatten, units=num_labels, name="outputs", \
+    ###Add densely connected layers
+    dense1 = tf.layers.dense(flatten, units=params['n_dense1'], name="dense1", \
+            activation=params['activation_function'], kernel_initializer=params['kernel_initializer'])
+    dense2 = tf.layers.dense(dense1, units=params['n_dense2'], name="dense2", \
+            activation=params['activation_function'], kernel_initializer=params['kernel_initializer'])
+    output = tf.layers.dense(dense2, units=num_labels, name="outputs", \
             activation=None, kernel_initializer=params['kernel_initializer'], reuse = tf.AUTO_REUSE) #reuse needed for second part of this script to work properly
 #    print(output.shape)
 
@@ -287,7 +339,20 @@ def CNN_model_fn(features,labels,mode,params):
     #Compute predictions 
     labels = tf.reshape(labels,[-1,num_labels])
     if mode == tf.estimator.ModeKeys.PREDICT:
-        return tf.estimator.EstimatorSpec(mode, predictions={'value':output,'label':labels})
+        return tf.estimator.EstimatorSpec(mode, predictions={
+            'pred_tau_xu':output[:,0], 'label_tau_xu':labels[:,0],
+            'pred_tau_yu':output[:,1], 'label_tau_yu':labels[:,1],
+            'pred_tau_zu':output[:,2], 'label_tau_zu':labels[:,2],
+            'pred_tau_xv':output[:,3], 'label_tau_xv':labels[:,3],
+            'pred_tau_yv':output[:,4], 'label_tau_yv':labels[:,4],
+            'pred_tau_zv':output[:,5], 'label_tau_zv':labels[:,5],
+            'pred_tau_xw':output[:,6], 'label_tau_xw':labels[:,6],
+            'pred_tau_yw':output[:,7], 'label_tau_yw':labels[:,7],
+            'pred_tau_zw':output[:,8], 'label_tau_zw':labels[:,8],
+            'tstep':features['tstep_sample'], 'zhloc':features['zhloc_sample'],
+            'zloc':features['zloc_sample'], 'yhloc':features['yhloc_sample'],
+            'yloc':features['yloc_sample'], 'xhloc':features['xhloc_sample'],
+            'xloc':features['xloc_sample']})
 
     #Compute loss
     mse_tau_total = tf.losses.mean_squared_error(labels, output)
@@ -326,7 +391,7 @@ def CNN_model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 #Define filenames for training and validation
-nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 0 to nt-1 without gaps (and thus the time steps corresponding to the test set are located after nt-1).
+nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 1 to nt_available without gaps (and thus the time steps corresponding to the test set are located after nt_available).
 nt_total = 100 #Amount of time steps INCLUDING the test set
 #nt_available = 2 #FOR TESTING PURPOSES ONLY!
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
@@ -406,8 +471,24 @@ else:
     stdevs_dict_t['pgradz'] = np.array(means_stdevs_file['stdev_pgradz'][:])
 
 #Extract mean & standard deviation labels
-#means_dict_t[output_variable]  = np.array(means_stdevs_file['mean_'+output_variable][:])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
-#stdevs_dict_t[output_variable] = np.array(means_stdevs_file['stdev_'+output_variable][:])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+means_dict_t['unres_tau_xu_sample']  = np.array(means_stdevs_file['mean_unres_tau_xu_sample'][:])
+stdevs_dict_t['unres_tau_xu_sample'] = np.array(means_stdevs_file['stdev_unres_tau_xu_sample'][:])
+means_dict_t['unres_tau_yu_sample']  = np.array(means_stdevs_file['mean_unres_tau_yu_sample'][:])
+stdevs_dict_t['unres_tau_yu_sample'] = np.array(means_stdevs_file['stdev_unres_tau_yu_sample'][:])
+means_dict_t['unres_tau_zu_sample']  = np.array(means_stdevs_file['mean_unres_tau_zu_sample'][:])
+stdevs_dict_t['unres_tau_zu_sample'] = np.array(means_stdevs_file['stdev_unres_tau_zu_sample'][:])
+means_dict_t['unres_tau_xv_sample']  = np.array(means_stdevs_file['mean_unres_tau_xv_sample'][:])
+stdevs_dict_t['unres_tau_xv_sample'] = np.array(means_stdevs_file['stdev_unres_tau_xv_sample'][:])
+means_dict_t['unres_tau_yv_sample']  = np.array(means_stdevs_file['mean_unres_tau_yv_sample'][:])
+stdevs_dict_t['unres_tau_yv_sample'] = np.array(means_stdevs_file['stdev_unres_tau_yv_sample'][:])
+means_dict_t['unres_tau_zv_sample']  = np.array(means_stdevs_file['mean_unres_tau_zv_sample'][:])
+stdevs_dict_t['unres_tau_zv_sample'] = np.array(means_stdevs_file['stdev_unres_tau_zv_sample'][:])
+means_dict_t['unres_tau_xw_sample']  = np.array(means_stdevs_file['mean_unres_tau_xw_sample'][:])
+stdevs_dict_t['unres_tau_xw_sample'] = np.array(means_stdevs_file['stdev_unres_tau_xw_sample'][:])
+means_dict_t['unres_tau_yw_sample']  = np.array(means_stdevs_file['mean_unres_tau_yw_sample'][:])
+stdevs_dict_t['unres_tau_yw_sample'] = np.array(means_stdevs_file['stdev_unres_tau_yw_sample'][:])
+means_dict_t['unres_tau_zw_sample']  = np.array(means_stdevs_file['mean_unres_tau_zw_sample'][:])
+stdevs_dict_t['unres_tau_zw_sample'] = np.array(means_stdevs_file['stdev_unres_tau_zw_sample'][:])
 
 means_dict_avgt  = {}
 stdevs_dict_avgt = {}
@@ -457,8 +538,24 @@ else:
     stdevs_dict_avgt['pgradz'] = np.mean(stdevs_dict_t['pgradz'][train_stepnumbers])
 
 #Extract temporally averaged mean & standard deviation labels
-#means_dict_avgt[output_variable]  = np.mean(means_dict_t[output_variable][train_stepnumbers])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
-#stdevs_dict_avgt[output_variable] = np.mean(stdevs_dict_t[output_variable][train_stepnumbers])UNCOMMENT THIS LINE ONCE MEANS AND STDEVS LABELS ARE INDEED STORED!
+means_dict_avgt['unres_tau_xu_sample']  = np.mean(means_dict_t['unres_tau_xu_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_xu_sample'] = np.mean(stdevs_dict_t['unres_tau_xu_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_yu_sample']  = np.mean(means_dict_t['unres_tau_yu_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_yu_sample'] = np.mean(stdevs_dict_t['unres_tau_yu_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_zu_sample']  = np.mean(means_dict_t['unres_tau_zu_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_zu_sample'] = np.mean(stdevs_dict_t['unres_tau_zu_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_xv_sample']  = np.mean(means_dict_t['unres_tau_xv_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_xv_sample'] = np.mean(stdevs_dict_t['unres_tau_xv_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_yv_sample']  = np.mean(means_dict_t['unres_tau_yv_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_yv_sample'] = np.mean(stdevs_dict_t['unres_tau_yv_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_zv_sample']  = np.mean(means_dict_t['unres_tau_zv_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_zv_sample'] = np.mean(stdevs_dict_t['unres_tau_zv_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_xw_sample']  = np.mean(means_dict_t['unres_tau_xw_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_xw_sample'] = np.mean(stdevs_dict_t['unres_tau_xw_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_yw_sample']  = np.mean(means_dict_t['unres_tau_yw_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_yw_sample'] = np.mean(stdevs_dict_t['unres_tau_yw_sample'][train_stepnumbers])
+means_dict_avgt['unres_tau_zw_sample']  = np.mean(means_dict_t['unres_tau_zw_sample'][train_stepnumbers])
+stdevs_dict_avgt['unres_tau_zw_sample'] = np.mean(stdevs_dict_t['unres_tau_zw_sample'][train_stepnumbers])
 
 #Set configuration
 config = tf.ConfigProto(log_device_placement=False)
@@ -475,7 +572,7 @@ os.environ['OMP_NUM_THREADS'] = str(args.intra_op_parallelism_threads)
 checkpoint_dir = args.checkpoint_dir
 
 #Create RunConfig object to save check_point in the model_dir according to the specified schedule, and to define the session config
-my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir,tf_random_seed=random_seed,save_summary_steps=args.summary_steps,save_checkpoints_steps=args.checkpoint_steps, session_config=config,keep_checkpoint_max=None,keep_checkpoint_every_n_hours=10000,log_step_count_steps=10,train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
+my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir, tf_random_seed=random_seed, save_summary_steps=args.summary_steps, save_checkpoints_steps=args.checkpoint_steps, session_config=config,keep_checkpoint_max=None, keep_checkpoint_every_n_hours=10000, log_step_count_steps=10, train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
 
 #Define hyperparameters
 if args.gradients is None:
@@ -485,7 +582,10 @@ else:
 hyperparams =  {
 #'feature_columns':feature_columns,
 #'n_conv1':10,
-'n_conv1':40,
+#'n_conv1':40,
+'n_conv1':80,
+'n_dense1':30,
+'n_dense2':30,
 'kernelsize_conv1':kernelsize_conv1,
 'stride_conv1':1,
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
@@ -500,7 +600,7 @@ hyperparams =  {
 #dataset_samples = train_input_fn(train_filenames, batch_size, output_variable)
 
 #Instantiate an Estimator with model defined by model_fn
-CNN = tf.estimator.Estimator(model_fn = CNN_model_fn,config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir)
+CNN = tf.estimator.Estimator(model_fn = CNN_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir)
 
 #custom_hook = MetadataHook(save_steps = 1000, output_dir = checkpoint_dir) #Initialize custom hook designed for storing runtime statistics that can be read using TensorBoard in combination with tf.Estimator.NOTE:an unavoidable consequence is unfortunately that the other summaries are not stored anymore. The only option to store all summaries and the runtime statistics in Tensorboard is to use low-level Tensorflow API.
 
@@ -514,15 +614,15 @@ else:
 
 if args.synthetic is None:
     #Train and evaluate CNN
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    #Train the CNN
 #    CNN.train(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable),steps=num_steps, hooks=[profiler_hook])
 
     #Evaluate the CNN on all validation data (no imposed limit on training steps)
-    eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames,batch_size,output_variable,means_dict_avgt,stdevs_dict_avgt), steps=None)
+    eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None)
     print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))
     print('Used real data')
 #    predictions = CNN.predict(input_fn = lambda:eval_input_fn(val_filenames, batch_size, output_variable))
@@ -571,7 +671,7 @@ if args.benchmark is None:
  
         #Generate iterator to extra features and labels from input data
         if args.synthetic is None:
-            iterator = eval_input_fn([val_filename], batch_size, output_variable, means_dict_avgt,stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
+            iterator = eval_input_fn([val_filename], batch_size, means_dict_avgt, stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
  
         else:
 #           iterator = train_input_synthetic_fn(batch_size, 1000).make_one_shot_iterator() #1000 samples are generated and subsequently used for validation, NOTE: this line raises error message because the one_shot_iterator cannot capture statefull nodes contained in train_input_synthetic_fn.
@@ -601,11 +701,67 @@ if args.benchmark is None:
             dim_ns = predictions_file.createDimension("ns",None)
 
             #Create variables for storage
-            var_pred = predictions_file.createVariable("preds_values","f8",("ns",))
-            var_pred_random = predictions_file.createVariable("preds_values_random","f8",("ns",))
-            var_lbl = predictions_file.createVariable("lbls_values","f8",("ns",))
-            var_res = predictions_file.createVariable("residuals","f8",("ns",))
-            var_res_random = predictions_file.createVariable("residuals_random","f8",("ns",))
+            var_pred_tau_xu        = predictions_file.createVariable("preds_values_tau_xu","f8",("ns",))
+            var_pred_random_tau_xu = predictions_file.createVariable("preds_values_random_tau_xu","f8",("ns",))
+            var_lbl_tau_xu         = predictions_file.createVariable("lbls_values_tau_xu","f8",("ns",))
+            var_res_tau_xu         = predictions_file.createVariable("residuals_tau_xu","f8",("ns",))
+            var_res_random_tau_xu  = predictions_file.createVariable("residuals_random_tau_xu","f8",("ns",))
+            #
+            var_pred_tau_yu        = predictions_file.createVariable("preds_values_tau_yu","f8",("ns",))
+            var_pred_random_tau_yu = predictions_file.createVariable("preds_values_random_tau_yu","f8",("ns",))
+            var_lbl_tau_yu         = predictions_file.createVariable("lbls_values_tau_yu","f8",("ns",))
+            var_res_tau_yu         = predictions_file.createVariable("residuals_tau_yu","f8",("ns",))
+            var_res_random_tau_yu  = predictions_file.createVariable("residuals_random_tau_yu","f8",("ns",))
+            #
+            var_pred_tau_zu        = predictions_file.createVariable("preds_values_tau_zu","f8",("ns",))
+            var_pred_random_tau_zu = predictions_file.createVariable("preds_values_random_tau_zu","f8",("ns",))
+            var_lbl_tau_zu         = predictions_file.createVariable("lbls_values_tau_zu","f8",("ns",))
+            var_res_tau_zu         = predictions_file.createVariable("residuals_tau_zu","f8",("ns",))
+            var_res_random_tau_zu  = predictions_file.createVariable("residuals_random_tau_zu","f8",("ns",))
+            #
+            var_pred_tau_xv        = predictions_file.createVariable("preds_values_tau_xv","f8",("ns",))
+            var_pred_random_tau_xv = predictions_file.createVariable("preds_values_random_tau_xv","f8",("ns",))
+            var_lbl_tau_xv         = predictions_file.createVariable("lbls_values_tau_xv","f8",("ns",))
+            var_res_tau_xv         = predictions_file.createVariable("residuals_tau_xv","f8",("ns",))
+            var_res_random_tau_xv  = predictions_file.createVariable("residuals_random_tau_xv","f8",("ns",))
+            #
+            var_pred_tau_yv        = predictions_file.createVariable("preds_values_tau_yv","f8",("ns",))
+            var_pred_random_tau_yv = predictions_file.createVariable("preds_values_random_tau_yv","f8",("ns",))
+            var_lbl_tau_yv         = predictions_file.createVariable("lbls_values_tau_yv","f8",("ns",))
+            var_res_tau_yv         = predictions_file.createVariable("residuals_tau_yv","f8",("ns",))
+            var_res_random_tau_yv  = predictions_file.createVariable("residuals_random_tau_yv","f8",("ns",))
+            #
+            var_pred_tau_zv        = predictions_file.createVariable("preds_values_tau_zv","f8",("ns",))
+            var_pred_random_tau_zv = predictions_file.createVariable("preds_values_random_tau_zv","f8",("ns",))
+            var_lbl_tau_zv         = predictions_file.createVariable("lbls_values_tau_zv","f8",("ns",))
+            var_res_tau_zv         = predictions_file.createVariable("residuals_tau_zv","f8",("ns",))
+            var_res_random_tau_zv  = predictions_file.createVariable("residuals_random_tau_zv","f8",("ns",))
+            #
+            var_pred_tau_xw        = predictions_file.createVariable("preds_values_tau_xw","f8",("ns",))
+            var_pred_random_tau_xw = predictions_file.createVariable("preds_values_random_tau_xw","f8",("ns",))
+            var_lbl_tau_xw         = predictions_file.createVariable("lbls_values_tau_xw","f8",("ns",))
+            var_res_tau_xw         = predictions_file.createVariable("residuals_tau_xw","f8",("ns",))
+            var_res_random_tau_xw  = predictions_file.createVariable("residuals_random_tau_xw","f8",("ns",))
+            #
+            var_pred_tau_yw        = predictions_file.createVariable("preds_values_tau_yw","f8",("ns",))
+            var_pred_random_tau_yw = predictions_file.createVariable("preds_values_random_tau_yw","f8",("ns",))
+            var_lbl_tau_yw         = predictions_file.createVariable("lbls_values_tau_yw","f8",("ns",))
+            var_res_tau_yw         = predictions_file.createVariable("residuals_tau_yw","f8",("ns",))
+            var_res_random_tau_yw  = predictions_file.createVariable("residuals_random_tau_yw","f8",("ns",))
+            #
+            var_pred_tau_zw        = predictions_file.createVariable("preds_values_tau_zw","f8",("ns",))
+            var_pred_random_tau_zw = predictions_file.createVariable("preds_values_random_tau_zw","f8",("ns",))
+            var_lbl_tau_zw         = predictions_file.createVariable("lbls_values_tau_zw","f8",("ns",))
+            var_res_tau_zw         = predictions_file.createVariable("residuals_tau_zw","f8",("ns",))
+            var_res_random_tau_zw  = predictions_file.createVariable("residuals_random_tau_zw","f8",("ns",))
+            #
+            vartstep               = predictions_file.createVariable("tstep_samples","f8",("ns",))
+            varzhloc               = predictions_file.createVariable("zhloc_samples","f8",("ns",))
+            varzloc                = predictions_file.createVariable("zloc_samples","f8",("ns",))
+            varyhloc               = predictions_file.createVariable("yhloc_samples","f8",("ns",))
+            varyloc                = predictions_file.createVariable("yloc_samples","f8",("ns",))
+            varxhloc               = predictions_file.createVariable("xhloc_samples","f8",("ns",))
+            varxloc                = predictions_file.createVariable("xloc_samples","f8",("ns",))
 
             create_file=False #Make sure file is only created once
 
@@ -633,34 +789,224 @@ if args.benchmark is None:
                     preds = sess.run(preds_op)
 
                     #Initialize variables for storage
-                    preds_values = []
-                    preds_values_random = []
-                    lbls_values = []
-                    residuals = []
-                    residuals_random = []
+                    preds_tau_xu               = []
+                    preds_random_tau_xu        = []
+                    lbls_tau_xu                = []
+                    residuals_tau_xu           = []
+                    residuals_random_tau_xu    = []
+                    #
+                    preds_tau_yu               = []
+                    preds_random_tau_yu        = []
+                    lbls_tau_yu                = []
+                    residuals_tau_yu           = []
+                    residuals_random_tau_yu    = []
+                    #
+                    preds_tau_zu               = []
+                    preds_random_tau_zu        = []
+                    lbls_tau_zu                = []
+                    residuals_tau_zu           = []
+                    residuals_random_tau_zu    = []
+                    #
+                    preds_tau_xv               = []
+                    preds_random_tau_xv        = []
+                    lbls_tau_xv                = []
+                    residuals_tau_xv           = []
+                    residuals_random_tau_xv    = []
+                    #
+                    preds_tau_yv               = []
+                    preds_random_tau_yv        = []
+                    lbls_tau_yv                = []
+                    residuals_tau_yv           = []
+                    residuals_random_tau_yv    = []
+                    #
+                    preds_tau_zv               = []
+                    preds_random_tau_zv        = []
+                    lbls_tau_zv                = []
+                    residuals_tau_zv           = []
+                    residuals_random_tau_zv    = []
+                    #
+                    preds_tau_xw               = []
+                    preds_random_tau_xw        = []
+                    lbls_tau_xw                = []
+                    residuals_tau_xw           = []
+                    residuals_random_tau_xw    = []
+                    #
+                    preds_tau_yw               = []
+                    preds_random_tau_yw        = []
+                    lbls_tau_yw                = []
+                    residuals_tau_yw           = []
+                    residuals_random_tau_yw    = []
+                    #
+                    preds_tau_zw               = []
+                    preds_random_tau_zw        = []
+                    lbls_tau_zw                = []
+                    residuals_tau_zw           = []
+                    residuals_random_tau_zw    = []
+                    #
+                    tstep_samples       = []
+                    zhloc_samples       = []
+                    zloc_samples        = []
+                    yhloc_samples       = []
+                    yloc_samples        = []
+                    xhloc_samples       = []
+                    xloc_samples        = []
 
                     #print(preds['label'])
-                    for pred,lbl in zip(preds['value'],preds['label']):
-                        #print('\nPrediction is "{:.10e}", expectation is "{:.10e}".'.format(pred[0],lbl)) #Index 0 needed to index single value in ndarray
-                        preds_values += [pred[0]]
-                        #print('prediction :' + str(pred[0]))
-                        lbls_values += [lbl[0]]
-                        #print('label :' + str(lbl[0]))
-                        residuals += [abs(pred[0]-lbl[0])]
-                        pred_random = random.choice(preds['label'][:][:]) #Generate random prediction
-                        #print('random prediction:' + str(pred_random[0]))
-                        preds_values_random += [pred_random]
-                        residuals_random += [abs(pred_random-lbl[0])]
+                    for pred_tau_xu, lbl_tau_xu, pred_tau_yu, lbl_tau_yu, pred_tau_zu, lbl_tau_zu, \
+                        pred_tau_xv, lbl_tau_xv, pred_tau_yv, lbl_tau_yv, pred_tau_zv, lbl_tau_zv, \
+                        pred_tau_xw, lbl_tau_xw, pred_tau_yw, lbl_tau_yw, pred_tau_zw, lbl_tau_zw, \
+                        tstep, zhloc, zloc, yhloc, yloc, xhloc, xloc in zip(
+                                preds['pred_tau_xu'], preds['label_tau_xu'],
+                                preds['pred_tau_yu'], preds['label_tau_yu'],
+                                preds['pred_tau_zu'], preds['label_tau_zu'],
+                                preds['pred_tau_xv'], preds['label_tau_xv'],
+                                preds['pred_tau_yv'], preds['label_tau_yv'],
+                                preds['pred_tau_zv'], preds['label_tau_zv'],
+                                preds['pred_tau_xw'], preds['label_tau_xw'],
+                                preds['pred_tau_yw'], preds['label_tau_yw'],
+                                preds['pred_tau_zw'], preds['label_tau_zw'],
+                                preds['tstep'], preds['zhloc'], preds['zloc'], 
+                                preds['yhloc'], preds['yloc'], preds['xhloc'], preds['xloc']):
+                        # 
+                        preds_tau_xu               += [pred_tau_xu[0]]
+                        lbls_tau_xu                += [lbl_tau_xu[0]]
+                        residuals_tau_xu           += [abs(pred_tau_xu[0]-lbl_tau_xu[0])]
+                        pred_random_tau_xu          = random.choice(preds['label_tau_xu'][:][:]) #Generate random prediction
+                        preds_random_tau_xu        += [pred_random_tau_xu]
+                        residuals_random_tau_xu    += [abs(pred_random_tau_xu-lbl_tau_xu[0])]
+                        #
+                        preds_tau_yu               += [pred_tau_yu[0]]
+                        lbls_tau_yu                += [lbl_tau_yu[0]]
+                        residuals_tau_yu           += [abs(pred_tau_yu[0]-lbl_tau_yu[0])]
+                        pred_random_tau_yu          = random.choice(preds['label_tau_yu'][:][:]) #Generate random prediction
+                        preds_random_tau_yu        += [pred_random_tau_yu]
+                        residuals_random_tau_yu    += [abs(pred_random_tau_yu-lbl_tau_yu[0])]
+                        #
+                        preds_tau_zu               += [pred_tau_zu[0]]
+                        lbls_tau_zu                += [lbl_tau_zu[0]]
+                        residuals_tau_zu           += [abs(pred_tau_zu[0]-lbl_tau_zu[0])]
+                        pred_random_tau_zu          = random.choice(preds['label_tau_zu'][:][:]) #Generate random prediction
+                        preds_random_tau_zu        += [pred_random_tau_zu]
+                        residuals_random_tau_zu    += [abs(pred_random_tau_zu-lbl_tau_zu[0])]
+                        #
+                        preds_tau_xv               += [pred_tau_xv[0]]
+                        lbls_tau_xv                += [lbl_tau_xv[0]]
+                        residuals_tau_xv           += [abs(pred_tau_xv[0]-lbl_tau_xv[0])]
+                        pred_random_tau_xv          = random.choice(preds['label_tau_xv'][:][:]) #Generate random prediction
+                        preds_random_tau_xv        += [pred_random_tau_xv]
+                        residuals_random_tau_xv    += [abs(pred_random_tau_xv-lbl_tau_xv[0])]
+                        #
+                        preds_tau_yv               += [pred_tau_yv[0]]
+                        lbls_tau_yv                += [lbl_tau_yv[0]]
+                        residuals_tau_yv           += [abs(pred_tau_yv[0]-lbl_tau_yv[0])]
+                        pred_random_tau_yv          = random.choice(preds['label_tau_yv'][:][:]) #Generate random prediction
+                        preds_random_tau_yv        += [pred_random_tau_yv]
+                        residuals_random_tau_yv    += [abs(pred_random_tau_yv-lbl_tau_yv[0])]
+                        #
+                        preds_tau_zv               += [pred_tau_zv[0]]
+                        lbls_tau_zv                += [lbl_tau_zv[0]]
+                        residuals_tau_zv           += [abs(pred_tau_zv[0]-lbl_tau_zv[0])]
+                        pred_random_tau_zv          = random.choice(preds['label_tau_zv'][:][:]) #Generate random prediction
+                        preds_random_tau_zv        += [pred_random_tau_zv]
+                        residuals_random_tau_zv    += [abs(pred_random_tau_zv-lbl_tau_zv[0])]
+                        #
+                        preds_tau_xw               += [pred_tau_xw[0]]
+                        lbls_tau_xw                += [lbl_tau_xw[0]]
+                        residuals_tau_xw           += [abs(pred_tau_xw[0]-lbl_tau_xw[0])]
+                        pred_random_tau_xw          = random.choice(preds['label_tau_xw'][:][:]) #Generate random prediction
+                        preds_random_tau_xw        += [pred_random_tau_xw]
+                        residuals_random_tau_xw    += [abs(pred_random_tau_xw-lbl_tau_xw[0])]
+                        #
+                        preds_tau_yw               += [pred_tau_yw[0]]
+                        lbls_tau_yw                += [lbl_tau_yw[0]]
+                        residuals_tau_yw           += [abs(pred_tau_yw[0]-lbl_tau_yw[0])]
+                        pred_random_tau_yw          = random.choice(preds['label_tau_yw'][:][:]) #Generate random prediction
+                        preds_random_tau_yw        += [pred_random_tau_yw]
+                        residuals_random_tau_yw    += [abs(pred_random_tau_yw-lbl_tau_yw[0])]
+                        #
+                        preds_tau_zw               += [pred_tau_zw[0]]
+                        lbls_tau_zw                += [lbl_tau_zw[0]]
+                        residuals_tau_zw           += [abs(pred_tau_zw[0]-lbl_tau_zw[0])]
+                        pred_random_tau_zw          = random.choice(preds['label_tau_zw'][:][:]) #Generate random prediction
+                        preds_random_tau_zw        += [pred_random_tau_zw]
+                        residuals_random_tau_zw    += [abs(pred_random_tau_zw-lbl_tau_zw[0])]
+                        #
+                        tstep_samples += [tstep]
+                        zhloc_samples += [zhloc]
+                        zloc_samples  += [zloc]
+                        yhloc_samples += [yhloc]
+                        yloc_samples  += [yloc]
+                        xhloc_samples += [xhloc]
+                        xloc_samples  += [xloc]
+
                         tot_sample_end +=1
                         #print('next sample')
                     #print('next batch')
                     
                     #Store variables
-                    var_pred[tot_sample_begin:tot_sample_end] = preds_values[:]
-                    var_pred_random[tot_sample_begin:tot_sample_end] = preds_values_random[:]
-                    var_lbl[tot_sample_begin:tot_sample_end] = lbls_values[:]
-                    var_res[tot_sample_begin:tot_sample_end] = residuals[:]
-                    var_res_random[tot_sample_begin:tot_sample_end] = residuals_random[:]
+                    #
+                    var_pred_tau_xu[tot_sample_begin:tot_sample_end]        = preds_tau_xu[:]
+                    var_pred_random_tau_xu[tot_sample_begin:tot_sample_end] = preds_random_tau_xu[:]
+                    var_lbl_tau_xu[tot_sample_begin:tot_sample_end]         = lbls_tau_xu[:]
+                    var_res_tau_xu[tot_sample_begin:tot_sample_end]         = residuals_tau_xu[:]
+                    var_res_random_tau_xu[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xu[:]
+                    #
+                    var_pred_tau_xv[tot_sample_begin:tot_sample_end]        = preds_tau_xv[:]
+                    var_pred_random_tau_xv[tot_sample_begin:tot_sample_end] = preds_random_tau_xv[:]
+                    var_lbl_tau_xv[tot_sample_begin:tot_sample_end]         = lbls_tau_xv[:]
+                    var_res_tau_xv[tot_sample_begin:tot_sample_end]         = residuals_tau_xv[:]
+                    var_res_random_tau_xv[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv[:]
+                    #
+                    var_pred_tau_xw[tot_sample_begin:tot_sample_end]        = preds_tau_xw[:]
+                    var_pred_random_tau_xw[tot_sample_begin:tot_sample_end] = preds_random_tau_xw[:]
+                    var_lbl_tau_xw[tot_sample_begin:tot_sample_end]         = lbls_tau_xw[:]
+                    var_res_tau_xw[tot_sample_begin:tot_sample_end]         = residuals_tau_xw[:]
+                    var_res_random_tau_xw[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw[:]
+                    #
+                    var_pred_tau_xv[tot_sample_begin:tot_sample_end]        = preds_tau_xv[:]
+                    var_pred_random_tau_xv[tot_sample_begin:tot_sample_end] = preds_random_tau_xv[:]
+                    var_lbl_tau_xv[tot_sample_begin:tot_sample_end]         = lbls_tau_xv[:]
+                    var_res_tau_xv[tot_sample_begin:tot_sample_end]         = residuals_tau_xv[:]
+                    var_res_random_tau_xv[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv[:]
+                    #
+                    var_pred_tau_yv[tot_sample_begin:tot_sample_end]        = preds_tau_yv[:]
+                    var_pred_random_tau_yv[tot_sample_begin:tot_sample_end] = preds_random_tau_yv[:]
+                    var_lbl_tau_yv[tot_sample_begin:tot_sample_end]         = lbls_tau_yv[:]
+                    var_res_tau_yv[tot_sample_begin:tot_sample_end]         = residuals_tau_yv[:]
+                    var_res_random_tau_yv[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yv[:]
+                    #
+                    var_pred_tau_zv[tot_sample_begin:tot_sample_end]        = preds_tau_zv[:]
+                    var_pred_random_tau_zv[tot_sample_begin:tot_sample_end] = preds_random_tau_zv[:]
+                    var_lbl_tau_zv[tot_sample_begin:tot_sample_end]         = lbls_tau_zv[:]
+                    var_res_tau_zv[tot_sample_begin:tot_sample_end]         = residuals_tau_zv[:]
+                    var_res_random_tau_zv[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zv[:]
+                    #
+                    var_pred_tau_xw[tot_sample_begin:tot_sample_end]        = preds_tau_xw[:]
+                    var_pred_random_tau_xw[tot_sample_begin:tot_sample_end] = preds_random_tau_xw[:]
+                    var_lbl_tau_xw[tot_sample_begin:tot_sample_end]         = lbls_tau_xw[:]
+                    var_res_tau_xw[tot_sample_begin:tot_sample_end]         = residuals_tau_xw[:]
+                    var_res_random_tau_xw[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw[:]
+                    #
+                    var_pred_tau_yw[tot_sample_begin:tot_sample_end]        = preds_tau_yw[:]
+                    var_pred_random_tau_yw[tot_sample_begin:tot_sample_end] = preds_random_tau_yw[:]
+                    var_lbl_tau_yw[tot_sample_begin:tot_sample_end]         = lbls_tau_yw[:]
+                    var_res_tau_yw[tot_sample_begin:tot_sample_end]         = residuals_tau_yw[:]
+                    var_res_random_tau_yw[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yw[:]
+                    #
+                    var_pred_tau_zw[tot_sample_begin:tot_sample_end]        = preds_tau_zw[:]
+                    var_pred_random_tau_zw[tot_sample_begin:tot_sample_end] = preds_random_tau_zw[:]
+                    var_lbl_tau_zw[tot_sample_begin:tot_sample_end]         = lbls_tau_zw[:]
+                    var_res_tau_zw[tot_sample_begin:tot_sample_end]         = residuals_tau_zw[:]
+                    var_res_random_tau_zw[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zw[:]
+                    #
+                    vartstep[tot_sample_begin:tot_sample_end]        = tstep_samples[:]
+                    varzhloc[tot_sample_begin:tot_sample_end]        = zhloc_samples[:]
+                    varzloc[tot_sample_begin:tot_sample_end]         = zloc_samples[:]
+                    varyhloc[tot_sample_begin:tot_sample_end]        = yhloc_samples[:]
+                    varyloc[tot_sample_begin:tot_sample_end]         = yloc_samples[:]
+                    varxhloc[tot_sample_begin:tot_sample_end]        = xhloc_samples[:]
+                    varxloc[tot_sample_begin:tot_sample_end]         = xloc_samples[:]
+
                     tot_sample_begin = tot_sample_end #Make sure stored variables are not overwritten.
 
                 except tf.errors.OutOfRangeError:

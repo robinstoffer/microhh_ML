@@ -61,11 +61,14 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
         
         #Fetch eddy diffusivity coefficients
         evisc = b["eddy_diffusivity"][t,:,:,:]
+        
+        #QUICK AND DIRTY: fetch utau_ref to rescale the wind velocities
+        utau_ref = float(a['utau_ref'][:])
 
         #Fetch flow fields
-        u = a['uc'][t,:,:,:]
-        v = a['vc'][t,:,:,:]
-        w = a['wc'][t,:,:,:]
+        u = a['uc'][t,:,:,:]*utau_ref
+        v = a['vc'][t,:,:,:]*utau_ref
+        w = a['wc'][t,:,:,:]*utau_ref
 
         #Open/create netCDF-file for storage
         if create_file:
@@ -122,25 +125,25 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
                     eviscsw = 0.25*(evisc[k-1,j-1,i] + evisc[k,j-1,i] + evisc[k-1,j,i] + evisc[k,j,i])
 
                     #Calculate turbulent fluxes accoring to Smagorinsky-Lilly model. NOTE: take into account that the Smagorinsky fluxes do not contain ghost cells
-                    smag_tau_xu[k-kgc_center,j-jgc,i-igc] = evisc[k,j,i]  * (u[k,j,i+1] - u[k,j,i]) * dxi
+                    smag_tau_xu[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i]  * (u[k,j,i+1] - u[k,j,i]) * dxi
                     smag_tau_xv[k-kgc_center,j-jgc,i-igc] = -eviscsu * ((u[k,j,i] - u[k,j-1,i]) * dyhib + (v[k,j,i] - v[k,j,i-1]) * dxhib)
                     smag_tau_xw[k-kgc_center,j-jgc,i-igc] = -eviscbu * ((u[k,j,i] - u[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib)
                     smag_tau_yu[k-kgc_center,j-jgc,i-igc] = -eviscwv * ((v[k,j,i] - v[k,j,i-1]) * dxhib + (u[k,j,i] - u[k,j-1,i]) * dyhib)
-                    smag_tau_yv[k-kgc_center,j-jgc,i-igc] = evisc[k,j,i] * (v[k,j+1,i] - v[k,j,i]) * dyi
+                    smag_tau_yv[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i] * (v[k,j+1,i] - v[k,j,i]) * dyi
                     smag_tau_yw[k-kgc_center,j-jgc,i-igc] = -eviscbv * ((v[k,j,i] - v[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib)
                     smag_tau_zu[k-kgc_center,j-jgc,i-igc] = -eviscww * ((w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib + (u[k,j,i] - u[k-1,j,i]) * dzhib)
                     smag_tau_zv[k-kgc_center,j-jgc,i-igc] = -eviscsw * ((w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib + (v[k,j,i] - v[k-1,j,i]) * dzhib)
-                    smag_tau_zw[k-kgc_center,j-jgc,i-igc] = evisc[k,j,i] * (w[k_stag+1,j,i] - w[k_stag,j,i]) * dzi
+                    smag_tau_zw[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i] * (w[k_stag+1,j,i] - w[k_stag,j,i]) * dzi
                     
-        #If there is no flux at the bottom/top boundaries (i.e. when zero_w_topbottom = True), the fluxes located at the bottom and top are set to 0.
-        if zero_w_topbottom:
-
-            #Set fluxes at bottom boundary to 0 (the calculations below ensure that the fluxes are also set to 0 at the top boundary).
-            smag_tau_zu[0,:,:] = 0.
-            smag_tau_zv[0,:,:] = 0.
-            smag_tau_xw[0,:,:] = 0.
-            smag_tau_yw[0,:,:] = 0.
-        
+#        #If there is no flux at the bottom/top boundaries (i.e. when zero_w_topbottom = True), the fluxes located at the bottom and top are set to 0.
+#        if zero_w_topbottom:
+#
+#            #Set fluxes at bottom boundary to 0 (the calculations below ensure that the fluxes are also set to 0 at the top boundary).
+#            smag_tau_zu[0,:,:] = 0.
+#            smag_tau_zv[0,:,:] = 0.
+#            smag_tau_xw[0,:,:] = 0.
+#            smag_tau_yw[0,:,:] = 0.
+#        
         #Add one top/downstream cell to fluxes in the directions where they are located on the grid edges, assuming they are the same as the one at the bottom/upstream edge of the domain.
         #z-direction
         smag_tau_zu[-1,:,:] = smag_tau_zu[0,:,:]

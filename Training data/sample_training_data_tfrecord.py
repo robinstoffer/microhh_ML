@@ -44,7 +44,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     
     #Define shapes of output arrays based on stored training data
     nt,nz,ny,nx = a['unres_tau_xu'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
-    nt = 2 ###NOTE:FOR TESTING PURPOSES!!! REMOVE LATER ON!!!!
+#    nt = 2 ###NOTE:FOR TESTING PURPOSES!!! REMOVE LATER ON!!!!
     size_samples = int(a['size_samples'][:])
     size_samples_gradients = size_samples - 2 #NOTE:To calculate the gradients, 2 additional grid points need to be used in each direction. To ensure that the considered region is the same for the absolute wind velocities and the gradients, the samples of the gradients therefore need to be 2 grid points shorter.
     if size_samples_gradients < 1:
@@ -53,7 +53,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     cells_around_centercell_gradients = int(size_samples_gradients // 2.0)
     if nz < size_samples:
         raise ValueError("The number of vertical layers should at least be equal to the specified sample size.")
-    nsamples = (nz - 2*cells_around_centercell) * ny * nx #NOTE: '-2*size_samples' needed to account for the vertical layers that are discarded in the sampling
+    nsamples = (nz - 2*cells_around_centercell) * ny * nx #NOTE: '-2*cells_around_centercell' needed to account for the vertical layers that are discarded in the sampling
     
     #Define arrays to store means and stdevs according to store_means_stdevs flag
     if store_means_stdevs:
@@ -805,9 +805,6 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             #Create training data based on absolute wind velocities
             output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}.tfrecords'.format('training', t+1, nt))
             _process_image_files_batch(output_file, uc_samples, vc_samples, wc_samples, pc_samples, unres_tau_xu_samples, unres_tau_xv_samples, unres_tau_xw_samples, unres_tau_yu_samples, unres_tau_yv_samples, unres_tau_yw_samples, unres_tau_zu_samples, unres_tau_zv_samples, unres_tau_zw_samples, size_samples, size_samples, size_samples, tstep_samples, xloc_samples, xhloc_samples, yloc_samples, yhloc_samples, zloc_samples, zhloc_samples)
-            #Test whether normalisation_factor is an integer or float
-            if not (isinstance(normalisation_factor_grid, int) or isinstance(normalisation_factor_grid, float)):
-                raise TypeError("Specified normalisation_factor should be an integer or float.")
             
             print('Finished writing file: %s' % output_file)
 

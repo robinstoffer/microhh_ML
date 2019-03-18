@@ -42,7 +42,7 @@ export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared
 source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 #srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
-python3 /projects/1/flowsim/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/' --checkpoint_dir '/projects/1/flowsim/simulation1/CNN_checkpoints/real_data_CNN1' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --num_steps 10000 --batch_size 100
+python3 /projects/1/flowsim/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/' --checkpoint_dir '/projects/1/flowsim/simulation1/CNN_checkpoints/real_data_CNN6' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --num_steps 10000 --batch_size 100
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
