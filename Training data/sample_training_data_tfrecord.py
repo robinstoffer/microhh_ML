@@ -169,15 +169,15 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         wc_singlefield = np.array(a['wc'][t,:,:,:])
         pc_singlefield = np.array(a['pc'][t,:,:,:])
 
-        unres_tau_xu_singlefield = np.array(a["unres_tau_xu"][t,:,:,:])
-        unres_tau_xv_singlefield = np.array(a["unres_tau_xv"][t,:,:,:])
-        unres_tau_xw_singlefield = np.array(a["unres_tau_xw"][t,:,:,:])
-        unres_tau_yu_singlefield = np.array(a["unres_tau_yu"][t,:,:,:])
-        unres_tau_yv_singlefield = np.array(a["unres_tau_yv"][t,:,:,:])
-        unres_tau_yw_singlefield = np.array(a["unres_tau_yw"][t,:,:,:])
-        unres_tau_zu_singlefield = np.array(a["unres_tau_zu"][t,:,:,:])
-        unres_tau_zv_singlefield = np.array(a["unres_tau_zv"][t,:,:,:])
-        unres_tau_zw_singlefield = np.array(a["unres_tau_zw"][t,:,:,:])
+        unres_tau_xu_singlefield = np.array(a["unres_tau_xu_tot"][t,:,:,:])
+        unres_tau_xv_singlefield = np.array(a["unres_tau_xv_tot"][t,:,:,:])
+        unres_tau_xw_singlefield = np.array(a["unres_tau_xw_tot"][t,:,:,:])
+        unres_tau_yu_singlefield = np.array(a["unres_tau_yu_tot"][t,:,:,:])
+        unres_tau_yv_singlefield = np.array(a["unres_tau_yv_tot"][t,:,:,:])
+        unres_tau_yw_singlefield = np.array(a["unres_tau_yw_tot"][t,:,:,:])
+        unres_tau_zu_singlefield = np.array(a["unres_tau_zu_tot"][t,:,:,:])
+        unres_tau_zv_singlefield = np.array(a["unres_tau_zv_tot"][t,:,:,:])
+        unres_tau_zw_singlefield = np.array(a["unres_tau_zw_tot"][t,:,:,:])
 
         #Calculate gradients of wind speed and pressure fields#
         #NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.

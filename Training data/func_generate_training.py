@@ -121,12 +121,11 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     utau_ref = (reynolds_number_tau * mvisc) / channel_half_width
     
     #Define reference kinematic viscosity based on reference friction velocity and channel_half_width
-    mvisc_ref = mvisc/ (utau_ref * channel_half_width)
-
+    mvisc_ref = mvisc / (utau_ref * channel_half_width)
 
     #Loop over timesteps
     for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. NOTE: when testing, the # of timesteps is by default set equal to 1.
- 
+    #for t in range(1): #FOR TESTING PURPOSES ONLY!
         ##Read or define fine-resolution DNS data ##
         ############################################
 
@@ -245,18 +244,28 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         
         #NOTE1: the staggered dimensions are 1 unit longer than the 'normal' dimensions. This is taken into account by iterating over len+1 iterations.
         #NOTE2: As a consequence of NOTE1, at len+1 iteration for any given coordinate, only weights have to be known at the grid centers for other two coordinates: only part of the total transport terms need to be calculated (i.e. the terms located on the grid side boundaries for the coordinate in the len+1 iteration). This is ensured by additonal if-statements that evaluate to False at the len+1 iteration.
-        
+        #NOTE3: for each transport component both the total turbulence AND viscous contribution is considered!
+
         #Initialize first arrays for total transport components
-        total_tau_xu = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
-        total_tau_yu = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_zu = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_xv = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_yv = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
-        total_tau_zv = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
-        total_tau_xw = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
-        total_tau_yw = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
-        total_tau_zw = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
- 
+        total_tau_xu_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+        total_tau_yu_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_zu_turb = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_xv_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_yv_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zv_turb = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
+        total_tau_xw_turb = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_yw_turb = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zw_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+  
+        total_tau_xu_visc = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+        total_tau_yu_visc = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_zu_visc = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_xv_visc = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_yv_visc = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zv_visc = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
+        total_tau_xw_visc = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
+        total_tau_yw_visc = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
+        total_tau_zw_visc = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
         
         for izc in range(len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])+1):
             
@@ -282,43 +291,83 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                         xcor_c_middle_center = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend][ixc]
                         weights_x_center, points_indices_x_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle_center, dist_corc = coarsegrid['grid']['xdist'], finegrid = finegrid)
 
-                    ##Apply 1-dimensional weights calculated above to calculate the total transport terms. This is done by: 1) choosing the correct interpolated velocities calculated before and multiplying those, 2) calculating the corresponding 2-dimensional weight arrays that take the relative contributions to the total integral into account, and 3) summing over the multiplied velocities compensated by the 2-dimensional weight arrays. ##
+                    ##Apply 1-dimensional weights calculated above to calculate the total transport terms. This is done by: 1) choosing the correct interpolated velocities calculated before and multiplying those, 2) calculating the corresponding 2-dimensional weight arrays that take the relative contributions to the total integral into account, 3) summing over the multiplied velocities compensated by the 2-dimensional weight arrays, and 4) add the contribution to the total transport from viscous forces. ##
 
                     #x,y,z: center coarse grid cell
                     if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])) and (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])) and (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the z-, y- and x-coordinates.
-                        weights_y_center_z_center = weights_y_center[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_xu[izc,iyc,ixc] = np.sum(weights_y_center_z_center * u_uyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_center] ** 2)
 
-                        weights_x_center_z_center = weights_x_center[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_yv[izc,iyc,ixc] = np.sum(weights_x_center_z_center * v_vxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_center] ** 2)
+                        #Contribution turbulence
+                        weights_y_center_z_center = weights_y_center[np.newaxis,:] * weights_z_center[:,np.newaxis]
+                        total_tau_xu_turb[izc,iyc,ixc] = np.sum(weights_y_center_z_center * u_uyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_center] ** 2)
                         
+                        #Contribution viscous forces
+                        total_tau_xu_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc + 1] - finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['xh'][finegrid.igc + ixc + 1] - finegrid['grid']['xh'][finegrid.igc + ixc])))
+
+                        #Contribution turbulence
+                        weights_x_center_z_center = weights_x_center[np.newaxis,:]*weights_z_center[:,np.newaxis]
+                        total_tau_yv_turb[izc,iyc,ixc] = np.sum(weights_x_center_z_center * v_vxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_center] ** 2)
+                        
+                        #Contribution viscous forces
+                        total_tau_yv_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc + 1,finegrid.igc + ixc] - finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['yh'][finegrid.jgc + iyc + 1] - finegrid['grid']['yh'][finegrid.jgc + iyc])))
+
+                        #Contribution turbulence
                         weights_x_center_y_center = weights_x_center[np.newaxis,:]*weights_y_center[:,np.newaxis]
-                        total_tau_zw[izc,iyc,ixc] = np.sum(weights_x_center_y_center * w_wxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_center] ** 2)
+                        total_tau_zw_turb[izc,iyc,ixc] = np.sum(weights_x_center_y_center * w_wxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_center] ** 2)
+                        
+                        #Contribution viscous forces
+                        total_tau_zw_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge + izc + 1,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['zh'][finegrid.kgc_edge + izc + 1] - finegrid['grid']['zh'][finegrid.kgc_edge + izc])))
+
                         
                     #x,y: edge coarse grid cell; z: center coarse grid cell
                     if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])): #Make sure this not evaluated for the len+1 iteration in the z-coordinates.
+                        
+                        #Contribution turbulence
                         weights_y_edge_z_center   = weights_y_edge[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_xv[izc,iyc,ixc] = np.sum(weights_y_edge_z_center * u_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge] * v_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge])
+                        total_tau_xv_turb[izc,iyc,ixc] = np.sum(weights_y_edge_z_center * u_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge] * v_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge])
+
+                        #Contribution viscous forces
+                        total_tau_xv_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc - 1]) / (finegrid['grid']['x'][finegrid.igc + ixc] - finegrid['grid']['x'][finegrid.igc + ixc - 1])))
                     
+                        #Contribution turbulence
                         weights_x_edge_z_center   = weights_x_edge[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_yu[izc,iyc,ixc] = np.sum(weights_x_edge_z_center * v_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge] * u_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge])
+                        total_tau_yu_turb[izc,iyc,ixc] = np.sum(weights_x_edge_z_center * v_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge] * u_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge])
+
+                        #Contribution viscous forces
+                        total_tau_yu_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc - 1,finegrid.igc + ixc]) / (finegrid['grid']['y'][finegrid.jgc + iyc] - finegrid['grid']['y'][finegrid.jgc + iyc - 1])))
                         
                     #x,z: edge coarse grid cell; y:center coarse grid cell
                     if (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])): #Make sure this not evaluated for the len+1 iteration in the y-coordinates.
+                        
+                        #Contribution turbulence
                         weights_y_center_z_edge   = weights_y_center[np.newaxis,:]*weights_z_edge[:,np.newaxis]
-                        total_tau_xw[izc,iyc,ixc] = np.sum(weights_y_center_z_edge * u_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center] * w_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center])
+                        total_tau_xw_turb[izc,iyc,ixc] = np.sum(weights_y_center_z_edge * u_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center] * w_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center])
 
+                        #Contribution viscous forces
+                        total_tau_xw_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc - 1]) / (finegrid['grid']['x'][finegrid.igc + ixc] - finegrid['grid']['x'][finegrid.igc + ixc - 1])))
+                    
+                        #Contribution turbulence
                         weights_x_edge_y_center   = weights_x_edge[np.newaxis,:]*weights_y_center[:,np.newaxis]
-                        total_tau_zu[izc,iyc,ixc] = np.sum(weights_x_edge_y_center * w_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge] * u_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge])
+                        total_tau_zu_turb[izc,iyc,ixc] = np.sum(weights_x_edge_y_center * w_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge] * u_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge])
+
+                        #Contribution viscous forces
+                        total_tau_zu_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['u']['variable'][finegrid.kgc_center + izc - 1,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['z'][finegrid.kgc_center + izc] - finegrid['grid']['z'][finegrid.kgc_center + izc - 1])))
 
                     #y,z: edge coarse grid cell; x:center coarse grid cell
                     if (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the x-coordinates.
-                        weights_x_center_z_edge   = weights_x_center[np.newaxis,:]*weights_z_edge[:,np.newaxis]
-                        total_tau_yw[izc,iyc,ixc] = np.sum(weights_x_center_z_edge * v_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center] * w_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center])
                         
+                        #Contribution turbulence
+                        weights_x_center_z_edge   = weights_x_center[np.newaxis,:]*weights_z_edge[:,np.newaxis]
+                        total_tau_yw_turb[izc,iyc,ixc] = np.sum(weights_x_center_z_edge * v_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center] * w_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center])
+                        
+                        #Contribution viscous forces
+                        total_tau_yw_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc - 1,finegrid.igc + ixc]) / (finegrid['grid']['y'][finegrid.jgc + iyc] - finegrid['grid']['y'][finegrid.jgc + iyc - 1])))
+     
+                        #Contribution turbulence
                         weights_x_center_y_edge   = weights_x_center[np.newaxis,:]*weights_y_edge[:,np.newaxis]
-                        total_tau_zv[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * w_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center] * v_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center]) 
- 
+                        total_tau_zv_turb[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * w_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center] * v_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center])  
+
+                        #Contribution viscous forces
+                        total_tau_zv_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['v']['variable'][finegrid.kgc_center + izc - 1,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['z'][finegrid.kgc_center + izc] - finegrid['grid']['z'][finegrid.kgc_center + izc - 1]))) 
  
         ##Interpolate wind velocities on user-defined coarse grid to the corresponding grid boundaries ##
         #################################################################################################
@@ -376,33 +425,122 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
 
         ##Calculate resolved and unresolved transport user specified coarse grid ##
         ###########################################################################
-        
+        #NOTE1: In the resolved transport terms, the resolved contribution of the viscous forces is considered as well. \
+        #This implies that the unresolved contribution of the viscous forces should also be considered (given that the total transport contains as well the total contribution of the viscous forces).
+
+        #NOTE2: For the direction in which the gradient is calculated (in the viscous terms), a grid cell is on purpose added or removed to acquire the correct shape for the resulting array. 
+        #This is done by replacing (i,j)(h)end (expacted based on the shape of the arrays themselves) with its (un)staggered counterpart, except for the vertical direction whether 1 is either added or substracted from the last index (this is because in the vertical direction the staggered dimension contains no ghost cells and the unstaggered dimension contains just one ghost cell on each boundary).
+
         #xz-boundary
-        res_tau_yu = vc_uxzint * uc_uxzint
-        res_tau_yv = vc_vxzint ** 2
-        res_tau_yw = vc_wxzint * wc_wxzint
- 
-        unres_tau_yu = total_tau_yu - res_tau_yu
-        unres_tau_yv = total_tau_yv - res_tau_yv
-        unres_tau_yw = total_tau_yw - res_tau_yw
+
+        #Define lengths for broadcasting operations
+        len_zhc = len(coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend])
+        len_zc  = len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])
+        len_yhc = len(coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend])
+        len_yc  = len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])
+        len_xhc = len(coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend])
+        len_xc  = len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])
+
+        #Contribution turbulence
+        res_tau_yu_turb = vc_uxzint * uc_uxzint
+        
+        #Contribution viscous forces
+        res_tau_yu_visc = - (mvisc_ref * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['u']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc - 1:coarsegrid.jhend - 1,coarsegrid.igc:coarsegrid.ihend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jhend,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc - 1:coarsegrid.jhend - 1,np.newaxis]),(len_zc,len_yhc,len_xhc))))
+
+        #Contribution turbulence
+        res_tau_yv_turb = vc_vxzint ** 2 
+        
+        #Contribution viscous forces
+        res_tau_yv_visc = - (mvisc_ref * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc + 1:coarsegrid.jend + 1,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc + 1:coarsegrid.jend + 1,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jend,np.newaxis]),(len_zc,len_yc,len_xc))))
+
+        #Contribution turbulence
+        res_tau_yw_turb = vc_wxzint * wc_wxzint 
+        
+        #Contribution viscous forces
+        res_tau_yw_visc = - (mvisc_ref * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc_edge:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc_edge:coarsegrid.khend,coarsegrid.jgc - 1:coarsegrid.jhend - 1,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc:coarsegrid.jhend,np.newaxis] - coarsegrid['grid']['y'][np.newaxis,coarsegrid.jgc - 1:coarsegrid.jhend - 1,np.newaxis]),(len_zhc,len_yhc,len_xc))))
+
+        #Unresolved transport due to turbulence
+        unres_tau_yu_turb = total_tau_yu_turb - res_tau_yu_turb
+        unres_tau_yv_turb = total_tau_yv_turb - res_tau_yv_turb
+        unres_tau_yw_turb = total_tau_yw_turb - res_tau_yw_turb
+
+        #Unresolved transport due to viscous forces
+        unres_tau_yu_visc = total_tau_yu_visc - res_tau_yu_visc
+        unres_tau_yv_visc = total_tau_yv_visc - res_tau_yv_visc
+        unres_tau_yw_visc = total_tau_yw_visc - res_tau_yw_visc
+
+        #Total unresolved transport
+        unres_tau_yu_tot = unres_tau_yu_turb + unres_tau_yu_visc
+        unres_tau_yv_tot = unres_tau_yv_turb + unres_tau_yv_visc
+        unres_tau_yw_tot = unres_tau_yw_turb + unres_tau_yw_visc
 
         #yz-boundary        
-        res_tau_xu = uc_uyzint ** 2
-        res_tau_xv = uc_vyzint * vc_vyzint
-        res_tau_xw = uc_wyzint * wc_wyzint
+        res_tau_xu_turb = uc_uyzint ** 2
+        
+        #Contribution viscous forces
+        res_tau_xu_visc = - (mvisc_ref * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc + 1:coarsegrid.iend + 1] - coarsegrid['output']['u']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['xh'][np.newaxis,np.newaxis,coarsegrid.igc + 1:coarsegrid.iend + 1] - coarsegrid['grid']['xh'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.iend]),(len_zc,len_yc,len_xc))))
 
-        unres_tau_xu = total_tau_xu - res_tau_xu
-        unres_tau_xv = total_tau_xv - res_tau_xv
-        unres_tau_xw = total_tau_xw - res_tau_xw
+        #Contribution turbulence
+        res_tau_xv_turb = uc_vyzint * vc_vyzint
+        
+        #Contribution viscous forces
+        res_tau_xv_visc = - (mvisc_ref * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc_center:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc - 1:coarsegrid.ihend - 1]) / np.broadcast_to((coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc - 1:coarsegrid.ihend - 1]),(len_zc,len_yhc,len_xhc))))
 
+        #Contribution turbulence
+        res_tau_xw_turb = uc_wyzint * wc_wyzint
+        
+        #Contribution viscous forces
+        res_tau_xw_visc = - (mvisc_ref * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc_edge:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc_edge:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc - 1:coarsegrid.ihend - 1]) / np.broadcast_to((coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['grid']['x'][np.newaxis,np.newaxis,coarsegrid.igc - 1:coarsegrid.ihend - 1]),(len_zhc,len_yc,len_xhc))))
+
+        #Unresolved transport due to turbulence
+        unres_tau_xu_turb = total_tau_xu_turb - res_tau_xu_turb
+        unres_tau_xv_turb = total_tau_xv_turb - res_tau_xv_turb
+        unres_tau_xw_turb = total_tau_xw_turb - res_tau_xw_turb
+
+        #Unresolved transport due to viscous forces
+        unres_tau_xu_visc = total_tau_xu_visc - res_tau_xu_visc
+        unres_tau_xv_visc = total_tau_xv_visc - res_tau_xv_visc
+        unres_tau_xw_visc = total_tau_xw_visc - res_tau_xw_visc
+
+        #Total unresolved transport
+        unres_tau_xu_tot = unres_tau_xu_turb + unres_tau_xu_visc
+        unres_tau_xv_tot = unres_tau_xv_turb + unres_tau_xv_visc
+        unres_tau_xw_tot = unres_tau_xw_turb + unres_tau_xw_visc
+        
         #xy-boundary
-        res_tau_zu = wc_uxyint * uc_uxyint
-        res_tau_zv = wc_vxyint * vc_vxyint
-        res_tau_zw = wc_wxyint ** 2
+        
+        #Contribution turbulence
+        res_tau_zu_turb = wc_uxyint * uc_uxyint
+        
+        #Contribution viscous forces
+        res_tau_zu_visc = - (mvisc_ref * ((coarsegrid['output']['u']['variable'][coarsegrid.kgc_center:coarsegrid.kend + 1,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend] - coarsegrid['output']['u']['variable'][coarsegrid.kgc_center - 1:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend]) / np.broadcast_to((coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend + 1,np.newaxis,np.newaxis] - coarsegrid['grid']['z'][coarsegrid.kgc_center - 1:coarsegrid.kend,np.newaxis,np.newaxis]),(len_zhc,len_yc,len_xhc))))
 
-        unres_tau_zu = total_tau_zu - res_tau_zu
-        unres_tau_zv = total_tau_zv - res_tau_zv
-        unres_tau_zw = total_tau_zw - res_tau_zw
+        #Contribution turbulence
+        res_tau_zv_turb = wc_vxyint * vc_vxyint
+        
+        #Contribution viscous forces
+        res_tau_zv_visc = - (mvisc_ref * ((coarsegrid['output']['v']['variable'][coarsegrid.kgc_center:coarsegrid.kend + 1,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['v']['variable'][coarsegrid.kgc_center - 1:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend + 1,np.newaxis,np.newaxis] - coarsegrid['grid']['z'][coarsegrid.kgc_center - 1:coarsegrid.kend,np.newaxis,np.newaxis]),(len_zhc,len_yhc,len_xc))))
+
+        #Contribution turbulence
+        res_tau_zw_turb = wc_wxyint ** 2
+        
+        #Contribution viscous forces
+        res_tau_zw_visc = - (mvisc_ref * ((coarsegrid['output']['w']['variable'][coarsegrid.kgc_edge + 1:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend] - coarsegrid['output']['w']['variable'][coarsegrid.kgc_edge:coarsegrid.khend - 1,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]) / np.broadcast_to((coarsegrid['grid']['zh'][coarsegrid.kgc_edge + 1:coarsegrid.khend,np.newaxis,np.newaxis] - coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend - 1,np.newaxis,np.newaxis]),(len_zc,len_yc,len_xc))))
+
+        #Unresolved transport due to turbulence
+        unres_tau_zu_turb = total_tau_zu_turb - res_tau_zu_turb
+        unres_tau_zv_turb = total_tau_zv_turb - res_tau_zv_turb
+        unres_tau_zw_turb = total_tau_zw_turb - res_tau_zw_turb
+        
+        #Unresolved transport due to viscous forces
+        unres_tau_zu_visc = total_tau_zu_visc - res_tau_zu_visc
+        unres_tau_zv_visc = total_tau_zv_visc - res_tau_zv_visc
+        unres_tau_zw_visc = total_tau_zw_visc - res_tau_zw_visc
+       
+        #Total unresolved transport
+        unres_tau_zu_tot = unres_tau_zu_turb + unres_tau_zu_visc
+        unres_tau_zv_tot = unres_tau_zv_turb + unres_tau_zv_visc
+        unres_tau_zw_tot = unres_tau_zw_turb + unres_tau_zw_visc
 
         if testing: #Make plots to check calculations turbulent transport, make sure to use test arrays that ONLY differ in the vertical direction
             
@@ -727,7 +865,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             var_reynolds_number_tau[:]     = reynolds_number_tau
             var_mvisc[:]                   = mvisc
             var_mvisc_ref[:]               = mvisc_ref
-            var_channel_half_width         = channel_half_width
+            var_channel_half_width[:]      = channel_half_width
             var_utau_ref[:]                = utau_ref
             
             #var_dist_midchannel[:] = dist_midchannel[:]
@@ -738,41 +876,77 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             var_wc = a.createVariable("wc","f8",("time","zhgc","ygc","xgc"))
             var_pc = a.createVariable("pc","f8",("time","zgc","ygc","xgc"))
  
-            var_total_tau_xu = a.createVariable("total_tau_xu","f8",("time","zc","yc","xc"))
-            var_res_tau_xu   = a.createVariable("res_tau_xu","f8",("time","zc","yc","xc"))
-            var_unres_tau_xu = a.createVariable("unres_tau_xu","f8",("time","zc","yc","xc"))
+            var_total_tau_xu_turb = a.createVariable("total_tau_xu_turb","f8",("time","zc","yc","xc"))
+            var_total_tau_xu_visc = a.createVariable("total_tau_xu_visc","f8",("time","zc","yc","xc"))
+            var_res_tau_xu_turb   = a.createVariable("res_tau_xu_turb","f8",("time","zc","yc","xc"))
+            var_res_tau_xu_visc   = a.createVariable("res_tau_xu_visc","f8",("time","zc","yc","xc"))
+            var_unres_tau_xu_tot  = a.createVariable("unres_tau_xu_tot","f8",("time","zc","yc","xc"))
+            var_unres_tau_xu_turb = a.createVariable("unres_tau_xu_turb","f8",("time","zc","yc","xc"))
+            var_unres_tau_xu_visc = a.createVariable("unres_tau_xu_visc","f8",("time","zc","yc","xc"))
+
+            var_total_tau_xv_turb = a.createVariable("total_tau_xv_turb","f8",("time","zc","yhc","xhc"))
+            var_total_tau_xv_visc = a.createVariable("total_tau_xv_visc","f8",("time","zc","yhc","xhc"))
+            var_res_tau_xv_turb   = a.createVariable("res_tau_xv_turb","f8",("time","zc","yhc","xhc"))
+            var_res_tau_xv_visc   = a.createVariable("res_tau_xv_visc","f8",("time","zc","yhc","xhc"))
+            var_unres_tau_xv_tot  = a.createVariable("unres_tau_xv_tot","f8",("time","zc","yhc","xhc"))
+            var_unres_tau_xv_turb = a.createVariable("unres_tau_xv_turb","f8",("time","zc","yhc","xhc"))
+            var_unres_tau_xv_visc = a.createVariable("unres_tau_xv_visc","f8",("time","zc","yhc","xhc"))
+
+            var_total_tau_xw_turb = a.createVariable("total_tau_xw_turb","f8",("time","zhc","yc","xhc"))
+            var_total_tau_xw_visc = a.createVariable("total_tau_xw_visc","f8",("time","zhc","yc","xhc"))
+            var_res_tau_xw_turb   = a.createVariable("res_tau_xw_turb","f8",("time","zhc","yc","xhc"))
+            var_res_tau_xw_visc   = a.createVariable("res_tau_xw_visc","f8",("time","zhc","yc","xhc"))
+            var_unres_tau_xw_tot  = a.createVariable("unres_tau_xw_tot","f8",("time","zhc","yc","xhc"))
+            var_unres_tau_xw_turb = a.createVariable("unres_tau_xw_turb","f8",("time","zhc","yc","xhc"))
+            var_unres_tau_xw_visc = a.createVariable("unres_tau_xw_visc","f8",("time","zhc","yc","xhc"))
  
-            var_total_tau_xv = a.createVariable("total_tau_xv","f8",("time","zc","yhc","xhc"))
-            var_res_tau_xv   = a.createVariable("res_tau_xv","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_xv = a.createVariable("unres_tau_xv","f8",("time","zc","yhc","xhc"))
+            var_total_tau_yu_turb = a.createVariable("total_tau_yu_turb","f8",("time","zc","yhc","xhc"))
+            var_total_tau_yu_visc = a.createVariable("total_tau_yu_visc","f8",("time","zc","yhc","xhc"))
+            var_res_tau_yu_turb   = a.createVariable("res_tau_yu_turb","f8",("time","zc","yhc","xhc"))
+            var_res_tau_yu_visc   = a.createVariable("res_tau_yu_visc","f8",("time","zc","yhc","xhc"))
+            var_unres_tau_yu_tot  = a.createVariable("unres_tau_yu_tot","f8",("time","zc","yhc","xhc"))
+            var_unres_tau_yu_turb = a.createVariable("unres_tau_yu_turb","f8",("time","zc","yhc","xhc"))
+            var_unres_tau_yu_visc = a.createVariable("unres_tau_yu_visc","f8",("time","zc","yhc","xhc"))
  
-            var_total_tau_xw = a.createVariable("total_tau_xw","f8",("time","zhc","yc","xhc"))
-            var_res_tau_xw   = a.createVariable("res_tau_xw","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_xw = a.createVariable("unres_tau_xw","f8",("time","zhc","yc","xhc"))
+            var_total_tau_yv_turb = a.createVariable("total_tau_yv_turb","f8",("time","zc","yc","xc"))
+            var_total_tau_yv_visc = a.createVariable("total_tau_yv_visc","f8",("time","zc","yc","xc"))
+            var_res_tau_yv_turb   = a.createVariable("res_tau_yv_turb","f8",("time","zc","yc","xc"))
+            var_res_tau_yv_visc   = a.createVariable("res_tau_yv_visc","f8",("time","zc","yc","xc"))
+            var_unres_tau_yv_tot  = a.createVariable("unres_tau_yv_tot","f8",("time","zc","yc","xc"))
+            var_unres_tau_yv_turb = a.createVariable("unres_tau_yv_turb","f8",("time","zc","yc","xc"))
+            var_unres_tau_yv_visc = a.createVariable("unres_tau_yv_visc","f8",("time","zc","yc","xc"))
+
+            var_total_tau_yw_turb = a.createVariable("total_tau_yw_turb","f8",("time","zhc","yhc","xc"))
+            var_total_tau_yw_visc = a.createVariable("total_tau_yw_visc","f8",("time","zhc","yhc","xc"))
+            var_res_tau_yw_turb   = a.createVariable("res_tau_yw_turb","f8",("time","zhc","yhc","xc"))
+            var_res_tau_yw_visc   = a.createVariable("res_tau_yw_visc","f8",("time","zhc","yhc","xc"))
+            var_unres_tau_yw_tot  = a.createVariable("unres_tau_yw_tot","f8",("time","zhc","yhc","xc"))
+            var_unres_tau_yw_turb = a.createVariable("unres_tau_yw_turb","f8",("time","zhc","yhc","xc"))
+            var_unres_tau_yw_visc = a.createVariable("unres_tau_yw_visc","f8",("time","zhc","yhc","xc"))
  
-            var_total_tau_yu = a.createVariable("total_tau_yu","f8",("time","zc","yhc","xhc"))
-            var_res_tau_yu   = a.createVariable("res_tau_yu","f8",("time","zc","yhc","xhc"))
-            var_unres_tau_yu = a.createVariable("unres_tau_yu","f8",("time","zc","yhc","xhc"))
+            var_total_tau_zu_turb = a.createVariable("total_tau_zu_turb","f8",("time","zhc","yc","xhc"))
+            var_total_tau_zu_visc = a.createVariable("total_tau_zu_visc","f8",("time","zhc","yc","xhc"))
+            var_res_tau_zu_turb   = a.createVariable("res_tau_zu_turb","f8",("time","zhc","yc","xhc"))
+            var_res_tau_zu_visc   = a.createVariable("res_tau_zu_visc","f8",("time","zhc","yc","xhc"))
+            var_unres_tau_zu_tot  = a.createVariable("unres_tau_zu_tot","f8",("time","zhc","yc","xhc"))
+            var_unres_tau_zu_turb = a.createVariable("unres_tau_zu_turb","f8",("time","zhc","yc","xhc"))
+            var_unres_tau_zu_visc = a.createVariable("unres_tau_zu_visc","f8",("time","zhc","yc","xhc"))
  
-            var_total_tau_yv = a.createVariable("total_tau_yv","f8",("time","zc","yc","xc"))
-            var_res_tau_yv   = a.createVariable("res_tau_yv","f8",("time","zc","yc","xc"))
-            var_unres_tau_yv = a.createVariable("unres_tau_yv","f8",("time","zc","yc","xc"))
- 
-            var_total_tau_yw = a.createVariable("total_tau_yw","f8",("time","zhc","yhc","xc"))
-            var_res_tau_yw   = a.createVariable("res_tau_yw","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_yw = a.createVariable("unres_tau_yw","f8",("time","zhc","yhc","xc"))
- 
-            var_total_tau_zu = a.createVariable("total_tau_zu","f8",("time","zhc","yc","xhc"))
-            var_res_tau_zu   = a.createVariable("res_tau_zu","f8",("time","zhc","yc","xhc"))
-            var_unres_tau_zu = a.createVariable("unres_tau_zu","f8",("time","zhc","yc","xhc"))
- 
-            var_total_tau_zv = a.createVariable("total_tau_zv","f8",("time","zhc","yhc","xc"))
-            var_res_tau_zv   = a.createVariable("res_tau_zv","f8",("time","zhc","yhc","xc"))
-            var_unres_tau_zv = a.createVariable("unres_tau_zv","f8",("time","zhc","yhc","xc"))
- 
-            var_total_tau_zw = a.createVariable("total_tau_zw","f8",("time","zc","yc","xc"))
-            var_res_tau_zw   = a.createVariable("res_tau_zw","f8",("time","zc","yc","xc"))
-            var_unres_tau_zw = a.createVariable("unres_tau_zw","f8",("time","zc","yc","xc"))
+            var_total_tau_zv_turb = a.createVariable("total_tau_zv_turb","f8",("time","zhc","yhc","xc"))
+            var_total_tau_zv_visc = a.createVariable("total_tau_zv_visc","f8",("time","zhc","yhc","xc"))
+            var_res_tau_zv_turb   = a.createVariable("res_tau_zv_turb","f8",("time","zhc","yhc","xc"))
+            var_res_tau_zv_visc   = a.createVariable("res_tau_zv_visc","f8",("time","zhc","yhc","xc"))
+            var_unres_tau_zv_tot  = a.createVariable("unres_tau_zv_tot","f8",("time","zhc","yhc","xc"))
+            var_unres_tau_zv_turb = a.createVariable("unres_tau_zv_turb","f8",("time","zhc","yhc","xc"))
+            var_unres_tau_zv_visc = a.createVariable("unres_tau_zv_visc","f8",("time","zhc","yhc","xc"))
+
+            var_total_tau_zw_turb = a.createVariable("total_tau_zw_turb","f8",("time","zc","yc","xc"))
+            var_total_tau_zw_visc = a.createVariable("total_tau_zw_visc","f8",("time","zc","yc","xc"))
+            var_res_tau_zw_turb   = a.createVariable("res_tau_zw_turb","f8",("time","zc","yc","xc"))
+            var_res_tau_zw_visc   = a.createVariable("res_tau_zw_visc","f8",("time","zc","yc","xc"))
+            var_unres_tau_zw_tot  = a.createVariable("unres_tau_zw_tot","f8",("time","zc","yc","xc"))
+            var_unres_tau_zw_turb = a.createVariable("unres_tau_zw_turb","f8",("time","zc","yc","xc"))
+            var_unres_tau_zw_visc = a.createVariable("unres_tau_zw_visc","f8",("time","zc","yc","xc"))
  
         create_variables = False #Make sure variables are only created once.
  
@@ -782,42 +956,77 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         var_wc[t,:,:,:] = coarsegrid['output']['w']['variable']
         var_pc[t,:,:,:] = coarsegrid['output']['p']['variable']
  
-        var_total_tau_xu[t,:,:,:] = total_tau_xu[:,:,:]
-        var_res_tau_xu[t,:,:,:]   = res_tau_xu[:,:,:]
-        var_unres_tau_xu[t,:,:,:] = unres_tau_xu[:,:,:]
+        var_total_tau_xu_turb[t,:,:,:] = total_tau_xu_turb[:,:,:]
+        var_total_tau_xu_visc[t,:,:,:] = total_tau_xu_visc[:,:,:]
+        var_res_tau_xu_turb[t,:,:,:]   = res_tau_xu_turb[:,:,:]
+        var_res_tau_xu_visc[t,:,:,:]   = res_tau_xu_visc[:,:,:]
+        var_unres_tau_xu_tot[t,:,:,:]  = unres_tau_xu_tot[:,:,:]
+        var_unres_tau_xu_turb[t,:,:,:] = unres_tau_xu_turb[:,:,:]
+        var_unres_tau_xu_visc[t,:,:,:] = unres_tau_xu_visc[:,:,:]
  
-        var_total_tau_xv[t,:,:,:] = total_tau_xv[:,:,:]
-        var_res_tau_xv[t,:,:,:]   = res_tau_xv[:,:,:]
-        var_unres_tau_xv[t,:,:,:] = unres_tau_xv[:,:,:]
- 
-        var_total_tau_xw[t,:,:,:] = total_tau_xw[:,:,:]
-        var_res_tau_xw[t,:,:,:]   = res_tau_xw[:,:,:]
-        var_unres_tau_xw[t,:,:,:] = unres_tau_xw[:,:,:]
- 
-        var_total_tau_yu[t,:,:,:] = total_tau_yu[:,:,:]
-        var_res_tau_yu[t,:,:,:]   = res_tau_yu[:,:,:]
-        var_unres_tau_yu[t,:,:,:] = unres_tau_yu[:,:,:]
- 
-        var_total_tau_yv[t,:,:,:] = total_tau_yv[:,:,:]
-        var_res_tau_yv[t,:,:,:]   = res_tau_yv[:,:,:]
-        var_unres_tau_yv[t,:,:,:] = unres_tau_yv[:,:,:]
- 
-        var_total_tau_yw[t,:,:,:] = total_tau_yw[:,:,:]
-        var_res_tau_yw[t,:,:,:]   = res_tau_yw[:,:,:]
-        var_unres_tau_yw[t,:,:,:] = unres_tau_yw[:,:,:]
- 
-        var_total_tau_zu[t,:,:,:] = total_tau_zu[:,:,:]
-        var_res_tau_zu[t,:,:,:]   = res_tau_zu[:,:,:]
-        var_unres_tau_zu[t,:,:,:] = unres_tau_zu[:,:,:]
- 
-        var_total_tau_zv[t,:,:,:] = total_tau_zv[:,:,:]
-        var_res_tau_zv[t,:,:,:]   = res_tau_zv[:,:,:]
-        var_unres_tau_zv[t,:,:,:] = unres_tau_zv[:,:,:]
- 
-        var_total_tau_zw[t,:,:,:] = total_tau_zw[:,:,:]
-        var_res_tau_zw[t,:,:,:]   = res_tau_zw[:,:,:]
-        var_unres_tau_zw[t,:,:,:] = unres_tau_zw[:,:,:]
- 
+        var_total_tau_xv_turb[t,:,:,:] = total_tau_xv_turb[:,:,:]
+        var_total_tau_xv_visc[t,:,:,:] = total_tau_xv_visc[:,:,:]
+        var_res_tau_xv_turb[t,:,:,:]   = res_tau_xv_turb[:,:,:]
+        var_res_tau_xv_visc[t,:,:,:]   = res_tau_xv_visc[:,:,:]
+        var_unres_tau_xv_tot[t,:,:,:]  = unres_tau_xv_tot[:,:,:]
+        var_unres_tau_xv_turb[t,:,:,:] = unres_tau_xv_turb[:,:,:]
+        var_unres_tau_xv_visc[t,:,:,:] = unres_tau_xv_visc[:,:,:]
+       
+        var_total_tau_xw_turb[t,:,:,:] = total_tau_xw_turb[:,:,:]
+        var_total_tau_xw_visc[t,:,:,:] = total_tau_xw_visc[:,:,:]
+        var_res_tau_xw_turb[t,:,:,:]   = res_tau_xw_turb[:,:,:]
+        var_res_tau_xw_visc[t,:,:,:]   = res_tau_xw_visc[:,:,:]
+        var_unres_tau_xw_tot[t,:,:,:]  = unres_tau_xw_tot[:,:,:]
+        var_unres_tau_xw_turb[t,:,:,:] = unres_tau_xw_turb[:,:,:]
+        var_unres_tau_xw_visc[t,:,:,:] = unres_tau_xw_visc[:,:,:]
+
+        var_total_tau_yu_turb[t,:,:,:] = total_tau_yu_turb[:,:,:]
+        var_total_tau_yu_visc[t,:,:,:] = total_tau_yu_visc[:,:,:]
+        var_res_tau_yu_turb[t,:,:,:]   = res_tau_yu_turb[:,:,:]
+        var_res_tau_yu_visc[t,:,:,:]   = res_tau_yu_visc[:,:,:]
+        var_unres_tau_yu_tot[t,:,:,:]  = unres_tau_yu_tot[:,:,:]
+        var_unres_tau_yu_turb[t,:,:,:] = unres_tau_yu_turb[:,:,:]
+        var_unres_tau_yu_visc[t,:,:,:] = unres_tau_yu_visc[:,:,:]
+
+        var_total_tau_yv_turb[t,:,:,:] = total_tau_yv_turb[:,:,:]
+        var_total_tau_yv_visc[t,:,:,:] = total_tau_yv_visc[:,:,:]
+        var_res_tau_yv_turb[t,:,:,:]   = res_tau_yv_turb[:,:,:]
+        var_res_tau_yv_visc[t,:,:,:]   = res_tau_yv_visc[:,:,:]
+        var_unres_tau_yv_tot[t,:,:,:]  = unres_tau_yv_tot[:,:,:]
+        var_unres_tau_yv_turb[t,:,:,:] = unres_tau_yv_turb[:,:,:]
+        var_unres_tau_yv_visc[t,:,:,:] = unres_tau_yv_visc[:,:,:]
+
+        var_total_tau_yw_turb[t,:,:,:] = total_tau_yw_turb[:,:,:]
+        var_total_tau_yw_visc[t,:,:,:] = total_tau_yw_visc[:,:,:]
+        var_res_tau_yw_turb[t,:,:,:]   = res_tau_yw_turb[:,:,:]
+        var_res_tau_yw_visc[t,:,:,:]   = res_tau_yw_visc[:,:,:]
+        var_unres_tau_yw_tot[t,:,:,:]  = unres_tau_yw_tot[:,:,:]
+        var_unres_tau_yw_turb[t,:,:,:] = unres_tau_yw_turb[:,:,:]
+        var_unres_tau_yw_visc[t,:,:,:] = unres_tau_yw_visc[:,:,:]
+
+        var_total_tau_zu_turb[t,:,:,:] = total_tau_zu_turb[:,:,:]
+        var_total_tau_zu_visc[t,:,:,:] = total_tau_zu_visc[:,:,:]
+        var_res_tau_zu_turb[t,:,:,:]   = res_tau_zu_turb[:,:,:]
+        var_res_tau_zu_visc[t,:,:,:]   = res_tau_zu_visc[:,:,:]
+        var_unres_tau_zu_tot[t,:,:,:]  = unres_tau_zu_tot[:,:,:]
+        var_unres_tau_zu_turb[t,:,:,:] = unres_tau_zu_turb[:,:,:]
+        var_unres_tau_zu_visc[t,:,:,:] = unres_tau_zu_visc[:,:,:]
+
+        var_total_tau_zv_turb[t,:,:,:] = total_tau_zv_turb[:,:,:]
+        var_total_tau_zv_visc[t,:,:,:] = total_tau_zv_visc[:,:,:]
+        var_res_tau_zv_turb[t,:,:,:]   = res_tau_zv_turb[:,:,:]
+        var_res_tau_zv_visc[t,:,:,:]   = res_tau_zv_visc[:,:,:]
+        var_unres_tau_zv_tot[t,:,:,:]  = unres_tau_zv_tot[:,:,:]
+        var_unres_tau_zv_turb[t,:,:,:] = unres_tau_zv_turb[:,:,:]
+        var_unres_tau_zv_visc[t,:,:,:] = unres_tau_zv_visc[:,:,:]
+
+        var_total_tau_zw_turb[t,:,:,:] = total_tau_zw_turb[:,:,:]
+        var_total_tau_zw_visc[t,:,:,:] = total_tau_zw_visc[:,:,:]
+        var_res_tau_zw_turb[t,:,:,:]   = res_tau_zw_turb[:,:,:]
+        var_res_tau_zw_visc[t,:,:,:]   = res_tau_zw_visc[:,:,:]
+        var_unres_tau_zw_tot[t,:,:,:]  = unres_tau_zw_tot[:,:,:]
+        var_unres_tau_zw_turb[t,:,:,:] = unres_tau_zw_turb[:,:,:]
+        var_unres_tau_zw_visc[t,:,:,:] = unres_tau_zw_visc[:,:,:]
+
         #Close file
         a.close()
-
