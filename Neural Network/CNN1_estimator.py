@@ -31,7 +31,7 @@ parser.add_argument('--checkpoint_dir', type=str, default='/projects/1/flowsim/s
 parser.add_argument('--input_dir', type=str, default='/projects/1/flowsim/simulation1/',
                     help='tfrecords filepaths')
 parser.add_argument('--stored_means_stdevs_filepath', type=str, default='/projects/1/flowsim/simulation1/means_stdevs_allfields.nc', \
-        help='filepath for stored means and standard deviations of input variables, whihc should refer to a nc-file created as part of the training data')
+        help='filepath for stored means and standard deviations of input variables, which should refer to a nc-file created as part of the training data')
 parser.add_argument('--gradients', default=None, \
         action='store_true', \
         help='Wind velocity gradients are used as input for the NN when this is true, otherwhise absolute wind velocities are used.')
@@ -65,16 +65,17 @@ batch_size = args.batch_size
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 #output_variable = 'unres_tau_zu_sample'
 
-num_labels = 1
+num_labels = 9
 random_seed = 1234
 
 #Define function for standardization
 def _standardization(variable, mean, standard_dev):
-    standardized_variable = (variable - mean)/ standard_dev
+    standardized_variable = (variable - mean) / standard_dev
     return standardized_variable
 
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
 #the output in format (dict(features),dict(labels)) and normalizes according to specified means and variances.
+#NOTE: Normally, the input function for the tf.estimator expects that the labels are given in a array rather than a dictionary. In this case however, the model_fn function has been changed such that the labels are expected to be in a dictionary. For multiple labels, this seems to be more convenient and less error-prone (RS).
 def _parse_function(example_proto,means,stdevs):
 
     if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
@@ -105,7 +106,7 @@ def _parse_function(example_proto,means,stdevs):
             'zloc_sample':tf.FixedLenFeature([],tf.float32),
             'zhloc_sample':tf.FixedLenFeature([],tf.float32)
         }
-    
+
         parsed_features = tf.parse_single_example(example_proto, keys_to_features)
         parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
         parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'], stdevs['vc'])
@@ -180,14 +181,16 @@ def _parse_function(example_proto,means,stdevs):
     labels['unres_tau_yw'] = _getlabel(parsed_features, 'unres_tau_yw_sample', means, stdevs)
     labels['unres_tau_zw'] = _getlabel(parsed_features, 'unres_tau_zw_sample', means, stdevs)
 
+    labels = tf.convert_to_tensor([ labels['unres_tau_xu'], labels['unres_tau_yu'], labels['unres_tau_zu'], labels['unres_tau_xv'],  labels['unres_tau_yv'], labels['unres_tau_zv'], labels['unres_tau_xw'], labels['unres_tau_yw'], labels['unres_tau_zw']], dtype=tf.float32)
+
     return parsed_features,labels
 
 
 #Define training input function
-def train_input_fn(filenames,batch_size,means,stdevs):
+def train_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.shuffle(batch_size).repeat()
-    dataset = dataset.map(lambda line:_parse_function(line,means,stdevs))
+    dataset = dataset.shuffle(len(filenames)).repeat()
+    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
     dataset = dataset.batch(batch_size)
     #dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
     #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
@@ -199,7 +202,8 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
     #For testing purpose num_steps is set equal to 3 million divided by batch_size, representing the case where 3 million examples are available for training (preventing memory issues when the number of training steps is high). 
     #NOTE1: If num_steps is not explicitly set anymore (but rather determined via the input), remove .repeat() below when train_mode is set to True.
     #NOTE2: in case of evaluation only 300.000 examples are being generated, representing the case where approximately 10% of the available examples is used for evaluation
-    num_steps_train = int((3*10**6)/batch_size)
+    #num_steps_train = int((3*10**6)/batch_size)
+    num_steps_train = int(10)
     if not train_mode:
         num_steps_train = int(0.1*num_steps_train)
 
@@ -223,7 +227,7 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
     #labels = [0.0] * batch_size * num_steps_train
     #constant with random Gaussian noise
     gaussian_noise = tf.distributions.Normal(loc=0., scale=0.01)
-    labels = gaussian_noise.sample(sample_shape=(batch_size*num_steps_train))
+    labels = gaussian_noise.sample(sample_shape=(batch_size*num_steps_train, 9))
 
     #prepare the Dataset object
     dataset = tf.data.Dataset.from_tensor_slices((features, labels))
@@ -237,9 +241,9 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
     return dataset
 
 #Define evaluation function
-def eval_input_fn(filenames, batch_size, means,stdevs):
+def eval_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
-    #dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen NOTE: only needed when evaluation is not done on whole validation set (i.e. steps is not None)
+    dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen NOTE: only needed when evaluation is not done on whole validation set (i.e. steps is not None)
     dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
     dataset = dataset.batch(batch_size)
     #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
@@ -331,13 +335,17 @@ def CNN_model_fn(features,labels,mode,params):
             activation=params['activation_function'], kernel_initializer=params['kernel_initializer'])
     output = tf.layers.dense(dense2, units=num_labels, name="outputs", \
             activation=None, kernel_initializer=params['kernel_initializer'], reuse = tf.AUTO_REUSE) #reuse needed for second part of this script to work properly
-#    print(output.shape)
+    print('output.shape :' + str(output.shape))
 
     ###Visualize outputs (NOTE: consider other visualization when producing more than 1 output)
     tf.summary.histogram('output', output) 
 
-    #Compute predictions 
-    labels = tf.reshape(labels,[-1,num_labels])
+    #Compute predictions
+    #labels = np.array([ labels['unres_tau_xu'], labels['unres_tau_yu'], labels['unres_tau_zu'], labels['unres_tau_xv'], labels['unres_tau_yv'], labels['unres_tau_zv'], labels['unres_tau_xw'], labels['unres_tau_yw'], labels['unres_tau_zw']])
+    #labels = tf.reshape(labels,[-1,num_labels])
+    #print('labels.shape: ' + str(labels.shape))
+    #print('labels.dtype: ' + str(labels.dtype))
+
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode, predictions={
             'pred_tau_xu':output[:,0], 'label_tau_xu':labels[:,0],
@@ -419,6 +427,12 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
 
 print('Train files: ' + str(train_filenames))
 print('Validation files: ' + str(val_filenames))
+
+##FOR TESTING PURPOSES ONLY!
+#if args.gradients is None:
+#    val_filenames = '/projects/1/flowsim/simulation1/lesscoarse/training_time_step_37_of_100.tfrecords'
+#else:
+#    val_filenames = '/projects/1/flowsim/simulation1/lesscoarse/training_time_step_37_of_100_gradients.tfrecords'
 
 #Calculate means and stdevs for input variables
 means_stdevs_filepath = args.stored_means_stdevs_filepath
@@ -615,15 +629,15 @@ else:
 if args.synthetic is None:
     #Train and evaluate CNN
     train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=1000, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    #Train the CNN
 #    CNN.train(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable),steps=num_steps, hooks=[profiler_hook])
 
     #Evaluate the CNN on all validation data (no imposed limit on training steps)
-    eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None)
-    print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))
+    #eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None)
+    #print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))
     print('Used real data')
 #    predictions = CNN.predict(input_fn = lambda:eval_input_fn(val_filenames, batch_size, output_variable))
 #    NOTE: CNN.predict appeared to be unsuitable to compare the predictions from the CNN to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
@@ -642,7 +656,9 @@ else:
 
 
 #'Hacky' solution to compare the predictions of the CNN to the true labels stored in the TFRecords files. NOTE: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
-if args.benchmark is None:
+if args.benchmark is None and args.synthetic is None:
+
+    print('Start making predictions for validation files.')
    
     #val_filenames = train_filenames #NOTE: this line only implemented to test the script. REMOVE it later on!!!
  
@@ -666,6 +682,9 @@ if args.benchmark is None:
     tot_sample_begin = tot_sample_end
 
     for val_filename in val_filenames:
+    #for i in range(1): #NOTE: FOR TESTING PURPOSES ONLY!
+        #val_filename = val_filenames #NOTE: FOR TESTING PURPOSES ONLY!
+        #print(val_filename)
 
         tf.reset_default_graph() #Reset the graph for each iteration
  
@@ -868,68 +887,68 @@ if args.benchmark is None:
                                 preds['tstep'], preds['zhloc'], preds['zloc'], 
                                 preds['yhloc'], preds['yloc'], preds['xhloc'], preds['xloc']):
                         # 
-                        preds_tau_xu               += [pred_tau_xu[0]]
-                        lbls_tau_xu                += [lbl_tau_xu[0]]
-                        residuals_tau_xu           += [abs(pred_tau_xu[0]-lbl_tau_xu[0])]
+                        preds_tau_xu               += [pred_tau_xu]
+                        lbls_tau_xu                += [lbl_tau_xu]
+                        residuals_tau_xu           += [abs(pred_tau_xu-lbl_tau_xu)]
                         pred_random_tau_xu          = random.choice(preds['label_tau_xu'][:][:]) #Generate random prediction
                         preds_random_tau_xu        += [pred_random_tau_xu]
-                        residuals_random_tau_xu    += [abs(pred_random_tau_xu-lbl_tau_xu[0])]
+                        residuals_random_tau_xu    += [abs(pred_random_tau_xu-lbl_tau_xu)]
                         #
-                        preds_tau_yu               += [pred_tau_yu[0]]
-                        lbls_tau_yu                += [lbl_tau_yu[0]]
-                        residuals_tau_yu           += [abs(pred_tau_yu[0]-lbl_tau_yu[0])]
+                        preds_tau_yu               += [pred_tau_yu]
+                        lbls_tau_yu                += [lbl_tau_yu]
+                        residuals_tau_yu           += [abs(pred_tau_yu-lbl_tau_yu)]
                         pred_random_tau_yu          = random.choice(preds['label_tau_yu'][:][:]) #Generate random prediction
                         preds_random_tau_yu        += [pred_random_tau_yu]
-                        residuals_random_tau_yu    += [abs(pred_random_tau_yu-lbl_tau_yu[0])]
+                        residuals_random_tau_yu    += [abs(pred_random_tau_yu-lbl_tau_yu)]
                         #
-                        preds_tau_zu               += [pred_tau_zu[0]]
-                        lbls_tau_zu                += [lbl_tau_zu[0]]
-                        residuals_tau_zu           += [abs(pred_tau_zu[0]-lbl_tau_zu[0])]
+                        preds_tau_zu               += [pred_tau_zu]
+                        lbls_tau_zu                += [lbl_tau_zu]
+                        residuals_tau_zu           += [abs(pred_tau_zu-lbl_tau_zu)]
                         pred_random_tau_zu          = random.choice(preds['label_tau_zu'][:][:]) #Generate random prediction
                         preds_random_tau_zu        += [pred_random_tau_zu]
-                        residuals_random_tau_zu    += [abs(pred_random_tau_zu-lbl_tau_zu[0])]
+                        residuals_random_tau_zu    += [abs(pred_random_tau_zu-lbl_tau_zu)]
                         #
-                        preds_tau_xv               += [pred_tau_xv[0]]
-                        lbls_tau_xv                += [lbl_tau_xv[0]]
-                        residuals_tau_xv           += [abs(pred_tau_xv[0]-lbl_tau_xv[0])]
+                        preds_tau_xv               += [pred_tau_xv]
+                        lbls_tau_xv                += [lbl_tau_xv]
+                        residuals_tau_xv           += [abs(pred_tau_xv-lbl_tau_xv)]
                         pred_random_tau_xv          = random.choice(preds['label_tau_xv'][:][:]) #Generate random prediction
                         preds_random_tau_xv        += [pred_random_tau_xv]
-                        residuals_random_tau_xv    += [abs(pred_random_tau_xv-lbl_tau_xv[0])]
+                        residuals_random_tau_xv    += [abs(pred_random_tau_xv-lbl_tau_xv)]
                         #
-                        preds_tau_yv               += [pred_tau_yv[0]]
-                        lbls_tau_yv                += [lbl_tau_yv[0]]
-                        residuals_tau_yv           += [abs(pred_tau_yv[0]-lbl_tau_yv[0])]
+                        preds_tau_yv               += [pred_tau_yv]
+                        lbls_tau_yv                += [lbl_tau_yv]
+                        residuals_tau_yv           += [abs(pred_tau_yv-lbl_tau_yv)]
                         pred_random_tau_yv          = random.choice(preds['label_tau_yv'][:][:]) #Generate random prediction
                         preds_random_tau_yv        += [pred_random_tau_yv]
-                        residuals_random_tau_yv    += [abs(pred_random_tau_yv-lbl_tau_yv[0])]
+                        residuals_random_tau_yv    += [abs(pred_random_tau_yv-lbl_tau_yv)]
                         #
-                        preds_tau_zv               += [pred_tau_zv[0]]
-                        lbls_tau_zv                += [lbl_tau_zv[0]]
-                        residuals_tau_zv           += [abs(pred_tau_zv[0]-lbl_tau_zv[0])]
+                        preds_tau_zv               += [pred_tau_zv]
+                        lbls_tau_zv                += [lbl_tau_zv]
+                        residuals_tau_zv           += [abs(pred_tau_zv-lbl_tau_zv)]
                         pred_random_tau_zv          = random.choice(preds['label_tau_zv'][:][:]) #Generate random prediction
                         preds_random_tau_zv        += [pred_random_tau_zv]
-                        residuals_random_tau_zv    += [abs(pred_random_tau_zv-lbl_tau_zv[0])]
+                        residuals_random_tau_zv    += [abs(pred_random_tau_zv-lbl_tau_zv)]
                         #
-                        preds_tau_xw               += [pred_tau_xw[0]]
-                        lbls_tau_xw                += [lbl_tau_xw[0]]
-                        residuals_tau_xw           += [abs(pred_tau_xw[0]-lbl_tau_xw[0])]
+                        preds_tau_xw               += [pred_tau_xw]
+                        lbls_tau_xw                += [lbl_tau_xw]
+                        residuals_tau_xw           += [abs(pred_tau_xw-lbl_tau_xw)]
                         pred_random_tau_xw          = random.choice(preds['label_tau_xw'][:][:]) #Generate random prediction
                         preds_random_tau_xw        += [pred_random_tau_xw]
-                        residuals_random_tau_xw    += [abs(pred_random_tau_xw-lbl_tau_xw[0])]
+                        residuals_random_tau_xw    += [abs(pred_random_tau_xw-lbl_tau_xw)]
                         #
-                        preds_tau_yw               += [pred_tau_yw[0]]
-                        lbls_tau_yw                += [lbl_tau_yw[0]]
-                        residuals_tau_yw           += [abs(pred_tau_yw[0]-lbl_tau_yw[0])]
+                        preds_tau_yw               += [pred_tau_yw]
+                        lbls_tau_yw                += [lbl_tau_yw]
+                        residuals_tau_yw           += [abs(pred_tau_yw-lbl_tau_yw)]
                         pred_random_tau_yw          = random.choice(preds['label_tau_yw'][:][:]) #Generate random prediction
                         preds_random_tau_yw        += [pred_random_tau_yw]
-                        residuals_random_tau_yw    += [abs(pred_random_tau_yw-lbl_tau_yw[0])]
+                        residuals_random_tau_yw    += [abs(pred_random_tau_yw-lbl_tau_yw)]
                         #
-                        preds_tau_zw               += [pred_tau_zw[0]]
-                        lbls_tau_zw                += [lbl_tau_zw[0]]
-                        residuals_tau_zw           += [abs(pred_tau_zw[0]-lbl_tau_zw[0])]
+                        preds_tau_zw               += [pred_tau_zw]
+                        lbls_tau_zw                += [lbl_tau_zw]
+                        residuals_tau_zw           += [abs(pred_tau_zw-lbl_tau_zw)]
                         pred_random_tau_zw          = random.choice(preds['label_tau_zw'][:][:]) #Generate random prediction
                         preds_random_tau_zw        += [pred_random_tau_zw]
-                        residuals_random_tau_zw    += [abs(pred_random_tau_zw-lbl_tau_zw[0])]
+                        residuals_random_tau_zw    += [abs(pred_random_tau_zw-lbl_tau_zw)]
                         #
                         tstep_samples += [tstep]
                         zhloc_samples += [zhloc]
@@ -951,17 +970,17 @@ if args.benchmark is None:
                     var_res_tau_xu[tot_sample_begin:tot_sample_end]         = residuals_tau_xu[:]
                     var_res_random_tau_xu[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xu[:]
                     #
-                    var_pred_tau_xv[tot_sample_begin:tot_sample_end]        = preds_tau_xv[:]
-                    var_pred_random_tau_xv[tot_sample_begin:tot_sample_end] = preds_random_tau_xv[:]
-                    var_lbl_tau_xv[tot_sample_begin:tot_sample_end]         = lbls_tau_xv[:]
-                    var_res_tau_xv[tot_sample_begin:tot_sample_end]         = residuals_tau_xv[:]
-                    var_res_random_tau_xv[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xv[:]
+                    var_pred_tau_yu[tot_sample_begin:tot_sample_end]        = preds_tau_yu[:]
+                    var_pred_random_tau_yu[tot_sample_begin:tot_sample_end] = preds_random_tau_yu[:]
+                    var_lbl_tau_yu[tot_sample_begin:tot_sample_end]         = lbls_tau_yu[:]
+                    var_res_tau_yu[tot_sample_begin:tot_sample_end]         = residuals_tau_yu[:]
+                    var_res_random_tau_yu[tot_sample_begin:tot_sample_end]  = residuals_random_tau_yu[:]
                     #
-                    var_pred_tau_xw[tot_sample_begin:tot_sample_end]        = preds_tau_xw[:]
-                    var_pred_random_tau_xw[tot_sample_begin:tot_sample_end] = preds_random_tau_xw[:]
-                    var_lbl_tau_xw[tot_sample_begin:tot_sample_end]         = lbls_tau_xw[:]
-                    var_res_tau_xw[tot_sample_begin:tot_sample_end]         = residuals_tau_xw[:]
-                    var_res_random_tau_xw[tot_sample_begin:tot_sample_end]  = residuals_random_tau_xw[:]
+                    var_pred_tau_zu[tot_sample_begin:tot_sample_end]        = preds_tau_zu[:]
+                    var_pred_random_tau_zu[tot_sample_begin:tot_sample_end] = preds_random_tau_zu[:]
+                    var_lbl_tau_zu[tot_sample_begin:tot_sample_end]         = lbls_tau_zu[:]
+                    var_res_tau_zu[tot_sample_begin:tot_sample_end]         = residuals_tau_zu[:]
+                    var_res_random_tau_zu[tot_sample_begin:tot_sample_end]  = residuals_random_tau_zu[:]
                     #
                     var_pred_tau_xv[tot_sample_begin:tot_sample_end]        = preds_tau_xv[:]
                     var_pred_random_tau_xv[tot_sample_begin:tot_sample_end] = preds_random_tau_xv[:]
@@ -1009,7 +1028,10 @@ if args.benchmark is None:
 
                     tot_sample_begin = tot_sample_end #Make sure stored variables are not overwritten.
 
+                    #break #FOR TESTING PURPOSES ONLY!
+
                 except tf.errors.OutOfRangeError:
                     break #Break out of while-loop after one epoch. NOTE: for this part of the code it is important that the eval_input_fn and train_input_synthetic_fn do not implement the .repeat() method on the created tf.Dataset.
         #print('next_file')
     predictions_file.close() #Close netCDF-file after each validation file
+    print("Finished making predictions for each validation file.")

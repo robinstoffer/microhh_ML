@@ -111,11 +111,11 @@ from sample_training_data_tfrecord import generate_samples
 
 
 input_directory = '/projects/1/flowsim/simulation1/'
-#output_directory = '/projects/1/flowsim/simulation1/lesscoarse/'
+output_directory = '/projects/1/flowsim/simulation1/lesscoarse/'
 settings_filepath = '/projects/1/flowsim/simulation1/moser600.ini'
 grid_filepath = '/projects/1/flowsim/simulation1/grid.0000000'
 #input_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/'
-output_directory = '/home/robinst/microhh/cases/moser600/git_repository/Training data'
+#output_directory = '/home/robinst/microhh/cases/moser600/git_repository/Training data'
 #settings_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/moser600.ini'
 #grid_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/grid.0000000'
 training_filepath = output_directory + 'training_data.nc'
@@ -124,5 +124,5 @@ means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
 
 #NOTE1:Original downsampling (to downsample from 100m to 4m in horizontal directions): (64,16,32)
 #NOTE2: Resolution of high-resolution simulations is (256,384,768)
-generate_training_data((64,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath)
-#generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_binary = True, create_netcdf = False, store_means_stdevs = True)
+#generate_training_data((64,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath)
+generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_binary = True, create_netcdf = False, store_means_stdevs = True)

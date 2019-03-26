@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 import netCDF4 as nc
 import os
 import tensorflow as tf
@@ -43,7 +44,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     a = nc.Dataset(training_filepath, 'r')
     
     #Define shapes of output arrays based on stored training data
-    nt,nz,ny,nx = a['unres_tau_xu'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
+    nt,nz,ny,nx = a['unres_tau_xu_tot'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
 #    nt = 2 ###NOTE:FOR TESTING PURPOSES!!! REMOVE LATER ON!!!!
     size_samples = int(a['size_samples'][:])
     size_samples_gradients = size_samples - 2 #NOTE:To calculate the gradients, 2 additional grid points need to be used in each direction. To ensure that the considered region is the same for the absolute wind velocities and the gradients, the samples of the gradients therefore need to be 2 grid points shorter.
@@ -53,7 +54,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     cells_around_centercell_gradients = int(size_samples_gradients // 2.0)
     if nz < size_samples:
         raise ValueError("The number of vertical layers should at least be equal to the specified sample size.")
-    nsamples = (nz - 2*cells_around_centercell) * ny * nx #NOTE: '-2*cells_around_centercell' needed to account for the vertical layers that are discarded in the sampling
+    nsamples = nz * ny * nx
     
     #Define arrays to store means and stdevs according to store_means_stdevs flag
     if store_means_stdevs:
@@ -116,6 +117,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     tot_sample_num = 0
     create_file = True
     for t in range(nt):
+    #for t in range(1): #FOR TESTING PURPOSES ONLY!
         #Define some auxilary variables to keep track of sample numbers
         tot_sample_begin = tot_sample_num #
         sample_num = 0
@@ -160,9 +162,11 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         igc                     = int(a['igc'][:])
         jgc                     = int(a['jgc'][:])
         kgc_center              = int(a['kgc_center'][:])
+        kgc_edge                = int(a['kgc_edge'][:])
         iend                    = int(a['iend'][:])
         jend                    = int(a['jend'][:])
         kend                    = int(a['kend'][:])
+        khend                   = int(a['khend'][:])
    
         uc_singlefield = np.array(a['uc'][t,:,:,:])
         vc_singlefield = np.array(a['vc'][t,:,:,:])
@@ -179,20 +183,6 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         unres_tau_zv_singlefield = np.array(a["unres_tau_zv_tot"][t,:,:,:])
         unres_tau_zw_singlefield = np.array(a["unres_tau_zw_tot"][t,:,:,:])
 
-        #Calculate gradients of wind speed and pressure fields#
-        #NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
-        #NOTE2: if the half-channel width delta is not equal to 1, revise the gradients calculation below!
-        zhgc = np.array(a['zhgc'][:])
-        zgc  = np.array(a['zgc'][:])
-        yhgc  = np.array(a['yhgc'][:])
-        ygc  = np.array(a['ygc'][:])
-        xhgc = np.array(a['xhgc'][:])
-        xgc  = np.array(a['xgc'][:])
-        pgradz,pgrady,pgradx = np.gradient(pc_singlefield,zgc,ygc,xgc,edge_order=2)
-        wgradz,wgrady,wgradx = np.gradient(wc_singlefield,zhgc,ygc,xgc,edge_order=2)
-        vgradz,vgrady,vgradx = np.gradient(vc_singlefield,zgc,yhgc,xgc,edge_order=2)
-        ugradz,ugrady,ugradx = np.gradient(uc_singlefield,zgc,ygc,xhgc,edge_order=2)
-
         #Define arrays to store for each sample the locations and time step
         zhc = np.array(a['zhc'][:])
         zc  = np.array(a['zc'][:])
@@ -208,6 +198,20 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         yloc_samples   = np.zeros((nsamples,1))
         xhloc_samples  = np.zeros((nsamples,1))
         xloc_samples   = np.zeros((nsamples,1))
+
+        #Calculate gradients of wind speed and pressure fields#
+        #NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
+        #NOTE2: if the half-channel width delta is not equal to 1, revise the gradients calculation below!
+        zhgc = np.array(a['zhgc'][:])
+        zgc  = np.array(a['zgc'][:])
+        yhgc  = np.array(a['yhgc'][:])
+        ygc  = np.array(a['ygc'][:])
+        xhgc = np.array(a['xhgc'][:])
+        xgc  = np.array(a['xgc'][:])
+        pgradz,pgrady,pgradx = np.gradient(pc_singlefield,zgc,ygc,xgc,edge_order=2)
+        wgradz,wgrady,wgradx = np.gradient(wc_singlefield,zhgc,ygc,xgc,edge_order=2)
+        vgradz,vgrady,vgradx = np.gradient(vc_singlefield,zgc,yhgc,xgc,edge_order=2)
+        ugradz,ugrady,ugradx = np.gradient(uc_singlefield,zgc,ygc,xhgc,edge_order=2)
 
         #Calculate means and stdevs according to store_means_stdevs flag
         if store_means_stdevs:
@@ -265,12 +269,212 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             stdev_unres_tau_yw[t] = np.std(unres_tau_yw_singlefield)
             stdev_unres_tau_zw[t] = np.std(unres_tau_zw_singlefield)
 
+        ###Add vertical ghost cells to allow sampling of the bottom and top of the domain, which is done by extrapolating the vertical profile.###
+        vert_ghost_unstag = max(cells_around_centercell - kgc_center, 0) #max(...) ensures that this variable is not set to negative values
+        vert_ghost_stag   = max(cells_around_centercell - kgc_edge, 0)
+
+        #Set corresponding amount of vertical ghostcells for variables with unstaggered vertical dimension
+        if vert_ghost_unstag > 0:
+
+            #Throw warning when kgc_center is different from 1 since this has not been properly tested.
+            if kgc_center != 1:
+                warnings.warn("The amount of ghost cells in the non-staggered vertical dimension is different from 1, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
+
+        
+            #Extract reversed vertical profiles for ghost cells
+            #NOTE1: it is taken into account that the velocity field already contains kgc_center ghost cells in the vertical direction
+            #NOTE2: for the gradients, the already existing ghost cell is replaced as well since it was not calculated using central differences (see documentation np.gradients, specificially the paramater edge_order).
+            #
+            u_ghosts_bottom = np.flip(-uc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            u_ghosts_top    = np.flip(-uc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
+            #
+            v_ghosts_bottom = np.flip(-vc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            v_ghosts_top    = np.flip(-vc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
+            #
+            p_ghosts_bottom = np.flip(-pc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            p_ghosts_top    = np.flip(-pc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
+            #
+            ugradx_ghosts_bottom = np.flip(-ugradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            ugradx_ghosts_top    = np.flip(-ugradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            ugrady_ghosts_bottom = np.flip(-ugrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            ugrady_ghosts_top    = np.flip(-ugrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            ugradz_ghosts_bottom = np.flip(-ugradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            ugradz_ghosts_top    = np.flip(-ugradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            vgradx_ghosts_bottom = np.flip(-vgradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            vgradx_ghosts_top    = np.flip(-vgradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            vgrady_ghosts_bottom = np.flip(-vgrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            vgrady_ghosts_top    = np.flip(-vgrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            vgradz_ghosts_bottom = np.flip(-vgradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            vgradz_ghosts_top    = np.flip(-vgradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            pgradx_ghosts_bottom = np.flip(-pgradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            pgradx_ghosts_top    = np.flip(-pgradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            pgrady_ghosts_bottom = np.flip(-pgrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            pgrady_ghosts_top    = np.flip(-pgrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+            #
+            pgradz_ghosts_bottom = np.flip(-pgradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+            pgradz_ghosts_top    = np.flip(-pgradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+
+            #Initialize new arrays to store flow fields with additional ghost cells
+            uc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+            uc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = uc_singlefield[:,:,:]
+            #
+            vc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+            vc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = vc_singlefield[:,:,:]
+            #
+            pc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+            pc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = pc_singlefield[:,:,:]
+            #            
+            ugradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+            ugradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugradx[kgc_center:kend,:,:]
+            #            
+            ugrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+            ugrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugrady[kgc_center:kend,:,:]
+            # 
+            ugradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+            ugradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugradz[kgc_center:kend,:,:]
+            #
+            vgradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+            vgradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgradx[kgc_center:kend,:,:]
+            #            
+            vgrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+            vgrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgrady[kgc_center:kend,:,:]
+            # 
+            vgradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+            vgradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgradz[kgc_center:kend,:,:]
+            #
+            pgradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+            pgradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgradx[kgc_center:kend,:,:]
+            #            
+            pgrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+            pgrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgrady[kgc_center:kend,:,:]
+            # 
+            pgradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+            pgradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgradz[kgc_center:kend,:,:]
+            
+            #Insert extracted vertical profiles as additional ghost cells
+            uc_singlefield_kghost[:vert_ghost_unstag,:,:]  = u_ghosts_bottom[:,:,:]
+            uc_singlefield_kghost[-vert_ghost_unstag:,:,:] = u_ghosts_top[:,:,:]
+            #
+            vc_singlefield_kghost[:vert_ghost_unstag,:,:]  = v_ghosts_bottom[:,:,:]
+            vc_singlefield_kghost[-vert_ghost_unstag:,:,:] = v_ghosts_top[:,:,:]
+            #
+            pc_singlefield_kghost[:vert_ghost_unstag,:,:]  = p_ghosts_bottom[:,:,:]
+            pc_singlefield_kghost[-vert_ghost_unstag:,:,:] = p_ghosts_top[:,:,:]
+            #
+            ugradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugradx_ghosts_bottom[:,:,:]
+            ugradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugradx_ghosts_top[:,:,:]
+            #
+            ugrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugrady_ghosts_bottom[:,:,:]
+            ugrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugrady_ghosts_top[:,:,:]
+            #
+            ugradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugradz_ghosts_bottom[:,:,:]
+            ugradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugradz_ghosts_top[:,:,:]
+            #
+            vgradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgradx_ghosts_bottom[:,:,:]
+            vgradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgradx_ghosts_top[:,:,:]
+            #
+            vgrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgrady_ghosts_bottom[:,:,:]
+            vgrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgrady_ghosts_top[:,:,:]
+            #
+            vgradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgradz_ghosts_bottom[:,:,:]
+            vgradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgradz_ghosts_top[:,:,:]
+            #
+            pgradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgradx_ghosts_bottom[:,:,:]
+            pgradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgradx_ghosts_top[:,:,:]
+            #
+            pgrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgrady_ghosts_bottom[:,:,:]
+            pgrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgrady_ghosts_top[:,:,:]
+            #
+            pgradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgradz_ghosts_bottom[:,:,:]
+            pgradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgradz_ghosts_top[:,:,:]
+
+        else:
+            
+            #For consistency, initialize the arrays in the if-statement above without actually adding vertical ghost cells.
+            uc_singlefield_kghost = uc_singlefield[:,:,:]
+            vc_singlefield_kghost = vc_singlefield[:,:,:]
+            pc_singlefield_kghost = pc_singlefield[:,:,:]
+            ugradx_kghost         = ugradx[:,:,:]
+            ugrady_kghost         = ugrady[:,:,:]
+            ugradz_kghost         = ugradz[:,:,:] 
+            vgradx_kghost         = vgradx[:,:,:]
+            vgrady_kghost         = vgrady[:,:,:]
+            vgradz_kghost         = vgradz[:,:,:]
+            pgradx_kghost         = pgradx[:,:,:]
+            pgrady_kghost         = pgrady[:,:,:]
+            pgradz_kghost         = pgradz[:,:,:]
+
+        #Add ghost cells for variables with staggered vertical dimension
+        if vert_ghost_stag > 0:
+
+            #Throw warning when kgc_edge is more than 0 since this has not been properly tested.
+            if kgc_edge > 0:
+                warnings.warn("The amount of ghost cells in the staggered vertical dimension is larger than 0, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
+        
+            #Extract reversed vertical profiles for ghost cells
+            #NOTE1: it is taken into account that the velocity field already contains kgc_edge ghost cells in the vertical direction
+            #NOTE2: +1/-1 added to ensure the bottom/top BC is not two times included
+            #NOTE3: for the gradients, the possibly already existing ghost cell(s) kgc_edge is replaced as well since it was not calculated using central differences (see documentation np.gradients, specificially the paramater edge_order).
+            #
+            w_ghosts_bottom = np.flip(-wc_singlefield[2*kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+            w_ghosts_top    = np.flip(-wc_singlefield[khend - kgc_edge - vert_ghost_stag - 1:khend - 1 - kgc_edge,:,:], axis=0)
+            #
+            wgradx_ghosts_bottom = np.flip(-wgradx[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+            wgradx_ghosts_top    = np.flip(-wgradx[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
+            #
+            wgrady_ghosts_bottom = np.flip(-wgrady[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+            wgrady_ghosts_top    = np.flip(-wgrady[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
+            #
+            wgradz_ghosts_bottom = np.flip(-wgradz[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+            wgradz_ghosts_top    = np.flip(-wgradz[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
+
+            #Initialize new arrays to store flow fields with additional ghost cells
+            wc_singlefield_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+            wc_singlefield_kghost[vert_ghost_stag:-vert_ghost_stag,:,:] = wc_singlefield[:,:,:]
+            #
+            wgradx_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+            wgradx_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgradx[kgc_edge:khend,:,:]
+            #
+            wgrady_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+            wgrady_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgrady[kgc_edge:khend,:,:]
+            #
+            wgradz_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+            wgradz_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgradz[kgc_edge:khend,:,:]
+            
+            #Insert extracted vertical profiles as additional ghost cells
+            wc_singlefield_kghost[:vert_ghost_stag,:,:]  = w_ghosts_bottom[:,:,:]
+            wc_singlefield_kghost[-vert_ghost_stag:,:,:] = w_ghosts_top[:,:,:]
+            #
+            wgradx_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgradx_ghosts_bottom[:,:,:]
+            wgradx_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgradx_ghosts_top[:,:,:]
+            #
+            wgrady_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgrady_ghosts_bottom[:,:,:]
+            wgrady_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgrady_ghosts_top[:,:,:]
+            #
+            wgradz_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgradz_ghosts_bottom[:,:,:]
+            wgradz_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgradz_ghosts_top[:,:,:]
+
+        else:
+            
+            #For consistency, initialize the arrays in the if-statement above without actually adding vertical ghost cells.
+            wc_singlefield_kghost = wc_singlefield[:,:,:]
+            wgradx_kghost         = wgradx[:,:,:]
+            wgrady_kghost         = wgrady[:,:,:]
+            wgradz_kghost         = wgradz[:,:,:]
+
+
         ###Do the actual sampling.###
-        for index_z in range(kgc_center + cells_around_centercell, kend - cells_around_centercell): #Make sure no vertical levels are sampled where because of the vicintiy to the wall no samples of 5X5X5 grid cells can be taken.
-            #NOTE: Since the grid edges in the vertical direction contain no ghost cells, no use can be made of the ghost cell present for the grid centers in the vertical direction.
+        for index_z in range(cells_around_centercell, kend + cells_around_centercell - kgc_center): #NOTE: -kgc_center compensates for the fact that effectively cells_around_centercell - kgc_center ghost cells were added on each side, which causes the indices of the non-ghost cells in between to shift with this amount as well. In this script kend (which signals the end of the non-ghostcell part of the array) therefore has to be shifted this amount as well since it was not yet included in the array when kend was defined.
             index_zlow                    = index_z - cells_around_centercell
             index_zhigh                   = index_z + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
-            index_z_noghost               = index_z - kgc_center
+            index_z_noghost               = index_z - cells_around_centercell
             # Idem for gradients
             index_zlow_gradients          = index_z - cells_around_centercell_gradients
             index_zhigh_gradients         = index_z + cells_around_centercell_gradients + 1
@@ -292,22 +496,22 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     index_xhigh_gradients = index_x + cells_around_centercell_gradients + 1
     
                     #Take samples of 5x5x5 and store them
-                    uc_samples[sample_num,:,:,:]     = uc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow-1:index_zhigh-1,index_ylow:index_yhigh,index_xlow:index_xhigh] #NOTE: -1 needed to account for missing ghost cells in vertical direction when considering the grid edges.
-                    pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients-1:index_zhigh_gradients-1,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients-1:index_zhigh_gradients-1,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients-1:index_zhigh_gradients-1,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    uc_samples[sample_num,:,:,:]     = uc_singlefield_kghost[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    vc_samples[sample_num,:,:,:]     = vc_singlefield_kghost[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    wc_samples[sample_num,:,:,:]     = wc_singlefield_kghost[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    pc_samples[sample_num,:,:,:]     = pc_singlefield_kghost[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    ugradx_samples[sample_num,:,:,:] = ugradx_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    ugrady_samples[sample_num,:,:,:] = ugrady_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    ugradz_samples[sample_num,:,:,:] = ugradz_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgradx_samples[sample_num,:,:,:] = vgradx_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgrady_samples[sample_num,:,:,:] = vgrady_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgradz_samples[sample_num,:,:,:] = vgradz_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgradx_samples[sample_num,:,:,:] = wgradx_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgrady_samples[sample_num,:,:,:] = wgrady_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgradz_samples[sample_num,:,:,:] = wgradz_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgradx_samples[sample_num,:,:,:] = pgradx_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgrady_samples[sample_num,:,:,:] = pgrady_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgradz_samples[sample_num,:,:,:] = pgradz_kghost[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
         
                     #Store corresponding unresolved transports
                     unres_tau_xu_samples[sample_num] = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
