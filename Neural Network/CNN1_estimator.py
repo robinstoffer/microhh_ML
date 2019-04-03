@@ -3,6 +3,7 @@ from custom_hooks import MetadataHook
 import numpy as np
 import netCDF4 as nc
 import tensorflow as tf
+import horovod.tensorflow as hvd
 import random
 import os
 import subprocess
@@ -11,6 +12,9 @@ import argparse
 import matplotlib
 matplotlib.use('agg')
 from tensorflow.python import debug as tf_debug
+import mpi4py.rc
+mpi4py.rc.initialize = False #Make sure mpi4py is not re-initialized
+from mpi4py import MPI
 #import seaborn as sns
 #sns.set(style="ticks")
 #import pandas
@@ -60,8 +64,12 @@ parser.add_argument('--checkpoint_steps', type=int, default=10000, \
         help='Every nth step, a checkpoint of the model is written')
 args = parser.parse_args()
 
+
+#Initialize Horovod
+hvd.init()
+
 #Define settings
-batch_size = args.batch_size
+batch_size = int(args.batch_size / hvd.size()) #Compensate batch size for number of workers
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 #output_variable = 'unres_tau_zu_sample'
 
@@ -189,12 +197,14 @@ def _parse_function(example_proto,means,stdevs):
 #Define training input function
 def train_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.shuffle(len(filenames)).repeat()
+    #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
+    dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computationel effort since memory becomes satured. 
+    dataset = dataset.shuffle(buffer_size=10000)
+    dataset = dataset.repeat()
     dataset = dataset.batch(batch_size)
-    #dataset.apply(tf.data.experimental.shuffle_and_repeat(buffer_size=len(filenames), count=None))
-    #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line, label_name), batch_size))
     dataset.prefetch(1)
+
     return dataset
 
 def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: used for both training and evaluation with synthetic data
@@ -243,10 +253,10 @@ def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: u
 #Define evaluation function
 def eval_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.shuffle(len(filenames)) #Prevent for train_and_evaluate function applied below each time the same files are chosen NOTE: only needed when evaluation is not done on whole validation set (i.e. steps is not None)
+    #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
+    dataset = dataset.cache() 
     dataset = dataset.batch(batch_size)
-    #dataset.apply(tf.data.experimental.map_and_batch(lambda line:_parse_function(line,label_name), batch_size))
     dataset.prefetch(1)
 
     return dataset    
@@ -372,14 +382,14 @@ def CNN_model_fn(features,labels,mode,params):
         return tf.math.log(result), update_op
 
     #Compute evaluation metrics.
-    rmse_tau_total,update_op_rmse = tf.metrics.root_mean_squared_error(labels, output)
     tf.summary.histogram('labels', labels) #Visualize labels
-    log_loss_eval, update_op_loss = log_loss_metric(labels, output)
-    metrics = {'rmse':(rmse_tau_total,update_op_rmse),'log_loss':(log_loss_eval, update_op_loss)}
-    #tf.summary.scalar('rmse',rmse_tau_total)
-    #tf.summary.scalar('log_loss',log_loss)
     if mode == tf.estimator.ModeKeys.EVAL:
-        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
+        rmse_tau_total,update_op_rmse = tf.metrics.root_mean_squared_error(labels, output)
+        log_loss_eval, update_op_loss = log_loss_metric(labels, output)
+        rmse_metric = hvd.allreduce(rmse_tau_total) #Average validation metrics over all workers using allreduce
+        log_loss_metric = hvd.allreduce(log_loss_eval) #NOTE: the metrics are averaged over all the workers while the update_ops are not. This should be no problem.
+        val_metrics = {'rmse':(rmse_metric, update_op_rmse),'log_loss':(log_loss_metric, update_op_loss)} 
+        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=val_metrics)
         #return tf.estimator.EstimatorSpec(mode, loss=loss)
 
     #Create training op.
@@ -388,7 +398,11 @@ def CNN_model_fn(features,labels,mode,params):
     log_loss_training = tf.math.log(loss)
     tf.summary.scalar('log_loss', log_loss_training)
 
-    optimizer = tf.train.AdamOptimizer(params['learning_rate'])
+    optimizer = tf.train.AdamOptimizer(params['learning_rate'] * hvd.size())
+    
+    #Add Horovod distributed optimizer
+    optimizer = hvd.DistributedOptimizer(optimizer)
+
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
 
     #Write all trainable variables to Tensorboard
@@ -425,8 +439,15 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
         val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
     j+=1
 
-print('Train files: ' + str(train_filenames))
-print('Validation files: ' + str(val_filenames))
+#print('Train files: ' + str(train_filenames))
+#print('Validation files: ' + str(val_filenames))
+
+#Distribute training files over workers
+train_filenames_worker = np.array_split(train_filenames, hvd.size())[int(hvd.rank())] #Get one subarray from whole array of training files for each worker, which have (near-)equal sizes.
+print('Train files of worker ' + str(hvd.rank()) + ': ' + str(train_filenames_worker))
+
+val_filenames_worker = np.array_split(val_filenames, hvd.size())[int(hvd.rank())] #Get one subarray from whole array of training files for each worker, which have (near-)equal sizes.
+print('Val files of worker ' + str(hvd.rank()) + ': ' + str(val_filenames_worker))
 
 ##FOR TESTING PURPOSES ONLY!
 #if args.gradients is None:
@@ -581,9 +602,17 @@ os.environ['KMP_SETTINGS'] = str(1)
 os.environ['KMP_AFFINITY'] = 'granularity=fine,compact,1,0'
 os.environ['OMP_NUM_THREADS'] = str(args.intra_op_parallelism_threads)
 
-# Save checkpoints only on worker 0 to prevent other workers from corrupting them.
-# if hvd.rank()==0:
-checkpoint_dir = args.checkpoint_dir
+# Horovod: save checkpoints only on worker 0 to prevent other workers from corrupting them.
+if hvd.rank()==0:
+    checkpoint_dir = args.checkpoint_dir
+else:
+    checkpoint_dir = None
+
+
+#Horovod: BroadcastGlobalVariablesHook broadcasts initial variable states from rank 0 to all other processes. \
+        # This is necessary to ensure consistent initialisation of all workers when training is started with \
+        # random weights or restored from a checkpoint.
+bcast_hook = hvd.BroadcastGlobalVariablesHook(0)
 
 #Create RunConfig object to save check_point in the model_dir according to the specified schedule, and to define the session config
 my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir, tf_random_seed=random_seed, save_summary_steps=args.summary_steps, save_checkpoints_steps=args.checkpoint_steps, session_config=config,keep_checkpoint_max=None, keep_checkpoint_every_n_hours=10000, log_step_count_steps=10, train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
@@ -611,52 +640,45 @@ hyperparams =  {
 }
 
 ##val whether tfrecords files are correctly read.
-#dataset_samples = train_input_fn(train_filenames, batch_size, output_variable)
+#dataset_samples = train_input_fn(train_filenames_worker, batch_size, output_variable)
 
 #Instantiate an Estimator with model defined by model_fn
 CNN = tf.estimator.Estimator(model_fn = CNN_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir)
 
 #custom_hook = MetadataHook(save_steps = 1000, output_dir = checkpoint_dir) #Initialize custom hook designed for storing runtime statistics that can be read using TensorBoard in combination with tf.Estimator.NOTE:an unavoidable consequence is unfortunately that the other summaries are not stored anymore. The only option to store all summaries and the runtime statistics in Tensorboard is to use low-level Tensorflow API.
 
-profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
+if hvd.rank() == 0:
+    profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
 
-if args.debug:
+if hvd.rank() == 0 and args.debug:
     debug_hook = tf_debug.LocalCLIDebugHook()
-    hooks = [profiler_hook, debug_hook]
+    hooks = [profiler_hook, bcast_hook, debug_hook]
+elif hvd.rank() == 0:
+    hooks = [profiler_hook, bcast_hook]
 else:
-    hooks = [profiler_hook]
+    hooks = [bcast_hook]
+
+##Make sure MPI processes wait for each other to prevent deadlock
+#print('Worker ' + str(hvd.rank()) + ' reached first barrier')
+#comm = MPI.COMM_WORLD
+#comm.barrier()
+#print('Worker ' + str(hvd.rank()) + ' continued')
 
 if args.synthetic is None:
     #Train and evaluate CNN
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=1000, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames_worker, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks) #Horovod:scaled batch size with number of workers
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames_worker, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
-#    #Train the CNN
-#    CNN.train(input_fn=lambda:train_input_fn(train_filenames,batch_size,output_variable),steps=num_steps, hooks=[profiler_hook])
-
-    #Evaluate the CNN on all validation data (no imposed limit on training steps)
-    #eval_results = CNN.evaluate(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None)
-    #print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))
-    print('Used real data')
-#    predictions = CNN.predict(input_fn = lambda:eval_input_fn(val_filenames, batch_size, output_variable))
 #    NOTE: CNN.predict appeared to be unsuitable to compare the predictions from the CNN to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
 
 else:
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = True), max_steps=num_steps, hooks=hooks)
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated for 1000 training steps
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = True), max_steps=num_steps, hooks=hooks) #Horovod:scaled batch size with number of workers
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None, name='CNN1', start_delay_secs=120, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
-#    #Train the CNN
-#    CNN.train(input_fn=lambda:train_input_synthetic_fn(batch_size, num_steps), steps=num_steps, hooks=[profiler_hook])
-    #Evaluate the CNN afterwards
-    eval_results = CNN.evaluate(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None) #NOTE: putting steps at None or 1000 is equivalent.
-    print('\nValidation set RMSE: {rmse:.10e}\n'.format(**eval_results))  
-    print('Used synthetic data')
-
-
 #'Hacky' solution to compare the predictions of the CNN to the true labels stored in the TFRecords files. NOTE: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
-if args.benchmark is None and args.synthetic is None:
+if args.benchmark is None and args.synthetic is None and hvd.rank() == 0:
 
     print('Start making predictions for validation files.')
    
