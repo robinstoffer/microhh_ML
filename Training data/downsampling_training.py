@@ -6,6 +6,8 @@ import numpy as np
 import warnings
 
 def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid):
+    """ Function that downsamples a variable in finegrid, located at the center of the grid cells, to a coarse grid cell centered around cor_c_middle and with size dist_corc. Since the control volume of such a variable is defined by the edges of the grid cells, the cor_edges are used to select the correct cells of the fine grid and to calculate the corresponding weights (or to be more precise, fractions)."""
+
     dist_corc = np.round(dist_corc, finegrid.sgn_digits)
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
@@ -55,6 +57,8 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid
     return weights, points_indices_cor
 
 def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid, periodic_bc = True, zero_w_topbottom = True, size = 0): #For 'size' a default value is used that should not affect results as long as vert_flag = False.
+    """ Function that downsamples a variable in finegrid, located at the edge of the grid cells, to a coarse grid cell centered around cor_c_middle and with size dist_corc. Since the control volume of such a variable is defined by the centers of the grid cells, the cor_center are used to select the correct cells of the fine grid and to calculate the corresponding weights (or to be more precise, fractions). NOTE: to deal with the edges of the domain, it needs to be specified whether periodic bc and zero_w_topbottom are present (True) or not (False). Furthermore, the size of the domain needs to be specified as well. """
+    
     dist_corc = np.round(dist_corc, finegrid.sgn_digits)
     cor_c_bottom = cor_c_middle - 0.5*dist_corc
     cor_c_top = cor_c_middle + 0.5*dist_corc
@@ -213,10 +217,15 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
     return weights, points_indices_cor
 
 def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False, False, False), periodic_bc = (False, True, True), zero_w_topbottom = True):
-    """Function to generate coarse grid with variables and total transport of momentum for creation training data. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates.
-    Variable_name specifies the variable to calculate on the coarse grid.
-    Bool_edge_gridcell indicates in a tuple for each spatial direction (z, y, x) whether they should be aligned at the center of the grid cells (False) or the edges (True).
-    Periodic_bc indicates in a tuple for each spatial direction (z, y, x) whether periodic boundary conditions are assumed (True when present, False when not present)."""
+    """Function to generate coarse grid with variables from a fine grid. Returns the specified variable on the coarse grid, together with the corresponding weights and coarse coordinates. The inputs are as follows:
+    
+    -variable_name: string that specifies the variable to calculate on the coarse grid.
+    
+    -bool_edge_gridcell: a tuple with a boolean for each spatial direction (z, y, x), indicating whether they should be aligned at the center of the grid cells (False) or the edges (True).
+    
+    -periodic_bc: a tuple with a boolean for each spatial direction (z, y, x), indicating  whether periodic boundary conditions are assumed (True when present, False when not present).
+    
+    -zero_w_topbottom: boolean specifying whether the vertical wind velocity is 0 at the bottom and top levels of the domain or not."""
 
     #Read in the right coarse coordinates determined by bool_edge_gridcell.
     #z-direction

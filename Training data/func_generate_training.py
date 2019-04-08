@@ -39,7 +39,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         -size_samples: an integer specifying the size of the samples that are eventually extracted in the sample_training_data_tfrecord.py script. This is used to determine the correct amount of ghost cells. \\
         -precision: should be either 'double' or 'single'; specifies the required floating point precision for the calculations. \\
         -fourth_order: a boolean flag specifying the order of the interpolations. When False, second-order interpolation is used. When True, an error is thrown because fourth-order interpolation has not been implemented yet. \\
-        -periodic_bc: a tuple existing of three booleans, who specifies for each coordinate direction (z,y,x) whether a periodic bc should be implemented. \\ 
+        -periodic_bc: a tuple existing of three booleans, which specifies for each coordinate direction (z,y,x) whether a periodic bc should be implemented. \\ 
         NOTE1: for the required ghost cells in the horizontal directions this is the only implemented way to include them. Consequently, setting the booleans equal to False in the horizontal directions will result in errors being thrown. \\
         NOTE2: no periodic bc has been implemented in the vertical direction. Consequently, setting the boolean in the vertical direction equal to True will results in an error being thrown. \\
         -zero_w_topbottom: boolean specifying whether the vertical wind velocities is 0 at the bottom and top levels of the domain or not. Since this is currently the only implemented way to include ghost cells in the vertical direction, setting the boolean equal to False will result in an error being thrown. \\
@@ -124,7 +124,9 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     mvisc_ref = mvisc / (utau_ref * channel_half_width)
 
     #Loop over timesteps
-    for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. NOTE: when testing, the # of timesteps is by default set equal to 1.
+    for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
+        #NOTE1: does not select the last time step stored ('endtime' in {case}.ini file, this would require timesteps + 1 iterations.
+        #NOTE2: when testing, the # of timesteps is by default set equal to 1.
     #for t in range(1): #FOR TESTING PURPOSES ONLY!
         ##Read or define fine-resolution DNS data ##
         ############################################

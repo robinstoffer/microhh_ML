@@ -8,22 +8,28 @@ import microhh_tools_robinst as tools
 import os
 
 class Finegrid:
-    """ Returns a single object that can read from MicroHH output binary files the grid and output variables. For testing purposes, the grid and output variables can also be explicitly defined.
+    """ Returns a single object that can read from MicroHH output binary files the grid and output variables. For testing purposes, the grid and output variables can also be explicitly defined. Furthermore, the object contains methods to implement ghost cells and calculate the volume integral. The inputs for this script are:
         
-        -The precision indicates the floating point precision of the fine resolution data, which is either 'single' or 'double'.
-       
-        -The fourth_order flag indicates the order of the needed spatial interpolation in later processing steps, making sure sufficient ghost cells are added.
-         If true, ghost cells are implemented for fourth_order interpolation. If false (default), ghost cells are added for second order spatial interpolation.
-
-        -The periodic_bc should indicate in a tuple for each spatial direction (z, y, x) whether periodic boundary conditions are assumed (True when present, False when not present).
-        
-        -The read_grid flag indicates whether the grid is read from an existing simulation (True) or explicitly defined for testing purposes (False).
-         When read_grid flag is True, specify explicitly (using keywords) grid_filename and settings_filename.
-            -If no grid filename is provided, grid.0000000 from the current directory is read.
-            -If no settings filename is provided, a .ini file should be present in the current directory to read.
+        -read_grid flag: whether the grid is read from an existing simulation (True) or explicitly defined for testing purposes (False).
+         When read_grid flag is True, specify explicitly (using keywords) grid_filepath and settings_filepath.
+            -If no grid filepath is provided, grid.0000000 from the current directory is read.
+            -If no settings filepath is provided, a .ini file should be present in the current directory to read.
          When read_grid flag is False, specifiy explicitly (using keywords) each spatial coordinate (coordz,coordy,coordx) as a 1d numpy array, e.g. Finegrid(read_grid_flag = False, coordx = np.array([1,2,3]),xsize = 4, coordy = np.array([0.5,1.5,3.5,6]), ysize = 7, coordz = np.array([0.1,0.3,1]), zsize = 1.2).
          Furthermore, for each spatial dimension the length should be indicated (zsize,ysize,xsize), which has to be larger than the last spatial coordinate in each dimension. 
-         Each coordinate should 1) refer to the center of the grid cell, 2) be larger than 0, 3) be larger than the previous coordinate in the same direction."""
+         Each coordinate should 1) refer to the center of the grid cell, 2) be larger than 0, 3) be larger than the previous coordinate in the same direction. Furthermore, in the x- and y-direction the specified should be uniform (i.e. constant grid distance).
+
+        -precision: The precision indicates the floating point precision of the fine resolution data, which is either 'single' or 'double'.
+       
+        -fourth_order flag: indicates the order of the needed spatial interpolation in later processing steps, making sure sufficient ghost cells are added.
+         If true, ghost cells are implemented for fourth_order interpolation. If false (default), ghost cells are added for second order spatial interpolation.
+
+        -periodic_bc: should be a tuple indicating for each spatial direction (z, y, x) whether periodic boundary conditions are assumed (True when present, False when not present).
+        
+        -zero_w_topbottom: boolean specifying whether the vertical wind velocity is 0 at the bottom and top levels of the domain or not.
+        
+        -normalisation_grid: boolean indicating if the specified height of the simulation should be used to normalize the coordinate axes (True), which is for the a turbulent channel flow equal to the half-channel width."""
+        
+
     def __init__(self, read_grid_flag = True , precision = 'double', fourth_order = False, periodic_bc = (False, True, True), zero_w_topbottom = True, normalisation_grid = False, **kwargs):
         
         # Test whether types of input variables are correct.
@@ -326,7 +332,8 @@ class Finegrid:
         
     def __add_ghostcells(self, variable_name):
         """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name. 
-            The samples at the end of the array are repeated at the beginning and vice versa. Furthermore, the ghostcells are added to the coordinates as well."""
+            For periodic_bc, the samples at the end of the array are repeated at the beginning and vice versa.
+            For zero_w_topbottom bc, the samples are extrapolated such that w=0 at the edges of the domain."""
             
         #Check that variable_name is a string
         if not isinstance(variable_name, str):
@@ -479,7 +486,7 @@ class Finegrid:
         return corgc
     
     def __add_ghostcells_cor_ver(self, corgc, bgc, gc, endindex, cor, size):
-        """ Add 0 or 1 ghostcell to coordinates in vertical direction, making use of the no-slip BC. """
+        """ Add 0 or 1 ghostcell to coordinates in vertical direction, making use of the zero_w_topbottom BC. """
         corgc[gc:endindex-bgc] = cor[:]
         if not (gc == 0 or gc == 1):
             raise RuntimeError("Number of ghost cells to be added in vertical direction not consistent with specified BC's.")
@@ -573,10 +580,8 @@ class Finegrid:
             raise RuntimeError('Can\'t find variable \"{}\" in object.')
 
 class Coarsegrid:
-    """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid (dim_new_grid). 
         The dimensions of the coarse grid should be specified as a tuple (z,y,x).
-        Furthermore, a method is provided to downsample variables already present in the finegrid_ojbect.
-        NOTE: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible."""
+    """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. These dimensionsof the coarse grid should be specified as a tuple (z,y,x) (dim_new_grid). Optionally, the number of ghost cells in the horizontal directions (igc,jgc) can be specified as integers. By default, the corresponding amount of ghostcells in the finegrid_object are used. Besides that, a method is provided to downsample variables already present in the finegrid_ojbect. NOTE: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible."""
 
     def __init__(self, dim_new_grid, finegrid_object, **kwargs):
         

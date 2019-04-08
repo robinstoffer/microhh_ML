@@ -1,3 +1,5 @@
+#Script that calculates turbulent fluxes according to Smagorinsky sub-grid model.
+#Author: Robin Stoffer (robin.stoffer@wur.nl)
 import numpy as np
 import netCDF4 as nc
 

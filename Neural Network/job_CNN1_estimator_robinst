@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH -t 10:00:00
+#SBATCH -t 1:00:00
 ####SBATCH -t 5-00:00:00
 ####SBATCH -t 10:00:00
 ####SBATCH -N 1
-#SBATCH -N 4 --ntasks-per-node=1 -c 24
-####SBATCH -p short
+#SBATCH -N 3 --ntasks-per-node=1 -c 24
+#SBATCH -p short
 ####SBATCH -p gpu_short
 ####SBATCH -p gpu
 
@@ -15,7 +15,7 @@ PORT=40600
 
 cd
 #cd microhh/cases/moser600/simulation2
-cd /projects/1/flowsim/simulation1
+cd /projects/1/flowsim/simulation1/lesscoarse
 
 module purge
 module load eb
@@ -44,7 +44,11 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 #python3 CNN1_estimator.py > output_CNN1_estimator.txt
 #srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
-srun python3 /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN13' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
+
+#Enable Horovod timeline
+export HOROVOD_TIMELINE='/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN11/horovod.json'
+
+srun python3 /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN11' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --num_steps 3000 --batch_size 1000 --checkpoint_steps 1000
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
