@@ -185,7 +185,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             y_int = np.ravel(np.broadcast_to(ybound[np.newaxis,:,np.newaxis],(len(zbound),len(ybound),len(xbound))))
             x_int = np.ravel(np.broadcast_to(xbound[np.newaxis,np.newaxis,:],(len(zbound),len(ybound),len(xbound))))
  
-            interpolator = scipy.interpolate.RegularGridInterpolator((zghost, yghost, xghost), variable, method = 'linear', bounds_error = True, fill_value = 0.) #Make sure that w is equal to 0 at the top and bottom boundary (where extrapolation is needed because no ghost cells are defined).
+            interpolator = scipy.interpolate.RegularGridInterpolator((zghost, yghost, xghost), variable, method = 'linear', bounds_error = True) #Make sure error is thrown when interpolation outside of domain is required.
             interpolator_value = interpolator(np.transpose((z_int, y_int ,x_int))) #np.transpose added to reshape the arrays corresponding to the shape that is expected.
             var_int = np.reshape(interpolator_value,(len(zbound),len(ybound),len(xbound)))
  
@@ -248,7 +248,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #NOTE2: As a consequence of NOTE1, at len+1 iteration for any given coordinate, only weights have to be known at the grid centers for other two coordinates: only part of the total transport terms need to be calculated (i.e. the terms located on the grid side boundaries for the coordinate in the len+1 iteration). This is ensured by additonal if-statements that evaluate to False at the len+1 iteration.
         #NOTE3: for each transport component both the total turbulence AND viscous contribution is considered!
 
-        #Initialize first arrays for total transport components
+        #Initialize first arrays for total transport components and viscous transports on fine grid
         total_tau_xu_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
         total_tau_yu_turb = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']+1), dtype=float)
         total_tau_zu_turb = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']+1), dtype=float)
@@ -269,6 +269,69 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         total_tau_yw_visc = np.zeros((coarsegrid['grid']['ktot']+1, coarsegrid['grid']['jtot']+1, coarsegrid['grid']['itot']), dtype=float)
         total_tau_zw_visc = np.zeros((coarsegrid['grid']['ktot'],   coarsegrid['grid']['jtot'],   coarsegrid['grid']['itot']), dtype=float)
         
+        fine_tau_xu_visc = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        fine_tau_yu_visc = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
+        fine_tau_zu_visc = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
+        fine_tau_xv_visc = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
+        fine_tau_yv_visc = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        fine_tau_zv_visc = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
+        fine_tau_xw_visc = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
+        fine_tau_yw_visc = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
+        fine_tau_zw_visc = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+
+        interp_tau_xu_visc = np.zeros((finegrid['grid']['ktot'],     finegrid['grid']['jtot'],     coarsegrid['grid']['itot']), dtype=float)
+        interp_tau_yu_visc = np.zeros((finegrid['grid']['ktot'],     coarsegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
+        interp_tau_zu_visc = np.zeros((coarsegrid['grid']['ktot']+1, finegrid['grid']['jtot'],     finegrid['grid']['itot']+1), dtype=float)
+        interp_tau_xv_visc = np.zeros((finegrid['grid']['ktot'],     finegrid['grid']['jtot']+1,   coarsegrid['grid']['itot']+1), dtype=float)
+        interp_tau_yv_visc = np.zeros((finegrid['grid']['ktot'],     coarsegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        interp_tau_zv_visc = np.zeros((coarsegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1,   finegrid['grid']['itot']), dtype=float)
+        interp_tau_xw_visc = np.zeros((finegrid['grid']['ktot']+1,   finegrid['grid']['jtot'],     coarsegrid['grid']['itot']+1), dtype=float)
+        interp_tau_yw_visc = np.zeros((finegrid['grid']['ktot']+1,   coarsegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
+        interp_tau_zw_visc = np.zeros((coarsegrid['grid']['ktot'],   finegrid['grid']['jtot'],     finegrid['grid']['itot']), dtype=float)
+
+        #Check that at least one ghost cell is present in all directions, which is needed for the viscous transport calculations below
+        if not (finegrid.igc > 0 and finegrid.jgc > 0 and finegrid.kgc_center > 0):
+            raise RuntimeError("There should be at least one ghost cell present in the finegrid object for each direction in order to calculate the viscous transports.")
+
+        #Calculate viscous transport for all grid cells on fine grid
+        fine_tau_xu_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['u']['variable'][:,:,finegrid.igc+1:finegrid.ihend] - finegrid['output']['u']['variable'][:,:,finegrid.igc:finegrid.ihend-1]) / (finegrid['grid']['xh'][finegrid.igc+1:finegrid.ihend] - finegrid['grid']['xh'][finegrid.igc:finegrid.ihend-1])) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
+
+        fine_tau_yu_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['u']['variable'][:,finegrid.jgc:finegrid.jend+1,:] - finegrid['output']['u']['variable'][:,finegrid.jgc-1:finegrid.jend,:])/ (finegrid['grid']['y'][finegrid.jgc:finegrid.jend+1] - finegrid['grid']['y'][finegrid.jgc-1:finegrid.jend])) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        
+        fine_tau_zu_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,:,:] - finegrid['output']['u']['variable'][finegrid.kgc_center-1:finegrid.kend,:,:])/ (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend+1] - finegrid['grid']['z'][finegrid.kgc_center-1:finegrid.kend])) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+                  
+        fine_tau_xv_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['v']['variable'][:,:,finegrid.igc:finegrid.iend+1] - finegrid['output']['v']['variable'][:,:,finegrid.igc-1:finegrid.iend])/ (finegrid['grid']['x'][finegrid.igc:finegrid.iend+1] - finegrid['grid']['x'][finegrid.igc-1:finegrid.iend])) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+
+        fine_tau_yv_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['v']['variable'][:,finegrid.jgc+1:finegrid.jhend,:] - finegrid['output']['v']['variable'][:,finegrid.jgc:finegrid.jhend-1,:]) / (finegrid['grid']['yh'][finegrid.jgc+1:finegrid.jhend] - finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend-1])) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
+
+        fine_tau_zv_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,:,:] - finegrid['output']['v']['variable'][finegrid.kgc_center-1:finegrid.kend,:,:])/ (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend+1] - finegrid['grid']['z'][finegrid.kgc_center-1:finegrid.kend])) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        
+        fine_tau_xw_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['w']['variable'][:,:,finegrid.igc:finegrid.iend+1] - finegrid['output']['w']['variable'][:,:,finegrid.igc-1:finegrid.iend])/ (finegrid['grid']['x'][finegrid.igc:finegrid.iend+1] - finegrid['grid']['x'][finegrid.igc-1:finegrid.iend])) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+
+        fine_tau_yw_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['w']['variable'][:,finegrid.jgc:finegrid.jend+1,:] - finegrid['output']['w']['variable'][:,finegrid.jgc-1:finegrid.jend,:])/ (finegrid['grid']['y'][finegrid.jgc:finegrid.jend+1] - finegrid['grid']['y'][finegrid.jgc-1:finegrid.jend])) #NOTE: indices chosen such that length is one more in staggered direction of transport component, as is consistent with the location in the grid of the transport component
+        
+        fine_tau_zw_visc[:,:,:] = -mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge+1:finegrid.khend,:,:] - finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,:,:]) / (finegrid['grid']['zh'][finegrid.kgc_edge+1:finegrid.khend] - finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend-1])) #NOTE: indices chosen such that length is one less in staggered direction of velocity component, as is consistent with the location in the grid of the transport component
+
+        #Interpolate calculated viscous transports on fine grid to the edges of the control volume on the coarse grid
+        interp_tau_xu_visc[:,:,:] = _interpolate_side_cell(fine_tau_xu_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
+        
+        interp_tau_yu_visc[:,:,:] = _interpolate_side_cell(fine_tau_yu_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
+        
+        interp_tau_zu_visc[:,:,:] = _interpolate_side_cell(fine_tau_zu_visc, (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (coarsegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
+
+        interp_tau_xv_visc[:,:,:] = _interpolate_side_cell(fine_tau_xv_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
+
+        interp_tau_yv_visc[:,:,:] = _interpolate_side_cell(fine_tau_yv_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
+
+        interp_tau_zv_visc[:,:,:] = _interpolate_side_cell(fine_tau_zv_visc, (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]), (coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
+        
+        interp_tau_xw_visc[:,:,:] = _interpolate_side_cell(fine_tau_xw_visc, (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
+
+        interp_tau_yw_visc[:,:,:] = _interpolate_side_cell(fine_tau_yw_visc, (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]), (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
+
+        interp_tau_zw_visc[:,:,:] = _interpolate_side_cell(fine_tau_zw_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]), (coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['x'][finegrid.igc:finegrid.iend]))
+        
+        #Loop over indices coarse grid to calculate integrals for total turbulent AND viscous transport components
         for izc in range(len(coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend])+1):
             
             zcor_c_middle_edge = coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend][izc]
@@ -303,21 +366,21 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                         total_tau_xu_turb[izc,iyc,ixc] = np.sum(weights_y_center_z_center * u_uyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_center] ** 2)
                         
                         #Contribution viscous forces
-                        total_tau_xu_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc + 1] - finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['xh'][finegrid.igc + ixc + 1] - finegrid['grid']['xh'][finegrid.igc + ixc])))
+                        total_tau_xu_visc[izc,iyc,ixc] = np.sum(weights_y_center_z_center * interp_tau_xu_visc[:,:,ixc][points_indices_z_center,:][:,points_indices_y_center]))
 
                         #Contribution turbulence
                         weights_x_center_z_center = weights_x_center[np.newaxis,:]*weights_z_center[:,np.newaxis]
                         total_tau_yv_turb[izc,iyc,ixc] = np.sum(weights_x_center_z_center * v_vxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_center] ** 2)
                         
                         #Contribution viscous forces
-                        total_tau_yv_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc + 1,finegrid.igc + ixc] - finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['yh'][finegrid.jgc + iyc + 1] - finegrid['grid']['yh'][finegrid.jgc + iyc])))
+                        total_tau_yv_visc[izc,iyc,ixc] = np.sum(weights_x_center_z_center * interp_tau_yv_visc[:,iyc,:][points_indices_z_center,:][:,points_indices_x_center]))
 
                         #Contribution turbulence
                         weights_x_center_y_center = weights_x_center[np.newaxis,:]*weights_y_center[:,np.newaxis]
                         total_tau_zw_turb[izc,iyc,ixc] = np.sum(weights_x_center_y_center * w_wxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_center] ** 2)
                         
                         #Contribution viscous forces
-                        total_tau_zw_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge + izc + 1,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['zh'][finegrid.kgc_edge + izc + 1] - finegrid['grid']['zh'][finegrid.kgc_edge + izc])))
+                        total_tau_zw_visc[izc,iyc,ixc] = np.sum(weights_x_center_y_center * interp_tau_zw_visc[izc,:,:][points_indices_y_center,:][:,points_indices_x_center]))
 
                         
                     #x,y: edge coarse grid cell; z: center coarse grid cell
@@ -328,15 +391,15 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                         total_tau_xv_turb[izc,iyc,ixc] = np.sum(weights_y_edge_z_center * u_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge] * v_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge])
 
                         #Contribution viscous forces
-                        total_tau_xv_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc - 1]) / (finegrid['grid']['x'][finegrid.igc + ixc] - finegrid['grid']['x'][finegrid.igc + ixc - 1])))
+                        total_tau_xv_visc[izc,iyc,ixc] = np.sum(weights_y_edge_z_center * interp_tau_xv_visc[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge]))
                     
                         #Contribution turbulence
                         weights_x_edge_z_center   = weights_x_edge[np.newaxis,:]*weights_z_center[:,np.newaxis]
                         total_tau_yu_turb[izc,iyc,ixc] = np.sum(weights_x_edge_z_center * v_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge] * u_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge])
 
-                        #Contribution viscous forces
-                        total_tau_yu_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc - 1,finegrid.igc + ixc]) / (finegrid['grid']['y'][finegrid.jgc + iyc] - finegrid['grid']['y'][finegrid.jgc + iyc - 1])))
-                        
+                        #Contribution viscous forces 
+                        total_tau_yu_visc[izc,iyc,ixc] = np.sum(weights_x_edge_z_center * interp_tau_yu_visc[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge]))
+                    
                     #x,z: edge coarse grid cell; y:center coarse grid cell
                     if (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])): #Make sure this not evaluated for the len+1 iteration in the y-coordinates.
                         
@@ -345,14 +408,14 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                         total_tau_xw_turb[izc,iyc,ixc] = np.sum(weights_y_center_z_edge * u_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center] * w_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center])
 
                         #Contribution viscous forces
-                        total_tau_xw_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc - 1]) / (finegrid['grid']['x'][finegrid.igc + ixc] - finegrid['grid']['x'][finegrid.igc + ixc - 1])))
+                        total_tau_xw_visc[izc,iyc,ixc] = np.sum(weights_y_center_z_edge * interp_tau_xw_visc[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center]))
                     
                         #Contribution turbulence
                         weights_x_edge_y_center   = weights_x_edge[np.newaxis,:]*weights_y_center[:,np.newaxis]
                         total_tau_zu_turb[izc,iyc,ixc] = np.sum(weights_x_edge_y_center * w_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge] * u_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge])
 
                         #Contribution viscous forces
-                        total_tau_zu_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['u']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['u']['variable'][finegrid.kgc_center + izc - 1,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['z'][finegrid.kgc_center + izc] - finegrid['grid']['z'][finegrid.kgc_center + izc - 1])))
+                        total_tau_zu_visc[izc,iyc,ixc] = - mvisc_ref * np.sum(weights_x_edge_y_center * interp_tau_zu_visc[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge]))
 
                     #y,z: edge coarse grid cell; x:center coarse grid cell
                     if (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the x-coordinates.
@@ -362,14 +425,14 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
                         total_tau_yw_turb[izc,iyc,ixc] = np.sum(weights_x_center_z_edge * v_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center] * w_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center])
                         
                         #Contribution viscous forces
-                        total_tau_yw_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['w']['variable'][finegrid.kgc_edge + izc,finegrid.jgc + iyc - 1,finegrid.igc + ixc]) / (finegrid['grid']['y'][finegrid.jgc + iyc] - finegrid['grid']['y'][finegrid.jgc + iyc - 1])))
+                        total_tau_yw_visc[izc,iyc,ixc] = - mvisc_ref * np.sum(weights_x_center_z_edge * interp_tau_yw_visc[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center]))
      
                         #Contribution turbulence
                         weights_x_center_y_edge   = weights_x_center[np.newaxis,:]*weights_y_edge[:,np.newaxis]
                         total_tau_zv_turb[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * w_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center] * v_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center])  
 
                         #Contribution viscous forces
-                        total_tau_zv_visc[izc,iyc,ixc] = - (mvisc_ref * ((finegrid['output']['v']['variable'][finegrid.kgc_center + izc,finegrid.jgc + iyc,finegrid.igc + ixc] - finegrid['output']['v']['variable'][finegrid.kgc_center + izc - 1,finegrid.jgc + iyc,finegrid.igc + ixc]) / (finegrid['grid']['z'][finegrid.kgc_center + izc] - finegrid['grid']['z'][finegrid.kgc_center + izc - 1]))) 
+                        total_tau_zv_visc[izc,iyc,ixc] = - mvisc_ref * np.sum(weights_x_center_y_edge * interp_tau_zv_visc[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center]))
  
         ##Interpolate wind velocities on user-defined coarse grid to the corresponding grid boundaries ##
         #################################################################################################

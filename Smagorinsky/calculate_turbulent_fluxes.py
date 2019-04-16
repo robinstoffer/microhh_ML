@@ -26,7 +26,7 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
 
     #Fetch grid information from flowfields_filepath
     a = nc.Dataset(flowfields_filepath, 'r')
-    nt, nz, ny, nx = a['unres_tau_xu'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
+    nt, nz, ny, nx = a['unres_tau_xu_tot'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
     igc            = int(a['igc'][:])
     jgc            = int(a['jgc'][:])
     kgc_center     = int(a['kgc_center'][:])

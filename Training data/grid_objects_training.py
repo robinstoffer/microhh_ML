@@ -580,7 +580,6 @@ class Finegrid:
             raise RuntimeError('Can\'t find variable \"{}\" in object.')
 
 class Coarsegrid:
-        The dimensions of the coarse grid should be specified as a tuple (z,y,x).
     """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. These dimensionsof the coarse grid should be specified as a tuple (z,y,x) (dim_new_grid). Optionally, the number of ghost cells in the horizontal directions (igc,jgc) can be specified as integers. By default, the corresponding amount of ghostcells in the finegrid_object are used. Besides that, a method is provided to downsample variables already present in the finegrid_ojbect. NOTE: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible."""
 
     def __init__(self, dim_new_grid, finegrid_object, **kwargs):
