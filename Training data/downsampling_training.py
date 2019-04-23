@@ -35,7 +35,7 @@ def generate_coarsecoord_centercell(cor_edges, cor_c_middle, dist_corc, finegrid
     weights = np.zeros(len_weights)
     if len(cor_points) == 1:
         weights = np.array([1])
-        warnings.warn("Note that at certain coordinate interval(s) the defined fine grid has either the same or even a lower resolution than the defined coarse grid. The script applies in these instances a nearest neighbour procedure to fill in the values of the coarse grid.", Runtimewarning)
+        warnings.warn("Note that at certain coordinate interval(s) the defined fine grid has either the same or even a lower resolution than the defined coarse grid. The script applies in these instances a nearest neighbour procedure to fill in the values of the coarse grid.", RuntimeWarning)
 
 
     else:
@@ -177,7 +177,7 @@ def generate_coarsecoord_edgecell(cor_center, cor_c_middle, dist_corc, finegrid,
     
     elif len_weights == 1:
         weights = np.array([1])
-        warnings.warn("Note that at certain coordinate interval(s) the defined fine grid has either the same or even a lower resolution than the defined coarse grid. The script applies in these instances a nearest neighbour procedure to fill in the values of the coarse grid.", Runtimewarning)
+        warnings.warn("Note that at certain coordinate interval(s) the defined fine grid has either the same or even a lower resolution than the defined coarse grid. The script applies in these instances a nearest neighbour procedure to fill in the values of the coarse grid.", RuntimeWarning)
     
     elif two_boxes: #Deal with the cases where the selected fine grid cells consist of two separate regions (which occurs when periodic bc are imposed and the center of the coarse grid cell is located on the bottom/top of the domain).
         for i in range(len_weights):
