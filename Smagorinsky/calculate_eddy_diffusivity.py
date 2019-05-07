@@ -43,6 +43,7 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
                 dxhit = 1./(xgc[i+1] - xgc[i])
                 
                 mlen[k,j,i]    = (damp_coef * cs * ((dx*dy*dz) ** (1/3))) ** 2
+                #mlen[k,j,i]    = (damp_coef * cs * ((dx**2 + dz**2 + 4*(dy**2))**0.5)) ** 2
                 #mlen[k,j,i]    = (cs * ((dx*dy*dz) ** (1/3))) ** 2 #NOTE: FOR TESTING PURPOSES NO DAMPING FUNCTION INCLUDED!
 
                 strain2[k,j,i] = 2.*(
