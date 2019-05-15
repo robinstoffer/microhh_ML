@@ -17,69 +17,97 @@ parser.add_argument('--training_file', default=None, \
 
 args = parser.parse_args()
 
-#Fetch Smagorinsky fluxes and training data
-a=nc.Dataset(args.smagorinsky_file,'r')
-b=nc.Dataset(args.training_file,'r')
+###Fetch Smagorinsky fluxes, training data and heights. Next, calculate isotropic part subgrid-scale stress.###
+a = nc.Dataset(args.smagorinsky_file,'r')
+b = nc.Dataset(args.training_file,'r')
+utau_ref = np.array(b['utau_ref'][:])
 
+#Specify time steps NOTE: FOR TESTING PURPOSES, OTHERWHISE SHOULD BE 81 TO 90!
+tstart = 81
+tend   = 90
 
-#Loop over heights
-zc = np.array(b['zc'][:])
-for k in range(len(zc)):
-    t=1 #NOTE: FOR TESTING PURPOSES
-    smag_tau_xu  = np.array(a['smag_tau_xu'][t,k,:,:])
-    unres_tau_xu = np.array(b['unres_tau_xu_tot'][t,k,:,:])
-    #ntzu, nzzu, nyzu, nxzu = smag_tau_xu[np.newaxis,:,:,:].shape 
-    nzzu, nyzu, nxzu = smag_tau_xu[np.newaxis,:,:].shape #NOTE: FOR TESTING PURPOSES ONLY!!!
-    smag_tau_xu  = smag_tau_xu.flatten()
-    unres_tau_xu = unres_tau_xu.flatten()
-    
-    ##Read height of samples
-    #zhc  = np.array(b['zhc'][2:-2]) #Discard bottom/top two vertical levels as this is also done in the samples for the CNN
-    ##half_channel_width = b['half_channel_width'][:]
-    #half_channel_width = 1 #NOTE: FOR TESTING PURPOSES ONLY!!!
-    #dist_wall_zh = abs(zhc - half_channel_width)
-    #
-    ##Broadcast dist_wall to all three dimensions and subsequently flatten the resulting array
-    #dist_wall_zh_zu = np.broadcast_to(dist_wall_zh[np.newaxis,:,np.newaxis,np.newaxis], (ntzu, nzzu, nyzu, nxzu))
-    #dist_wall_zh_zu = dist_wall_zh_zu.flatten()
-    
-    ###QUICK AND DIRTY: STANDARDIZE OUTPUT FOR BETTER COMPARISION WITH SCATTERPLOTS CNN  
-    #unres_tau_zu = (unres_tau_zu - np.mean(unres_tau_zu))/np.std(unres_tau_zu)
-    
-    ###QUICK AND DIRTY: MULTIPLY VARIABLES  WITH U*2 TO DENORMALIZE THEM
-    utau_ref     = np.array(b['utau_ref'][:])
-    unres_tau_xu = unres_tau_xu * (utau_ref)**2
-    #smag_tau_xu  = smag_tau_xu  * (utau_ref)**2
-    #smag_tau_xu  = smag_tau_xu / utau_ref
+#Extract smagorinsky and training fluxes, and make Smagorinsky fluxes dimensionless
+smag_tau_xu  = np.array(a['smag_tau_xu'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_yu  = np.array(a['smag_tau_yu'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_zu  = np.array(a['smag_tau_zu'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_xv  = np.array(a['smag_tau_xv'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_yv  = np.array(a['smag_tau_yv'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_zv  = np.array(a['smag_tau_zv'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_xw  = np.array(a['smag_tau_xw'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_yw  = np.array(a['smag_tau_yw'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+smag_tau_zw  = np.array(a['smag_tau_zw'][tstart:tend,:,:,:]) / (utau_ref ** 2)
+#
+unres_tau_xu = np.array(b['unres_tau_xu_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_yu = np.array(b['unres_tau_yu_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_zu = np.array(b['unres_tau_zu_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_xv = np.array(b['unres_tau_xv_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_yv = np.array(b['unres_tau_yv_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_zv = np.array(b['unres_tau_zv_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_xw = np.array(b['unres_tau_xw_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_yw = np.array(b['unres_tau_yw_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
+unres_tau_zw = np.array(b['unres_tau_zw_tot'][tstart:tend,:,:,:])# * (utau_ref ** 2)
 
-    #Make scatterplots of Smagorinsky fluxes versus labels
-    corrcoef = np.round(np.corrcoef(unres_tau_xu, smag_tau_xu)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    plt.figure()
-    #plt.scatter(unres_tau_zu, smag_tau_zu, c=dist_wall_zh_zu, cmap='jet', s=6, marker='o', alpha=0.2)
-    plt.scatter(unres_tau_xu, smag_tau_xu, s=6, marker='o', alpha=0.2) 
-    axes = plt.gca()
-    #axes.axis('Equal')
-    #plt.xlim(min(lbls_values)*0.8,max(lbls_values)*1.2)
-    #plt.ylim(min(lbls_values)*0.8,max(lbls_values)*1.2)
-    axes.set_xlim(-0.0010,0.0010)
-    axes.set_ylim(-0.000010,0.000010)
-    #axes.set_ylim(-0.0010,0.0010)
-    #axes.set_xlim([-25.0,25.0])
-    #axes.set_ylim([-8.0,8.0])
-    plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
-    #plt.gca().set_aspect('equal',adjustable='box')
-    plt.xlabel("Labels",fontsize = 20)
-    plt.ylabel("Smagorinsky",fontsize = 20)
-    plt.title("Corrcoef = " + str(corrcoef),fontsize = 20)
-    plt.axhline(c='black')
-    plt.axvline(c='black')
-    plt.xticks(fontsize = 16, rotation = 90)
-    plt.yticks(fontsize = 16, rotation = 0)
-    #cbar = plt.colorbar()
-    #cbar.ax.set_ylabel("Distance to center channel [-]", labelpad=15, fontsize = 20, rotation = 90)
-    #cbar.solids.set(alpha=1.0)
-    plt.savefig("Scatter_Smagorinsky_vs_labels_height" + str(zc[k]) + ".png")
-    plt.close()
+#Extract heights
+zc  = np.array(b['zc'][:])
+zhc = np.array(b['zhc'][:])
+
+#Calculate trace part of subgrid-stress, and substract this from the diagonal components of the labels
+trace = (unres_tau_xu + unres_tau_yv + unres_tau_zw) * (1./3.)
+print(trace[:,:,5,6])
+print(trace.shape)
+unres_tau_xu = unres_tau_xu - trace
+unres_tau_yv = unres_tau_yv - trace
+unres_tau_zw = unres_tau_zw - trace
+
+###Loop over heights for all components considering the time steps specified below, and make scatterplots of labels vs fluxes at each height for all specified time steps combined###
+def make_scatterplot_heights(smag_tau_all, unres_tau_all, heights, component):
+    #for k in range(len(heights)+1):
+        k = len(heights) #Choose this to plot spatial averages
+        if k == len(heights):
+            smag_tau  = np.mean(smag_tau_all[:,:,:,:], axis=(2,3), keepdims=False)
+            unres_tau = np.mean(unres_tau_all[:,:,:,:], axis=(2,3), keepdims=False)
+        else:
+            smag_tau  = smag_tau_all[:,k,:,:]
+            unres_tau = unres_tau_all[:,k,:,:]
+        smag_tau  = smag_tau.flatten()
+        unres_tau = unres_tau.flatten()
+        
+        #Make scatterplots of Smagorinsky fluxes versus labels
+        corrcoef = np.round(np.corrcoef(smag_tau, unres_tau)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        plt.figure()
+        plt.scatter(smag_tau, unres_tau, s=6, marker='o', alpha=0.2) 
+        #plt.xlim([-0.001, 0.001])
+        #plt.ylim([-0.001, 0.001])
+        #plt.xlim([-40.0, 40.0])
+        #plt.ylim([-40.0, 40.0])
+        plt.xlim([-0.25, 0.25])
+        plt.ylim([-0.25, 0.25])
+        axes = plt.gca()
+        plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
+        #plt.gca().set_aspect('equal',adjustable='box')
+        plt.ylabel("Labels",fontsize = 20)
+        plt.xlabel("Smagorinsky",fontsize = 20)
+        plt.title("Corrcoef = " + str(corrcoef),fontsize = 20)
+        plt.axhline(c='black')
+        plt.axvline(c='black')
+        plt.xticks(fontsize = 16, rotation = 90)
+        plt.yticks(fontsize = 16, rotation = 0)
+        if k == len(heights):
+            plt.savefig("Scatter_" + str(component) + "_Smagorinsky_vs_labels_allheights.png")
+        else:
+            plt.savefig("Scatter_" + str(component) + "_Smagorinsky_vs_labels_height" + str(heights[k]) + ".png")
+        plt.close()
+
+#Call function nine times to make all plots
+make_scatterplot_heights(smag_tau_xu, unres_tau_xu, zc, 'xu')
+make_scatterplot_heights(smag_tau_yu, unres_tau_yu, zc, 'yu')
+make_scatterplot_heights(smag_tau_zu, unres_tau_zu, zhc, 'zu')
+make_scatterplot_heights(smag_tau_xv, unres_tau_xv, zc, 'xv')
+make_scatterplot_heights(smag_tau_yv, unres_tau_yv, zc, 'yv')
+make_scatterplot_heights(smag_tau_zv, unres_tau_zv, zhc, 'zv')
+make_scatterplot_heights(smag_tau_xw, unres_tau_xw, zhc, 'xw')
+make_scatterplot_heights(smag_tau_yw, unres_tau_yw, zhc, 'yw')
+make_scatterplot_heights(smag_tau_zw, unres_tau_zw, zc, 'zw')
 
 #Close files
 a.close()

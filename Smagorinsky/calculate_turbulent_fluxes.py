@@ -59,8 +59,8 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
 
     #Loop over timesteps
     create_file = True
-    #for t in range(nt):
-    for t in range(1,2): #NOTE:FOR TESTING PURPOSES ONLY!
+    for t in range(nt):
+    #for t in range(1,2): #NOTE:FOR TESTING PURPOSES ONLY!
         
         #Fetch eddy diffusivity coefficients
         evisc = b["eddy_diffusivity"][t,:,:,:]

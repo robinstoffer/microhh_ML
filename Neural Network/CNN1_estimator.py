@@ -405,7 +405,7 @@ def CNN_model_fn(features,labels,mode,params):
     log_loss_training = log10(loss)
     tf.summary.scalar('log_loss', log_loss_training)
 
-    optimizer = tf.train.AdamOptimizer(params['learning_rate'] * hvd.size())
+    optimizer = tf.train.AdamOptimizer(params['learning_rate'] * hvd.size()) #Should learning rate be scaled?
     
     #Add Horovod distributed optimizer
     optimizer = hvd.DistributedOptimizer(optimizer)

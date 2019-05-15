@@ -44,7 +44,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 
 #Make CNN predictions and reconstruct fields
-python3 read_CNNpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN14/CNN_predictions_worker_0.nc' --reconstruct_fields
+python3 read_CNNpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN14/CNN_predictions_worker_0.nc' --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc'  --reconstruct_fields --undo_normalisation
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""

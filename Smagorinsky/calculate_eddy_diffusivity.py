@@ -140,8 +140,8 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
 
     #Loop over timesteps
     create_file = True #Flag to ensure output file is only created once
-    #for t in range(nt):
-    for t in range(1,2): #NOTE:FOR TESTING PURPOSES ONLY!
+    for t in range(nt):
+    #for t in range(1,2): #NOTE:FOR TESTING PURPOSES ONLY!
         
         #Open/create netCDF-file for storage
         if create_file:
@@ -177,7 +177,7 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
             raise ValueError("The Smagorinsky filter has been implemented only for 1 ghost cell in the vertical direction. Please change the specified ghost cells in the vertical direction accordingly.")
 
         eddy_diffusivity[0,:,:] = 2 * mvisc - eddy_diffusivity[kgc_center,:,:]
-        eddy_diffusivity[kend:,:,:] = 2 * mvisc - eddy_diffusivity[kend-1,:,:]
+        eddy_diffusivity[kend,:,:] = 2 * mvisc - eddy_diffusivity[kend-1,:,:]
 
         #Store calculated values in nc-file
         if create_variables:
