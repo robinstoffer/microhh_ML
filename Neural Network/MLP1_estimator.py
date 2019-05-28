@@ -67,8 +67,9 @@ num_steps = args.num_steps #Number of steps, i.e. number of batches times number
 num_labels = 9
 random_seed = 1234
 
-#Define function for standardization
+#Define function for standardization (including flattening)
 def _standardization(variable, mean, standard_dev):
+    variable = tf.reshape(variable,[-1])
     standardized_variable = (variable - mean) / standard_dev
     return standardized_variable
 
@@ -221,7 +222,7 @@ def _parse_function(example_proto,means,stdevs):
     labels['unres_tau_yw'] = _getlabel(parsed_features, 'unres_tau_yw_sample', means, stdevs)
     labels['unres_tau_zw'] = _getlabel(parsed_features, 'unres_tau_zw_sample', means, stdevs)
 
-    labels = tf.convert_to_tensor([ labels['unres_tau_xu'], labels['unres_tau_yu'], labels['unres_tau_zu'], labels['unres_tau_xv'],  labels['unres_tau_yv'], labels['unres_tau_zv'], labels['unres_tau_xw'], labels['unres_tau_yw'], labels['unres_tau_zw']], dtype=tf.float32)
+    labels = tf.squeeze(tf.stack([ labels['unres_tau_xu'], labels['unres_tau_yu'], labels['unres_tau_zu'], labels['unres_tau_xv'],  labels['unres_tau_yv'], labels['unres_tau_zv'], labels['unres_tau_xw'], labels['unres_tau_yw'], labels['unres_tau_zw']], axis=1))
 
     return parsed_features,labels
 
@@ -301,62 +302,64 @@ def split_train_val(time_steps, val_ratio, random_seed):
 
 
 #Define model function for CNN estimator
-def CNN_model_fn(features,labels,mode,params):
-    '''CNN model with 1 convolutional layer'''
+def MLP_model_fn(features,labels,mode,params):
+    '''MLP model with 1 hidden layer'''
 
     #Define input layer
     if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
-        input_layer = tf.stack([features['uc_sample'],features['vc_sample'], \
-                features['wc_sample'],features['pc_sample']],axis=4) #According to channel_last data format, otherwhise change axis parameter
-    
-        #Visualize inputs
-        tf.summary.histogram('input_u', input_layer[:,:,:,:,0])
-        tf.summary.histogram('input_v', input_layer[:,:,:,:,1])
-        tf.summary.histogram('input_w', input_layer[:,:,:,:,2])
-        tf.summary.histogram('input_p', input_layer[:,:,:,:,3])
+        input_layer = tf.concat([features['uc_sample'],features['vc_sample'], \
+                features['wc_sample'],features['pc_sample']], axis=1)
+
+        ##Visualize inputs
+        #tf.summary.histogram('input_u', input_layer[:,:,:,:,0])
+        #tf.summary.histogram('input_v', input_layer[:,:,:,:,1])
+        #tf.summary.histogram('input_w', input_layer[:,:,:,:,2])
+        #tf.summary.histogram('input_p', input_layer[:,:,:,:,3])
 
     else:
-        input_layer = tf.stack([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
+        input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
                 features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
                 features['wgradx_sample'],features['wgrady_sample'],features['wgradz_sample'], \
-                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']],axis=4)
+                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']], axis=1)
 
-        #Visualize inputs
-        tf.summary.histogram('input_ugradx', input_layer[:,:,:,:,0])
-        tf.summary.histogram('input_ugrady', input_layer[:,:,:,:,1])
-        tf.summary.histogram('input_ugradz', input_layer[:,:,:,:,2])
-        tf.summary.histogram('input_vgradx', input_layer[:,:,:,:,3])
-        tf.summary.histogram('input_vgrady', input_layer[:,:,:,:,4])
-        tf.summary.histogram('input_vgradz', input_layer[:,:,:,:,5])
-        tf.summary.histogram('input_wgradx', input_layer[:,:,:,:,6])
-        tf.summary.histogram('input_wgrady', input_layer[:,:,:,:,7])
-        tf.summary.histogram('input_wgradz', input_layer[:,:,:,:,8])
-        tf.summary.histogram('input_pgradx', input_layer[:,:,:,:,9])
-        tf.summary.histogram('input_pgrady', input_layer[:,:,:,:,10])
-        tf.summary.histogram('input_pgradz', input_layer[:,:,:,:,11])
+        ##Visualize inputs
+        #tf.summary.histogram('input_ugradx', input_layer[:,:,:,:,0])
+        #tf.summary.histogram('input_ugrady', input_layer[:,:,:,:,1])
+        #tf.summary.histogram('input_ugradz', input_layer[:,:,:,:,2])
+        #tf.summary.histogram('input_vgradx', input_layer[:,:,:,:,3])
+        #tf.summary.histogram('input_vgrady', input_layer[:,:,:,:,4])
+        #tf.summary.histogram('input_vgradz', input_layer[:,:,:,:,5])
+        #tf.summary.histogram('input_wgradx', input_layer[:,:,:,:,6])
+        #tf.summary.histogram('input_wgrady', input_layer[:,:,:,:,7])
+        #tf.summary.histogram('input_wgradz', input_layer[:,:,:,:,8])
+        #tf.summary.histogram('input_pgradx', input_layer[:,:,:,:,9])
+        #tf.summary.histogram('input_pgrady', input_layer[:,:,:,:,10])
+        #tf.summary.histogram('input_pgradz', input_layer[:,:,:,:,11])
 
     #Define layers
-    conv1_layer = tf.layers.Conv3D(filters=params['n_conv1'], kernel_size=params['kernelsize_conv1'], \
-         strides=params['stride_conv1'], activation=params['activation_function'], padding="valid", name='conv1', \
-            kernel_initializer=params['kernel_initializer'], data_format = 'channels_last') 
-    conv1 = conv1_layer.apply(input_layer)
-
+    print(input_layer.shape)
+    #flatten = tf.layers.flatten(input_layer, name='flatten')
+    dense1  = tf.layers.Dense(units=params["n_dense1"], name="dense1", \
+            activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
+    dense1_output = dense1.apply(input_layer)
+    print(dense1_output.shape)
     ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
-    tf.summary.histogram('activations_hidden_layer1', conv1)
-    tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1', tf.nn.zero_fraction(conv1))
+    tf.summary.histogram('activations_hidden_layer1', dense1_output)
+    tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1', tf.nn.zero_fraction(dense1_output))
 
-    flatten = tf.layers.flatten(conv1, name='flatten')
-
-    output = tf.layers.dense(flatten, units=num_labels, name="outputs", \
-            activation=None, kernel_initializer=params['kernel_initializer'], reuse = tf.AUTO_REUSE) #reuse needed for second part of this script to work properly
+    output = tf.layers.Dense(units=num_labels, name="outputs", \
+            activation=None, kernel_initializer=params["kernel_initializer"])
+    output_output = output.apply(dense1_output)
+    print(output_output.shape)
+    print(labels.shape)
 
     ###Visualize outputs
-    tf.summary.histogram('output', output) 
+    tf.summary.histogram('output', output_output) 
 
     #Compute predictions
     if mode == tf.estimator.ModeKeys.PREDICT and args.benchmark is None:
         #Concantenate predictions of all threads together
-        output   = hvd.allgather(output)
+        output   = hvd.allgather(output_output)
         labels   = hvd.allgather(labels)
         return tf.estimator.EstimatorSpec(mode, predictions={
             'pred_tau_xu':output[:,0], 'label_tau_xu':labels[:,0],
@@ -375,7 +378,7 @@ def CNN_model_fn(features,labels,mode,params):
  
     elif mode == tf.estimator.ModeKeys.PREDICT:
         #Concantenate predictions of all threads together
-        output   = hvd.allgather(output)
+        output   = hvd.allgather(output_output)
         labels   = hvd.allgather(labels)
         return tf.estimator.EstimatorSpec(mode, predictions={
             'pred_tau_xu':output[:,0],
@@ -389,7 +392,7 @@ def CNN_model_fn(features,labels,mode,params):
             'pred_tau_zw':output[:,8]}) 
     
     #Compute loss
-    mse_tau_total = tf.losses.mean_squared_error(labels, output)
+    mse_tau_total = tf.losses.mean_squared_error(labels, output_output)
     loss = tf.reduce_mean(mse_tau_total)
         
     #Define function to calculate the logarithm
@@ -401,7 +404,7 @@ def CNN_model_fn(features,labels,mode,params):
     #Compute evaluation metrics.
     tf.summary.histogram('labels', labels) #Visualize labels
     if mode == tf.estimator.ModeKeys.EVAL:
-        mse, update_op = tf.metrics.mean_squared_error(labels,output)
+        mse, update_op = tf.metrics.mean_squared_error(labels,output_output)
         mse_all = hvd.allreduce(mse) #Average mse over all workers using allreduce, should be identical to the case where you calculate mse at once over all the samples the workers contain.
         log_mse_all = log10(mse_all)
         log_mse_all_update_op = log10(update_op)
@@ -638,17 +641,14 @@ else:
 
 hyperparams =  {
 'n_conv1':80,
-#'n_dense1':30,
-#'n_dense2':30,
-'kernelsize_conv1':kernelsize_conv1,
-'stride_conv1':1,
+'n_dense1':40000, #Equivalent to using 80 filters in CNN used before
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.02)
 'kernel_initializer':tf.initializers.he_uniform(),
 'learning_rate':0.0001
 }
 
 #Instantiate an Estimator with model defined by model_fn
-CNN = tf.estimator.Estimator(model_fn = CNN_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir, warm_start_from = warmstart_dir)
+CNN = tf.estimator.Estimator(model_fn = MLP_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir, warm_start_from = warmstart_dir)
 
 if hvd.rank() == 0:
     profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.

@@ -25,9 +25,9 @@ module load netCDF/4.4.1.1-intel-2016b
 module load netCDF-C++4/4.3.0-intel-2016b
 module load FFTW/3.3.5-intel-2016b
 module load Doxygen/1.8.11-intel-2016b
-module load Python/3.6.1-intel-2016b
+#module load Python/3.6.1-intel-2016b
 
-export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared Python libraries can be found
+#export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared Python libraries can be found
 
 #module purge
 #module load eb
@@ -39,7 +39,23 @@ export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared
 #module load Doxygen/1.8.13-GCCcore-6.4.0
 #module unload ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20
 
-source ~/virtualenv/firstCNN_intel_CPU/bin/activate
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/robinst/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/robinst/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/robinst/miniconda3/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/robinst/miniconda3/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+conda activate tf_cpu_horovod
+#source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 #srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
 python3 /projects/1/flowsim/Neural\ Network/CNN1_estimator.py --input_dir '/projects/1/flowsim/simulation1/' --checkpoint_dir '/projects/1/flowsim/simulation1/CNN_checkpoints/real_data_CNN6' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --num_steps 10000 --batch_size 100
