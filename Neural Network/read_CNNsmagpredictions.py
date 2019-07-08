@@ -30,54 +30,59 @@ a = nc.Dataset(args.prediction_file,'r')
 b = nc.Dataset(args.smagorinsky_file,'r')
 c = nc.Dataset(args.training_file,'r')
 
-utau_ref = np.array(c['utau_ref'][:])
+#Define reference mid-channel height and recalculate corresponding friction velocity
+#NOTE: this is done to rescale the velocities and grid domain to realistic values
+delta_height = 1250 # in [m]
+#delta_height = 1 #NOTE: uncomment this line when the friction velocity of the channel flow should be used
+#utau_ref = np.array(c['utau_ref'][:]) #NOTE: use directly this value when the friction velocity of the channel flow should be used
+utau_ref = 0.2 # in [m/s], should be a value representative for a realistic atmospheric flow
 
-#Specify time steps NOTE: SHOULD BE 81 TO 90 for validation. The CNN predictions all originate from these time steps as well!
-tstart = 81
-tend   = 90
+#Specify time steps NOTE: SHOULD BE 27 TO 30 for validation, and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
+tstart = 27
+tend   = 30
 
-#Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes, and make Smagorinsky fluxes dimensionless
+#Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes, and undo non-dimensionalisation fluxes done earlier with the friction velocity
 #NOTE:for some Smagorinsky and training fluxes the downstream/top cells are removed to make the dimensions consistent with the labels and predictions
-smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:])     / (utau_ref ** 2)
-smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:-1,:-1]) / (utau_ref ** 2)
-smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:-1,:,:-1]) / (utau_ref ** 2)
-smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:-1,:-1]) / (utau_ref ** 2)
-smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:])     / (utau_ref ** 2)
-smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:-1,:-1,:]) / (utau_ref ** 2)
-smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:-1,:,:-1]) / (utau_ref ** 2)
-smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:-1,:-1,:]) / (utau_ref ** 2)
-smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:])     / (utau_ref ** 2)
+smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:])     
+smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:-1,:-1]) 
+smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:-1,:,:-1]) 
+smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:-1,:-1]) 
+smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:])     
+smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:-1,:-1,:]) 
+smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:-1,:,:-1]) 
+smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:-1,:-1,:]) 
+smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:])     
 #
-unres_tau_xu = np.array(c['unres_tau_xu_tot'] [tstart:tend,:,:,:])    
-unres_tau_yu = np.array(c['unres_tau_yu_tot'] [tstart:tend,:,:-1,:-1])
-unres_tau_zu = np.array(c['unres_tau_zu_tot'] [tstart:tend,:-1,:,:-1])
-unres_tau_xv = np.array(c['unres_tau_xv_tot'] [tstart:tend,:,:-1,:-1])
-unres_tau_yv = np.array(c['unres_tau_yv_tot'] [tstart:tend,:,:,:])    
-unres_tau_zv = np.array(c['unres_tau_zv_tot'] [tstart:tend,:-1,:-1,:])
-unres_tau_xw = np.array(c['unres_tau_xw_tot'] [tstart:tend,:-1,:,:-1])
-unres_tau_yw = np.array(c['unres_tau_yw_tot'] [tstart:tend,:-1,:-1,:])
-unres_tau_zw = np.array(c['unres_tau_zw_tot'] [tstart:tend,:,:,:])    
-res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_xu_visc'][tstart:tend,:,:,:])     
-res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1]) + np.array(c['res_tau_yu_visc'][tstart:tend,:,:-1,:-1])  
-res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1]) + np.array(c['res_tau_zu_visc'][tstart:tend,:-1,:,:-1])  
-res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1]) + np.array(c['res_tau_xv_visc'][tstart:tend,:,:-1,:-1])  
-res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_yv_visc'][tstart:tend,:,:,:])      
-res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:]) + np.array(c['res_tau_zv_visc'][tstart:tend,:-1,:-1,:])  
-res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1]) + np.array(c['res_tau_xw_visc'][tstart:tend,:-1,:,:-1])  
-res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:]) + np.array(c['res_tau_yw_visc'][tstart:tend,:-1,:-1,:])  
-res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_zw_visc'][tstart:tend,:,:,:])      
-tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_xu_visc'][tstart:tend,:,:,:])    
-tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1]) + np.array(c['total_tau_yu_visc'][tstart:tend,:,:-1,:-1])
-tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1]) + np.array(c['total_tau_zu_visc'][tstart:tend,:-1,:,:-1])
-tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1]) + np.array(c['total_tau_xv_visc'][tstart:tend,:,:-1,:-1])
-tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_yv_visc'][tstart:tend,:,:,:])    
-tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:]) + np.array(c['total_tau_zv_visc'][tstart:tend,:-1,:-1,:])
-tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1]) + np.array(c['total_tau_xw_visc'][tstart:tend,:-1,:,:-1])
-tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:]) + np.array(c['total_tau_yw_visc'][tstart:tend,:-1,:-1,:])
-tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_zw_visc'][tstart:tend,:,:,:])    
+unres_tau_xu = np.array(c['unres_tau_xu_tot'] [tstart:tend,:,:,:])     * (utau_ref ** 2)
+unres_tau_yu = np.array(c['unres_tau_yu_tot'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+unres_tau_zu = np.array(c['unres_tau_zu_tot'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
+unres_tau_xv = np.array(c['unres_tau_xv_tot'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+unres_tau_yv = np.array(c['unres_tau_yv_tot'] [tstart:tend,:,:,:])     * (utau_ref ** 2)
+unres_tau_zv = np.array(c['unres_tau_zv_tot'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
+unres_tau_xw = np.array(c['unres_tau_xw_tot'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
+unres_tau_yw = np.array(c['unres_tau_yw_tot'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
+unres_tau_zw = np.array(c['unres_tau_zw_tot'] [tstart:tend,:,:,:])     * (utau_ref ** 2)
+res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_xu_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)
+res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1]) + np.array(c['res_tau_yu_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
+res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1]) + np.array(c['res_tau_zu_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
+res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1]) + np.array(c['res_tau_xv_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
+res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_yv_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2) 
+res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:]) + np.array(c['res_tau_zv_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
+res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1]) + np.array(c['res_tau_xw_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
+res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:]) + np.array(c['res_tau_yw_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
+res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_zw_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2) 
+tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_xu_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)  
+tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1]) + np.array(c['total_tau_yu_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1]) + np.array(c['total_tau_zu_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
+tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1]) + np.array(c['total_tau_xv_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_yv_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)
+tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:]) + np.array(c['total_tau_zv_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
+tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1]) + np.array(c['total_tau_xw_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
+tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:]) + np.array(c['total_tau_yw_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
+tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_zw_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)
 #
 if args.reconstruct_fields:
-    preds_values_xu = np.array(a['preds_values_tau_xu'][:])
+    preds_values_xu = np.array(a['preds_values_tau_xu'][:]) 
     lbls_values_xu  = np.array(a['lbls_values_tau_xu'][:])
     preds_values_yu = np.array(a['preds_values_tau_yu'][:])
     lbls_values_yu  = np.array(a['lbls_values_tau_yu'][:])
@@ -159,51 +164,51 @@ if args.reconstruct_fields:
     stdev_yw = np.array(stats['stdev_unres_tau_yw_sample'][:])
     stdev_zw = np.array(stats['stdev_unres_tau_zw_sample'][:])
     
-    #Average means over time steps used for training (steps 0 up to and including 80) since only these were used to normalize the data
-    meant_xu = np.mean(mean_xu[0:81])
-    meant_yu = np.mean(mean_yu[0:81])
-    meant_zu = np.mean(mean_zu[0:81])
-    meant_xv = np.mean(mean_xv[0:81])
-    meant_yv = np.mean(mean_yv[0:81])
-    meant_zv = np.mean(mean_zv[0:81])
-    meant_xw = np.mean(mean_xw[0:81])
-    meant_yw = np.mean(mean_yw[0:81])
-    meant_zw = np.mean(mean_zw[0:81])
+    #Average means over time steps used for training (steps 0 up to and including 27) since only these were used to normalize the data
+    meant_xu = np.mean(mean_xu[0:tstart])
+    meant_yu = np.mean(mean_yu[0:tstart])
+    meant_zu = np.mean(mean_zu[0:tstart])
+    meant_xv = np.mean(mean_xv[0:tstart])
+    meant_yv = np.mean(mean_yv[0:tstart])
+    meant_zv = np.mean(mean_zv[0:tstart])
+    meant_xw = np.mean(mean_xw[0:tstart])
+    meant_yw = np.mean(mean_yw[0:tstart])
+    meant_zw = np.mean(mean_zw[0:tstart])
     #
-    stdevt_xu = np.mean(stdev_xu[0:81])
-    stdevt_yu = np.mean(stdev_yu[0:81])
-    stdevt_zu = np.mean(stdev_zu[0:81])
-    stdevt_xv = np.mean(stdev_xv[0:81])
-    stdevt_yv = np.mean(stdev_yv[0:81])
-    stdevt_zv = np.mean(stdev_zv[0:81])
-    stdevt_xw = np.mean(stdev_xw[0:81])
-    stdevt_yw = np.mean(stdev_yw[0:81])
-    stdevt_zw = np.mean(stdev_zw[0:81])    
+    stdevt_xu = np.mean(stdev_xu[0:tstart])
+    stdevt_yu = np.mean(stdev_yu[0:tstart])
+    stdevt_zu = np.mean(stdev_zu[0:tstart])
+    stdevt_xv = np.mean(stdev_xv[0:tstart])
+    stdevt_yv = np.mean(stdev_yv[0:tstart])
+    stdevt_zv = np.mean(stdev_zv[0:tstart])
+    stdevt_xw = np.mean(stdev_xw[0:tstart])
+    stdevt_yw = np.mean(stdev_yw[0:tstart])
+    stdevt_zw = np.mean(stdev_zw[0:tstart])    
 
-    #Undo normalisation
+    #Undo normalisation, including the one done earlier with the friction velocity
     print('begin to undo normalisation')
     def undo_normalisation(lbls, means, stdevs, time_steps):
         lbls  = (lbls * stdevs) + means
         return lbls
     
-    preds_values_xu = undo_normalisation(preds_values_xu, meant_xu, stdevt_xu, tstep_values) 
-    lbls_values_xu  = undo_normalisation(lbls_values_xu , meant_xu, stdevt_xu, tstep_values)
-    preds_values_yu = undo_normalisation(preds_values_yu, meant_yu, stdevt_yu, tstep_values)
-    lbls_values_yu  = undo_normalisation(lbls_values_yu , meant_yu, stdevt_yu, tstep_values) 
-    preds_values_zu = undo_normalisation(preds_values_zu, meant_zu, stdevt_zu, tstep_values)
-    lbls_values_zu  = undo_normalisation(lbls_values_zu , meant_zu, stdevt_zu, tstep_values) 
-    preds_values_xv = undo_normalisation(preds_values_xv, meant_xv, stdevt_xv, tstep_values)
-    lbls_values_xv  = undo_normalisation(lbls_values_xv , meant_xv, stdevt_xv, tstep_values)
-    preds_values_yv = undo_normalisation(preds_values_yv, meant_yv, stdevt_yv, tstep_values)
-    lbls_values_yv  = undo_normalisation(lbls_values_yv , meant_yv, stdevt_yv, tstep_values)
-    preds_values_zv = undo_normalisation(preds_values_zv, meant_zv, stdevt_zv, tstep_values)
-    lbls_values_zv  = undo_normalisation(lbls_values_zv , meant_zv, stdevt_zv, tstep_values)
-    preds_values_xw = undo_normalisation(preds_values_xw, meant_xw, stdevt_xw, tstep_values)
-    lbls_values_xw  = undo_normalisation(lbls_values_xw , meant_xw, stdevt_xw, tstep_values)
-    preds_values_yw = undo_normalisation(preds_values_yw, meant_yw, stdevt_yw, tstep_values)
-    lbls_values_yw  = undo_normalisation(lbls_values_yw , meant_yw, stdevt_yw, tstep_values)
-    preds_values_zw = undo_normalisation(preds_values_zw, meant_zw, stdevt_zw, tstep_values)
-    lbls_values_zw  = undo_normalisation(lbls_values_zw , meant_zw, stdevt_zw, tstep_values)
+    preds_values_xu = undo_normalisation(preds_values_xu, meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2) 
+    lbls_values_xu  = undo_normalisation(lbls_values_xu , meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2)
+    preds_values_yu = undo_normalisation(preds_values_yu, meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
+    lbls_values_yu  = undo_normalisation(lbls_values_yu , meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
+    preds_values_zu = undo_normalisation(preds_values_zu, meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
+    lbls_values_zu  = undo_normalisation(lbls_values_zu , meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
+    preds_values_xv = undo_normalisation(preds_values_xv, meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
+    lbls_values_xv  = undo_normalisation(lbls_values_xv , meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
+    preds_values_yv = undo_normalisation(preds_values_yv, meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
+    lbls_values_yv  = undo_normalisation(lbls_values_yv , meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
+    preds_values_zv = undo_normalisation(preds_values_zv, meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
+    lbls_values_zv  = undo_normalisation(lbls_values_zv , meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
+    preds_values_xw = undo_normalisation(preds_values_xw, meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
+    lbls_values_xw  = undo_normalisation(lbls_values_xw , meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
+    preds_values_yw = undo_normalisation(preds_values_yw, meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
+    lbls_values_yw  = undo_normalisation(lbls_values_yw , meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
+    preds_values_zw = undo_normalisation(preds_values_zw, meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
+    lbls_values_zw  = undo_normalisation(lbls_values_zw , meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
     print('finished undoing normalisation')
 
     #Close netCDF-file
@@ -740,12 +745,48 @@ unres_tau_zu_horavg = np.array(fields['unres_tau_zu_horavg'][:,:])
 unres_tau_zv_horavg = np.array(fields['unres_tau_zv_horavg'][:,:])
 unres_tau_zw_horavg = np.array(fields['unres_tau_zw_horavg'][:,:])
 
+#Extract coordinates
+xc = np.array(fields['xloc_unique'][:])
+xhc = np.array(fields['xhloc_unique'][:])
+yc = np.array(fields['yloc_unique'][:])
+yhc = np.array(fields['yhloc_unique'][:])
+zc = np.array(fields['zloc_unique'][:]) #NOTE: Already defined earlier in a different way, but both ways should be identical.
+zhc = np.array(fields['zhloc_unique'][:])
+
 #Close netCDF-file
 fields.close()
 
+#Define function for making horizontal cross-sections
+def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0, delta = 500):
+    #NOTE1: fourth last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: third last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
+    #NOTE3: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
+    #NOTE4: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 500m). 
+    for k in range(len(z)):
+        values_height = values[time_step,k,:,:]
+
+        #Make horizontal cross-sections of the values
+        plt.figure()
+        plt.pcolormesh(x * delta, y * delta, values_height, vmin=-0.15, vmax=0.15)
+        #plt.pcolormesh(x * delta, y * delta, values_height, vmin=-0.00015, vmax=0.00015)
+        cbar = plt.colorbar()
+        cbar.ax.tick_params(labelsize=16)
+        cbar.set_label(r'$\rm {[m^{2}\ s^{-2}}]$',rotation=270,fontsize=20,labelpad=30)
+        plt.xlabel(r'$\rm x\ [m]$',fontsize=20)
+        plt.ylabel(r'$\rm y\ [m]$',fontsize=20)
+        plt.xticks(fontsize=16, rotation=90)
+        plt.yticks(fontsize=16, rotation=0)
+        plt.tight_layout()
+        if not is_lbl:
+            plt.savefig("Horcross_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+        else:
+            plt.savefig("Horcross_label_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+        plt.close()
+
 #Define function for making scatterplots
 def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag):
-    #NOTE: last input of this function is a boolean that specifies wether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False)
+    #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: last input of this function is a boolean that specifies wether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False).
     for k in range(len(heights)+1):
         if k == len(heights):
             preds_height = preds_horavg
@@ -759,21 +800,29 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         #Make scatterplots of Smagorinsky/CNN fluxes versus labels
         corrcoef = np.round(np.corrcoef(preds_height, lbls_height)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
         plt.figure()
-        plt.scatter(preds_height, lbls_height, s=6, marker='o', alpha=0.2)
+        plt.scatter(lbls_height, preds_height, s=6, marker='o', alpha=0.2)
         if k == len(heights):
-            plt.xlim([-0.2, 0.2])
-            plt.ylim([-0.2, 0.2])
+            plt.xlim([-0.004, 0.004])
+            plt.ylim([-0.004, 0.004])
+            #plt.xlim([-0.000006, 0.000006])
+            #plt.ylim([-0.000006, 0.000006])
+            #plt.xlim([-0.2, 0.2])
+            #plt.ylim([-0.2, 0.2])
         else:
-            plt.xlim([-40.0, 40.0])
-            plt.ylim([-40.0, 40.0])
+            plt.xlim([-0.5, 0.5])
+            plt.ylim([-0.5, 0.5])
+            #plt.xlim([-40.0, 40.0])
+            #plt.ylim([-40.0, 40.0])
+            #plt.xlim([-0.0005, 0.0005])
+            #plt.ylim([-0.0005, 0.0005])
         axes = plt.gca()
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
-        plt.ylabel("Labels",fontsize = 20)
+        plt.xlabel(r'$\rm labels\ {[m^{2}\ s^{-2}}]$',fontsize = 20)
         if is_smag:
-            plt.xlabel("Smagorinsky",fontsize = 20)
+            plt.ylabel(r'$\rm Smagorinsky\ {[m^{2}\ s^{-2}}]$',fontsize = 20)
         else:
-            plt.xlabel("CNN",fontsize = 20)
+            plt.ylabel(r'$\rm NN\ {[m^{2}\ s^{-2}}]$',fontsize = 20)
         plt.title("Corrcoef = " + str(corrcoef),fontsize = 20)
         plt.axhline(c='black')
         plt.axvline(c='black')
@@ -781,18 +830,37 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         plt.yticks(fontsize = 16, rotation = 0)
         if is_smag:
             if k == len(heights):
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.png")
+                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.png", dpi = 200)
             else:
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".png")
+                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
         else:
             if k == len(heights):
-                plt.savefig("Scatter_CNN_tau_" + component + "__horavg.png")
+                plt.savefig("Scatter_tau_" + component + "__horavg.png", dpi = 200)
             else:
-                plt.savefig("Scatter_CNN_tau_" + component + "_" + str(heights[k]) + ".png")
+                plt.savefig("Scatter_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
         plt.close()
 
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
+    make_horcross_heights(unres_tau_xu, zc, yc, xc, 'xu',   True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu, zc, yhc, xhc, 'yu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu, zhc, yc, xhc, 'zu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv, zc, yhc, xhc, 'xv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv, zc, yc, xc, 'yv',   True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv, zhc, yhc, xc, 'zv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw, zhc, yc, xhc, 'xw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw, zhc, yhc, xc, 'yw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw, zhc, yc, xc, 'zw',  True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xu_CNN, zc, yc, xc, 'xu',   False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu_CNN, zc, yhc, xhc, 'yu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu_CNN, zhc, yc, xhc, 'zu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv_CNN, zc, yhc, xhc, 'xv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv_CNN, zc, yc, xc, 'yv',   False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv_CNN, zhc, yhc, xc, 'zv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw_CNN, zhc, yc, xhc, 'xw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw_CNN, zhc, yhc, xc, 'yw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw_CNN, zhc, yc, xc, 'zw',  False, time_step = 0, delta = delta_height)
+    #
     make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu_traceless, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
     make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True)
     make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True)

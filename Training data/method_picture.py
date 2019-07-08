@@ -5,12 +5,16 @@ import matplotlib as mpl
 mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 import matplotlib.pyplot as plt
 
-training_data = nc.Dataset('/projects/1/flowsim/simulation1/training_data.nc','r')
+training_data = nc.Dataset('/projects/1/flowsim/simulation1/lesscoarse/training_data.nc','r')
 highres_data = nc.Dataset('/projects/1/flowsim/simulation1/u.nc','r')
 highres_coord_data = nc.Dataset('/projects/1/flowsim/simulation1/v.nc','r')
-delta = 500 #Half-channel width in [m]
+delta = 1250 #Half-channel width in [m], 1250 m is representative for a realistic ABL
+#delta = 1 NOTE: half-channel width for Moser case
+utau_ref = 0.2 #Friction velocity in [m/s], 0.2 m/s is representative for a realistic ABL. This is applied to undo the normalisation and rescale the values to realistic numbers.
+utau_ref_moser = training_data['utau_ref'][:] #NOTE: friction velocity for Moser case, needed to normalize high-res velocity fields. The low-resolution fields were already normalized.
+#utau_ref_moser = 0.0059
 
-u = highres_data.variables['u'][31,38,:,:]
+u = (highres_data.variables['u'][31,38,:,:] / utau_ref_moser) * utau_ref
 xh = highres_data.variables['xh'][:]*delta
 y = highres_data.variables['y'][:]*delta
 z = highres_data.variables['z'][:]*delta
@@ -22,7 +26,7 @@ yh = np.append(yh,np.pi*delta)
 print(z[38])
 
 uc = training_data.variables['uc'][31,training_data.variables['kgc_center'][:]:training_data.variables['kend'][:],training_data.variables['jgc'][:]:training_data.variables['jend'][:],training_data.variables['igc'][:]:training_data.variables['ihend'][:]]
-uc = uc[2,:,:]
+uc = uc[2,:,:] * utau_ref
 #xhc =  training_data.variables['xhc'][training_data.variables['igc'][:]:training_data.variables['ihend'][:]]*delta
 xc = training_data.variables['xgc'][training_data.variables['igc'][:]-1:training_data.variables['iend'][:]+1]*delta
 #yhc = training_data.variables['yghc'][training_data.variables['jgc'][:]:training_data.variables['jhend'][:]]*delta
@@ -36,9 +40,10 @@ zc  = training_data.variables['zc'][:]*delta
 #yhc = np.append(yhc,np.pi*delta)
 print(zgc[2])
 
-total_tau_xu = training_data.variables['total_tau_xu'][31,2,:,:]
-res_tau_xu = training_data.variables['res_tau_xu'][31,2,:,:]
-unres_tau_xu = training_data.variables['unres_tau_xu'][31,2,:,:]
+#NOTE: only turbulence contribution considered, not the total transport as the viscous contribution should not be added.
+total_tau_xu = training_data.variables['total_tau_xu_turb'][31,2,:,:] * (utau_ref ** 2)
+res_tau_xu = training_data.variables['res_tau_xu_turb'][31,2,:,:] * (utau_ref ** 2) 
+unres_tau_xu = training_data.variables['unres_tau_xu_turb'][31,2,:,:] * (utau_ref ** 2)
 #print(total_tau_xu.shape)
 #print(xhc.shape)
 #print(yc.shape)
@@ -71,7 +76,7 @@ plt.xticks(fontsize = 16, rotation = 90)
 plt.yticks(fontsize = 16, rotation = 0)
 plt.title(r'a) $u$', loc='center', fontsize=20)
 plt.tight_layout()
-plt.savefig('method_high_res_u.png')
+plt.savefig('method_high_res_u.png', dpi = 400)
 
 
 #plt.subplot(122)
@@ -90,7 +95,7 @@ plt.xticks(fontsize = 16, rotation = 90)
 plt.yticks(fontsize = 16, rotation = 0)
 plt.title(r'b) $u_c$', loc='center', fontsize=20)
 plt.tight_layout()
-plt.savefig('method_low_res_u.png')
+plt.savefig('method_low_res_u.png', dpi = 400)
 
 plt.figure()
 plt.pcolormesh(xhc, yhc, total_tau_xu)
@@ -107,7 +112,7 @@ plt.xticks(fontsize = 16, rotation = 90)
 plt.yticks(fontsize = 16, rotation = 0)
 plt.title(r'c)$\tau_{uu,tot}$', loc='center', fontsize=20)
 plt.tight_layout()
-plt.savefig('method_total_transport.png')
+plt.savefig('method_total_transport.png', dpi = 400)
 
 plt.figure()
 plt.pcolormesh(xhc, yhc, res_tau_xu)
@@ -124,7 +129,7 @@ plt.xticks(fontsize = 16, rotation = 90)
 plt.yticks(fontsize = 16, rotation = 0)
 plt.title(r'd)$\tau_{uu,res}$', loc='center', fontsize=20)
 plt.tight_layout()
-plt.savefig('method_res_transport.png')
+plt.savefig('method_res_transport.png', dpi = 400)
 
 plt.figure()
 plt.pcolormesh(xhc, yhc, unres_tau_xu)
@@ -142,6 +147,6 @@ plt.xticks(fontsize = 16, rotation = 90)
 plt.yticks(fontsize = 16, rotation = 0)
 plt.title(r'e)$\tau_{uu,unres}$', loc='center', fontsize=20)
 plt.tight_layout()
-plt.savefig('method_unres_transport.png')
+plt.savefig('method_unres_transport.png', dpi = 400)
 
 training_data.close()

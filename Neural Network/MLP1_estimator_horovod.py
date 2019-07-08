@@ -58,8 +58,11 @@ parser.add_argument('--checkpoint_steps', type=int, default=10000, \
         help='Every nth step, a checkpoint of the model is written')
 args = parser.parse_args()
 
+#Initialize Horovod
+hvd.init()
+
 #Define settings
-batch_size = int(args.batch_size)
+batch_size = int(args.batch_size / hvd.size()) #Compensate batch size for number of workers
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 num_labels = 9
 random_seed = 1234
@@ -334,10 +337,12 @@ def MLP_model_fn(features,labels,mode,params):
         #tf.summary.histogram('input_pgradz', input_layer[:,:,:,:,11])
 
     #Define layers
+    print(input_layer.shape)
     #flatten = tf.layers.flatten(input_layer, name='flatten')
     dense1  = tf.layers.Dense(units=params["n_dense1"], name="dense1", \
             activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
     dense1_output = dense1.apply(input_layer)
+    print(dense1_output.shape)
     ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
     tf.summary.histogram('activations_hidden_layer1', dense1_output)
     tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1', tf.nn.zero_fraction(dense1_output))
@@ -345,39 +350,46 @@ def MLP_model_fn(features,labels,mode,params):
     output = tf.layers.Dense(units=num_labels, name="outputs", \
             activation=None, kernel_initializer=params["kernel_initializer"])
     output_output = output.apply(dense1_output)
+    print(output_output.shape)
+    print(labels.shape)
 
     ###Visualize outputs
     tf.summary.histogram('output', output_output) 
 
     #Compute predictions
     if mode == tf.estimator.ModeKeys.PREDICT and args.benchmark is None:
+        #Concantenate predictions of all threads together
+        output   = hvd.allgather(output_output)
+        labels   = hvd.allgather(labels)
         return tf.estimator.EstimatorSpec(mode, predictions={
-            'pred_tau_xu':output_output[:,0], 'label_tau_xu':labels[:,0],
-            'pred_tau_yu':output_output[:,1], 'label_tau_yu':labels[:,1],
-            'pred_tau_zu':output_output[:,2], 'label_tau_zu':labels[:,2],
-            'pred_tau_xv':output_output[:,3], 'label_tau_xv':labels[:,3],
-            'pred_tau_yv':output_output[:,4], 'label_tau_yv':labels[:,4],
-            'pred_tau_zv':output_output[:,5], 'label_tau_zv':labels[:,5],
-            'pred_tau_xw':output_output[:,6], 'label_tau_xw':labels[:,6],
-            'pred_tau_yw':output_output[:,7], 'label_tau_yw':labels[:,7],
-            'pred_tau_zw':output_output[:,8], 'label_tau_zw':labels[:,8],
-            'tstep':features['tstep_sample'], 'zhloc':features['zhloc_sample'],
-            'zloc':features['zloc_sample'], 'yhloc':features['yhloc_sample'],
-            'yloc':features['yloc_sample'], 'xhloc':features['xhloc_sample'],
-            'xloc':features['xloc_sample']})
+            'pred_tau_xu':output[:,0], 'label_tau_xu':labels[:,0],
+            'pred_tau_yu':output[:,1], 'label_tau_yu':labels[:,1],
+            'pred_tau_zu':output[:,2], 'label_tau_zu':labels[:,2],
+            'pred_tau_xv':output[:,3], 'label_tau_xv':labels[:,3],
+            'pred_tau_yv':output[:,4], 'label_tau_yv':labels[:,4],
+            'pred_tau_zv':output[:,5], 'label_tau_zv':labels[:,5],
+            'pred_tau_xw':output[:,6], 'label_tau_xw':labels[:,6],
+            'pred_tau_yw':output[:,7], 'label_tau_yw':labels[:,7],
+            'pred_tau_zw':output[:,8], 'label_tau_zw':labels[:,8],
+            'tstep':hvd.allgather(features['tstep_sample']), 'zhloc':hvd.allgather(features['zhloc_sample']),
+            'zloc':hvd.allgather(features['zloc_sample']), 'yhloc':hvd.allgather(features['yhloc_sample']),
+            'yloc':hvd.allgather(features['yloc_sample']), 'xhloc':hvd.allgather(features['xhloc_sample']),
+            'xloc':hvd.allgather(features['xloc_sample'])})
  
     elif mode == tf.estimator.ModeKeys.PREDICT:
         #Concantenate predictions of all threads together
+        output   = hvd.allgather(output_output)
+        labels   = hvd.allgather(labels)
         return tf.estimator.EstimatorSpec(mode, predictions={
-            'pred_tau_xu':output_output[:,0],
-            'pred_tau_yu':output_output[:,1], 
-            'pred_tau_zu':output_output[:,2], 
-            'pred_tau_xv':output_output[:,3], 
-            'pred_tau_yv':output_output[:,4], 
-            'pred_tau_zv':output_output[:,5], 
-            'pred_tau_xw':output_output[:,6], 
-            'pred_tau_yw':output_output[:,7], 
-            'pred_tau_zw':output_output[:,8]}) 
+            'pred_tau_xu':output[:,0],
+            'pred_tau_yu':output[:,1], 
+            'pred_tau_zu':output[:,2], 
+            'pred_tau_xv':output[:,3], 
+            'pred_tau_yv':output[:,4], 
+            'pred_tau_zv':output[:,5], 
+            'pred_tau_xw':output[:,6], 
+            'pred_tau_yw':output[:,7], 
+            'pred_tau_zw':output[:,8]}) 
     
     #Compute loss
     mse_tau_total = tf.losses.mean_squared_error(labels, output_output)
@@ -392,7 +404,8 @@ def MLP_model_fn(features,labels,mode,params):
     #Compute evaluation metrics.
     tf.summary.histogram('labels', labels) #Visualize labels
     if mode == tf.estimator.ModeKeys.EVAL:
-        mse_all, update_op = tf.metrics.mean_squared_error(labels,output_output)
+        mse, update_op = tf.metrics.mean_squared_error(labels,output_output)
+        mse_all = hvd.allreduce(mse) #Average mse over all workers using allreduce, should be identical to the case where you calculate mse at once over all the samples the workers contain.
         log_mse_all = log10(mse_all)
         log_mse_all_update_op = log10(update_op)
         rmse_all = tf.math.sqrt(mse_all)
@@ -406,7 +419,10 @@ def MLP_model_fn(features,labels,mode,params):
     log_loss_training = log10(loss)
     tf.summary.scalar('log_loss', log_loss_training)
 
-    optimizer = tf.train.AdamOptimizer(params['learning_rate'])
+    optimizer = tf.train.AdamOptimizer(params['learning_rate'] * hvd.size()) #Should learning rate be scaled?
+    
+    #Add Horovod distributed optimizer
+    optimizer = hvd.DistributedOptimizer(optimizer)
 
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
 
@@ -418,7 +434,7 @@ def MLP_model_fn(features,labels,mode,params):
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 #Define filenames for training and validation
-nt_available = 30 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 1 to nt_available without gaps (and thus the time steps corresponding to the test set are located after nt_available).
+nt_available = 90 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 1 to nt_available without gaps (and thus the time steps corresponding to the test set are located after nt_available).
 nt_total = 100 #Amount of time steps INCLUDING the test set
 #nt_available = 2 #FOR TESTING PURPOSES ONLY!
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
@@ -442,6 +458,16 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
     else:
         val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
     j+=1
+
+#Distribute training files over workers
+try:
+    train_filenames_worker = np.split(train_filenames, hvd.size())[int(hvd.rank())] #Get one subarray from whole array of training files for each worker, which have equal sizes.
+    print('Train files of worker ' + str(hvd.rank()) + ': ' + str(train_filenames_worker))
+
+    val_filenames_worker = np.split(val_filenames, hvd.size())[int(hvd.rank())] #Get one subarray from whole array of training files for each worker, which have equal sizes.
+    print('Val files of worker ' + str(hvd.rank()) + ': ' + str(val_filenames_worker))
+except ValueError:
+    raise RuntimeError("If multiple workers/threads are used, each worker/thread receives an equal share of the training and validation files. This only works however if both the number of training and validation files are an exact multiple of the number of workers/threads. If for instance 3 workers/threads are used, both the number of training and validation files should be a multiple of 3.")
 
 #Calculate means and stdevs for input variables
 means_stdevs_filepath = args.stored_means_stdevs_filepath
@@ -590,10 +616,19 @@ os.environ['KMP_SETTINGS'] = str(1)
 os.environ['KMP_AFFINITY'] = 'granularity=fine,compact,1,0'
 os.environ['OMP_NUM_THREADS'] = str(args.intra_op_parallelism_threads)
 
-checkpoint_dir       = args.checkpoint_dir
+# Horovod: save checkpoints and variables for each worker in a different directory to prevent other workers from corrupting them. NOTE: if only the checkpoints and variables of worker 0 are stored, restarting the training from the last checkpoints results in errors being thrown.
+if hvd.rank() == 0:
+    checkpoint_dir       = args.checkpoint_dir
+else:
+    checkpoint_dir       = args.checkpoint_dir + '/worker' + str(hvd.rank())
 
 #Set warmstart_dir to None to disable it
 warmstart_dir = None
+
+#Horovod: BroadcastGlobalVariablesHook broadcasts initial variable states from rank 0 to all other processes. \
+        # This is necessary to ensure consistent initialisation of all workers when training is started with \
+        # random weights or restored from a checkpoint.
+bcast_hook = hvd.BroadcastGlobalVariablesHook(0)
 
 #Create RunConfig object to save check_point in the model_dir according to the specified schedule, and to define the session config
 my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir, tf_random_seed=random_seed, save_summary_steps=args.summary_steps, save_checkpoints_steps=args.checkpoint_steps, save_checkpoints_secs = None,session_config=config,keep_checkpoint_max=None, keep_checkpoint_every_n_hours=10000, log_step_count_steps=10, train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
@@ -614,20 +649,23 @@ hyperparams =  {
 #Instantiate an Estimator with model defined by model_fn
 CNN = tf.estimator.Estimator(model_fn = MLP_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir, warm_start_from = warmstart_dir)
 
-profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
+if hvd.rank() == 0:
+    profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
 
-if args.debug:
+if hvd.rank() == 0 and args.debug:
     debug_hook = tf_debug.LocalCLIDebugHook()
-    hooks = [profiler_hook, debug_hook]
+    hooks = [profiler_hook, bcast_hook, debug_hook]
 #    hooks = [bcast_hook, debug_hook]
+elif hvd.rank() == 0:
+    hooks = [profiler_hook, bcast_hook]
 else:
-    hooks = [profiler_hook]
+    hooks = [bcast_hook]
 
 if args.synthetic is None:
 
     #Train and evaluate CNN
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks) #Horovod:scaled batch size with number of workers
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
+    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames_worker, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks) #Horovod:scaled batch size with number of workers
+    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames_worker, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
     tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 #    NOTE: CNN.predict appeared to be unsuitable to compare the predictions from the CNN to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
@@ -645,7 +683,7 @@ if args.benchmark is None and args.synthetic is None:
    
     #Loop over val files to prevent memory overflow issues
     if args.synthetic is not None:
-        val_filenames = ['dummy'] #Dummy value of length 1 to ensure loop is only done once for synthetic data
+        val_filenames_worker = ['dummy'] #Dummy value of length 1 to ensure loop is only done once for synthetic data
     
     create_file = True #Make sure netCDF file is initialized
  
@@ -653,7 +691,7 @@ if args.benchmark is None and args.synthetic is None:
     tot_sample_end = 0
     tot_sample_begin = tot_sample_end
 
-    for val_filename in val_filenames:
+    for val_filename in val_filenames_worker:
 
         tf.reset_default_graph() #Reset the graph for each iteration
  
@@ -678,7 +716,7 @@ if args.benchmark is None and args.synthetic is None:
 
         #Create/open netCDF-file
         if create_file:
-            filepath = checkpoint_dir + '/MLP_predictions.nc'
+            filepath = checkpoint_dir + '/CNN_predictions_worker_' + str(hvd.rank()) + '.nc'
             predictions_file = nc.Dataset(filepath, 'w')
             dim_ns = predictions_file.createDimension("ns",None)
 
