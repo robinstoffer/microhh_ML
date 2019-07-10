@@ -44,7 +44,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 
 #Make CNN/Smag predictions and reconstruct fields
-python3 read_CNNsmagpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP4/MLP_predictions.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --reconstruct_fields --make_plots
+python3 -u read_CNNsmagpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP4/MLP_predictions.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --reconstruct_fields --make_plots
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""

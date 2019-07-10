@@ -35,8 +35,8 @@ c = nc.Dataset(args.training_file,'r')
 delta_height = 1250 # in [m]
 #delta_height = 1 #NOTE: uncomment when the height of the channel flow should be used.
 utau_ref_channel = np.array(c['utau_ref'][:]) #NOTE: used friction velocity in [m/s] for the channel flow, needed for rescaling below.
-utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
-
+#utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
+utau_ref = utau_ref_channel #FOR TESTING PURPOSES ONLY!
 #Specify time steps NOTE: SHOULD BE 27 TO 30 for validation, and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
 tstart = 27
 tend   = 30
@@ -54,33 +54,34 @@ smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:-1,:,:-1]) * ((utau_ref **
 smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
 smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
 #
-unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_yu = np.array(c['unres_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_zu = np.array(c['unres_tau_zu_turb'] [tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_xv = np.array(c['unres_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_yv = np.array(c['unres_tau_yv_turb'] [tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_zv = np.array(c['unres_tau_zv_turb'] [tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_xw = np.array(c['unres_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_yw = np.array(c['unres_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-unres_tau_zw = np.array(c['unres_tau_zw_turb'] [tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])      * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])      * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])      * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])      *  ((utau_ref ** 2) / (utau_ref_channel ** 2))   
-tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])      *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
-tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])      *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,:])     * (utau_ref ** 2) #NOTE: data from training file is dimensionless in contrast to the data from the MLP and Smagorinsky scripts, and consquently the rescaling factor is different!
+unres_tau_yu = np.array(c['unres_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
+unres_tau_zu = np.array(c['unres_tau_zu_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
+unres_tau_xv = np.array(c['unres_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
+unres_tau_yv = np.array(c['unres_tau_yv_turb'] [tstart:tend,:,:,:])     * (utau_ref ** 2) 
+unres_tau_zv = np.array(c['unres_tau_zv_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
+unres_tau_xw = np.array(c['unres_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
+print(unres_tau_xw[0,0,:,:])
+unres_tau_yw = np.array(c['unres_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
+unres_tau_zw = np.array(c['unres_tau_zw_turb'] [tstart:tend,:,:,:])     * (utau_ref ** 2) 
+res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])      * (utau_ref ** 2) 
+res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)   
+res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)   
+res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)   
+res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])      * (utau_ref ** 2)   
+res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)   
+res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)   
+res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)   
+res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])      * (utau_ref ** 2)   
+tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])      * (utau_ref ** 2)  
+tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)
+tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)
+tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)
+tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])      * (utau_ref ** 2)
+tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)
+tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)
+tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)
+tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])      * (utau_ref ** 2)
 #
 if args.reconstruct_fields:
     preds_values_xu = np.array(a['preds_values_tau_xu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
@@ -129,8 +130,6 @@ zhc = np.array(c['zhc'][:-1])
 
 #Calculate trace part of subgrid-stress, and subtract this from labels for fair comparison with Smagorinsky fluxes
 trace_train = (unres_tau_xu + unres_tau_yv + unres_tau_zw) * (1./3.)
-print(trace_train[:,:,5,6])
-print(trace_train.shape)
 unres_tau_xu_traceless = unres_tau_xu - trace_train
 unres_tau_yv_traceless = unres_tau_yv - trace_train
 unres_tau_zw_traceless = unres_tau_zw - trace_train
@@ -312,6 +311,7 @@ if args.reconstruct_fields:
     var_unres_tau_xv_lbls[:,:,:,:] = reconstruct_field(lbls_values_xv, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('second component done')
     var_unres_tau_xw_lbls[:,:,:,:] = reconstruct_field(lbls_values_xw, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    print(var_unres_tau_xw_lbls[0,0,:,:])
     print('third component done')
     var_unres_tau_yu_lbls[:,:,:,:] = reconstruct_field(lbls_values_yu, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('fourth component done')
