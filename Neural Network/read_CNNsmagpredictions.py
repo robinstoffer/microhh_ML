@@ -30,76 +30,77 @@ a = nc.Dataset(args.prediction_file,'r')
 b = nc.Dataset(args.smagorinsky_file,'r')
 c = nc.Dataset(args.training_file,'r')
 
-#Define reference mid-channel height and recalculate corresponding friction velocity
-#NOTE: this is done to rescale the velocities and grid domain to realistic values
+#Define reference mid-channel height and representative friction velocity
+#NOTE: this is done to rescale the transports and grid domain to realistic values
 delta_height = 1250 # in [m]
-#delta_height = 1 #NOTE: uncomment this line when the friction velocity of the channel flow should be used
-#utau_ref = np.array(c['utau_ref'][:]) #NOTE: use directly this value when the friction velocity of the channel flow should be used
-utau_ref = 0.2 # in [m/s], should be a value representative for a realistic atmospheric flow
+#delta_height = 1 #NOTE: uncomment when the height of the channel flow should be used.
+utau_ref_channel = np.array(c['utau_ref'][:]) #NOTE: used friction velocity in [m/s] for the channel flow, needed for rescaling below.
+utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
 
 #Specify time steps NOTE: SHOULD BE 27 TO 30 for validation, and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
 tstart = 27
 tend   = 30
 
-#Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes, and undo non-dimensionalisation fluxes done earlier with the friction velocity
-#NOTE:for some Smagorinsky and training fluxes the downstream/top cells are removed to make the dimensions consistent with the labels and predictions
-smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:])     
-smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:-1,:-1]) 
-smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:-1,:,:-1]) 
-smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:-1,:-1]) 
-smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:])     
-smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:-1,:-1,:]) 
-smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:-1,:,:-1]) 
-smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:-1,:-1,:]) 
-smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:])     
+#Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes.
+#NOTE1:rescale Smagorinsky and training fluxes with a representative friction velocity.
+#NOTE2:for some Smagorinsky and training fluxes the downstream/top cells are removed to make the dimensions consistent with the labels and predictions.
+smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
 #
-unres_tau_xu = np.array(c['unres_tau_xu_tot'] [tstart:tend,:,:,:])     * (utau_ref ** 2)
-unres_tau_yu = np.array(c['unres_tau_yu_tot'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
-unres_tau_zu = np.array(c['unres_tau_zu_tot'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
-unres_tau_xv = np.array(c['unres_tau_xv_tot'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
-unres_tau_yv = np.array(c['unres_tau_yv_tot'] [tstart:tend,:,:,:])     * (utau_ref ** 2)
-unres_tau_zv = np.array(c['unres_tau_zv_tot'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
-unres_tau_xw = np.array(c['unres_tau_xw_tot'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
-unres_tau_yw = np.array(c['unres_tau_yw_tot'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
-unres_tau_zw = np.array(c['unres_tau_zw_tot'] [tstart:tend,:,:,:])     * (utau_ref ** 2)
-res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_xu_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)
-res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1]) + np.array(c['res_tau_yu_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
-res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1]) + np.array(c['res_tau_zu_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
-res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1]) + np.array(c['res_tau_xv_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
-res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_yv_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2) 
-res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:]) + np.array(c['res_tau_zv_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
-res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1]) + np.array(c['res_tau_xw_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
-res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:]) + np.array(c['res_tau_yw_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
-res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])     + np.array(c['res_tau_zw_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2) 
-tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_xu_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)  
-tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1]) + np.array(c['total_tau_yu_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
-tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1]) + np.array(c['total_tau_zu_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
-tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1]) + np.array(c['total_tau_xv_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
-tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_yv_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)
-tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:]) + np.array(c['total_tau_zv_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
-tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1]) + np.array(c['total_tau_xw_visc'][tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
-tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:]) + np.array(c['total_tau_yw_visc'][tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
-tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])     + np.array(c['total_tau_zw_visc'][tstart:tend,:,:,:])     * (utau_ref ** 2)
+unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_yu = np.array(c['unres_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_zu = np.array(c['unres_tau_zu_turb'] [tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_xv = np.array(c['unres_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_yv = np.array(c['unres_tau_yv_turb'] [tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_zv = np.array(c['unres_tau_zv_turb'] [tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_xw = np.array(c['unres_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_yw = np.array(c['unres_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+unres_tau_zw = np.array(c['unres_tau_zw_turb'] [tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])      * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])      * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])      * ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])      *  ((utau_ref ** 2) / (utau_ref_channel ** 2))   
+tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])      *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:])  *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
+tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])      *  ((utau_ref ** 2) / (utau_ref_channel ** 2))
 #
 if args.reconstruct_fields:
-    preds_values_xu = np.array(a['preds_values_tau_xu'][:]) 
-    lbls_values_xu  = np.array(a['lbls_values_tau_xu'][:])
-    preds_values_yu = np.array(a['preds_values_tau_yu'][:])
-    lbls_values_yu  = np.array(a['lbls_values_tau_yu'][:])
-    preds_values_zu = np.array(a['preds_values_tau_zu'][:])
-    lbls_values_zu  = np.array(a['lbls_values_tau_zu'][:])
-    preds_values_xv = np.array(a['preds_values_tau_xv'][:])
-    lbls_values_xv  = np.array(a['lbls_values_tau_xv'][:])
-    preds_values_yv = np.array(a['preds_values_tau_yv'][:])
-    lbls_values_yv  = np.array(a['lbls_values_tau_yv'][:])
-    preds_values_zv = np.array(a['preds_values_tau_zv'][:])
-    lbls_values_zv  = np.array(a['lbls_values_tau_zv'][:])
-    preds_values_xw = np.array(a['preds_values_tau_xw'][:])
-    lbls_values_xw  = np.array(a['lbls_values_tau_xw'][:])
-    preds_values_yw = np.array(a['preds_values_tau_yw'][:])
-    lbls_values_yw  = np.array(a['lbls_values_tau_yw'][:])
-    preds_values_zw = np.array(a['preds_values_tau_zw'][:])
-    lbls_values_zw  = np.array(a['lbls_values_tau_zw'][:])
+    preds_values_xu = np.array(a['preds_values_tau_xu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xu  = np.array(a['lbls_values_tau_xu'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yu = np.array(a['preds_values_tau_yu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yu  = np.array(a['lbls_values_tau_yu'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zu = np.array(a['preds_values_tau_zu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zu  = np.array(a['lbls_values_tau_zu'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xv = np.array(a['preds_values_tau_xv'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xv  = np.array(a['lbls_values_tau_xv'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yv = np.array(a['preds_values_tau_yv'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yv  = np.array(a['lbls_values_tau_yv'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zv = np.array(a['preds_values_tau_zv'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zv  = np.array(a['lbls_values_tau_zv'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xw = np.array(a['preds_values_tau_xw'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xw  = np.array(a['lbls_values_tau_xw'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yw = np.array(a['preds_values_tau_yw'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yw  = np.array(a['lbls_values_tau_yw'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zw = np.array(a['preds_values_tau_zw'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zw  = np.array(a['lbls_values_tau_zw'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
     zhloc_values    = np.array(a['zhloc_samples'][:])
     zloc_values     = np.array(a['zloc_samples'][:])
     yhloc_values    = np.array(a['yhloc_samples'][:])
@@ -140,80 +141,80 @@ b.close()
 c.close()
 
 
-if args.reconstruct_fields:
-    
-    #Fetch means and stdevs to undo normalisation labels and predictions
-    stats = nc.Dataset(args.stats_file,'r')
-    mean_xu = np.array(stats['mean_unres_tau_xu_sample'][:])
-    mean_yu = np.array(stats['mean_unres_tau_yu_sample'][:])
-    mean_zu = np.array(stats['mean_unres_tau_zu_sample'][:])
-    mean_xv = np.array(stats['mean_unres_tau_xv_sample'][:])
-    mean_yv = np.array(stats['mean_unres_tau_yv_sample'][:])
-    mean_zv = np.array(stats['mean_unres_tau_zv_sample'][:])
-    mean_xw = np.array(stats['mean_unres_tau_xw_sample'][:])
-    mean_yw = np.array(stats['mean_unres_tau_yw_sample'][:])
-    mean_zw = np.array(stats['mean_unres_tau_zw_sample'][:])
-    #
-    stdev_xu = np.array(stats['stdev_unres_tau_xu_sample'][:])
-    stdev_yu = np.array(stats['stdev_unres_tau_yu_sample'][:])
-    stdev_zu = np.array(stats['stdev_unres_tau_zu_sample'][:])
-    stdev_xv = np.array(stats['stdev_unres_tau_xv_sample'][:])
-    stdev_yv = np.array(stats['stdev_unres_tau_yv_sample'][:])
-    stdev_zv = np.array(stats['stdev_unres_tau_zv_sample'][:])
-    stdev_xw = np.array(stats['stdev_unres_tau_xw_sample'][:])
-    stdev_yw = np.array(stats['stdev_unres_tau_yw_sample'][:])
-    stdev_zw = np.array(stats['stdev_unres_tau_zw_sample'][:])
-    
-    #Average means over time steps used for training (steps 0 up to and including 27) since only these were used to normalize the data
-    meant_xu = np.mean(mean_xu[0:tstart])
-    meant_yu = np.mean(mean_yu[0:tstart])
-    meant_zu = np.mean(mean_zu[0:tstart])
-    meant_xv = np.mean(mean_xv[0:tstart])
-    meant_yv = np.mean(mean_yv[0:tstart])
-    meant_zv = np.mean(mean_zv[0:tstart])
-    meant_xw = np.mean(mean_xw[0:tstart])
-    meant_yw = np.mean(mean_yw[0:tstart])
-    meant_zw = np.mean(mean_zw[0:tstart])
-    #
-    stdevt_xu = np.mean(stdev_xu[0:tstart])
-    stdevt_yu = np.mean(stdev_yu[0:tstart])
-    stdevt_zu = np.mean(stdev_zu[0:tstart])
-    stdevt_xv = np.mean(stdev_xv[0:tstart])
-    stdevt_yv = np.mean(stdev_yv[0:tstart])
-    stdevt_zv = np.mean(stdev_zv[0:tstart])
-    stdevt_xw = np.mean(stdev_xw[0:tstart])
-    stdevt_yw = np.mean(stdev_yw[0:tstart])
-    stdevt_zw = np.mean(stdev_zw[0:tstart])    
-
-    #Undo normalisation, including the one done earlier with the friction velocity
-    print('begin to undo normalisation')
-    def undo_normalisation(lbls, means, stdevs, time_steps):
-        lbls  = (lbls * stdevs) + means
-        return lbls
-    
-    preds_values_xu = undo_normalisation(preds_values_xu, meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2) 
-    lbls_values_xu  = undo_normalisation(lbls_values_xu , meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2)
-    preds_values_yu = undo_normalisation(preds_values_yu, meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
-    lbls_values_yu  = undo_normalisation(lbls_values_yu , meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
-    preds_values_zu = undo_normalisation(preds_values_zu, meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
-    lbls_values_zu  = undo_normalisation(lbls_values_zu , meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
-    preds_values_xv = undo_normalisation(preds_values_xv, meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
-    lbls_values_xv  = undo_normalisation(lbls_values_xv , meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
-    preds_values_yv = undo_normalisation(preds_values_yv, meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
-    lbls_values_yv  = undo_normalisation(lbls_values_yv , meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
-    preds_values_zv = undo_normalisation(preds_values_zv, meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
-    lbls_values_zv  = undo_normalisation(lbls_values_zv , meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
-    preds_values_xw = undo_normalisation(preds_values_xw, meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
-    lbls_values_xw  = undo_normalisation(lbls_values_xw , meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
-    preds_values_yw = undo_normalisation(preds_values_yw, meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
-    lbls_values_yw  = undo_normalisation(lbls_values_yw , meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
-    preds_values_zw = undo_normalisation(preds_values_zw, meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
-    lbls_values_zw  = undo_normalisation(lbls_values_zw , meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
-    print('finished undoing normalisation')
-
-    #Close netCDF-file
-    stats.close()
-
+#if args.reconstruct_fields:
+#    
+#    #Fetch means and stdevs to undo normalisation labels and predictions
+#    stats = nc.Dataset(args.stats_file,'r')
+#    mean_xu = np.array(stats['mean_unres_tau_xu_sample'][:])
+#    mean_yu = np.array(stats['mean_unres_tau_yu_sample'][:])
+#    mean_zu = np.array(stats['mean_unres_tau_zu_sample'][:])
+#    mean_xv = np.array(stats['mean_unres_tau_xv_sample'][:])
+#    mean_yv = np.array(stats['mean_unres_tau_yv_sample'][:])
+#    mean_zv = np.array(stats['mean_unres_tau_zv_sample'][:])
+#    mean_xw = np.array(stats['mean_unres_tau_xw_sample'][:])
+#    mean_yw = np.array(stats['mean_unres_tau_yw_sample'][:])
+#    mean_zw = np.array(stats['mean_unres_tau_zw_sample'][:])
+#    #
+#    stdev_xu = np.array(stats['stdev_unres_tau_xu_sample'][:])
+#    stdev_yu = np.array(stats['stdev_unres_tau_yu_sample'][:])
+#    stdev_zu = np.array(stats['stdev_unres_tau_zu_sample'][:])
+#    stdev_xv = np.array(stats['stdev_unres_tau_xv_sample'][:])
+#    stdev_yv = np.array(stats['stdev_unres_tau_yv_sample'][:])
+#    stdev_zv = np.array(stats['stdev_unres_tau_zv_sample'][:])
+#    stdev_xw = np.array(stats['stdev_unres_tau_xw_sample'][:])
+#    stdev_yw = np.array(stats['stdev_unres_tau_yw_sample'][:])
+#    stdev_zw = np.array(stats['stdev_unres_tau_zw_sample'][:])
+#    
+#    #Average means over time steps used for training (steps 0 up to and including 27) since only these were used to normalize the data
+#    meant_xu = np.mean(mean_xu[0:tstart])
+#    meant_yu = np.mean(mean_yu[0:tstart])
+#    meant_zu = np.mean(mean_zu[0:tstart])
+#    meant_xv = np.mean(mean_xv[0:tstart])
+#    meant_yv = np.mean(mean_yv[0:tstart])
+#    meant_zv = np.mean(mean_zv[0:tstart])
+#    meant_xw = np.mean(mean_xw[0:tstart])
+#    meant_yw = np.mean(mean_yw[0:tstart])
+#    meant_zw = np.mean(mean_zw[0:tstart])
+#    #
+#    stdevt_xu = np.mean(stdev_xu[0:tstart])
+#    stdevt_yu = np.mean(stdev_yu[0:tstart])
+#    stdevt_zu = np.mean(stdev_zu[0:tstart])
+#    stdevt_xv = np.mean(stdev_xv[0:tstart])
+#    stdevt_yv = np.mean(stdev_yv[0:tstart])
+#    stdevt_zv = np.mean(stdev_zv[0:tstart])
+#    stdevt_xw = np.mean(stdev_xw[0:tstart])
+#    stdevt_yw = np.mean(stdev_yw[0:tstart])
+#    stdevt_zw = np.mean(stdev_zw[0:tstart])    
+#
+#    #Undo normalisation, including the one done earlier with the friction velocity
+#    print('begin to undo normalisation')
+#    def undo_normalisation(lbls, means, stdevs, time_steps):
+#        lbls  = (lbls * stdevs) + means
+#        return lbls
+#    
+#    preds_values_xu = undo_normalisation(preds_values_xu, meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2) 
+#    lbls_values_xu  = undo_normalisation(lbls_values_xu , meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2)
+#    preds_values_yu = undo_normalisation(preds_values_yu, meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
+#    lbls_values_yu  = undo_normalisation(lbls_values_yu , meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
+#    preds_values_zu = undo_normalisation(preds_values_zu, meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
+#    lbls_values_zu  = undo_normalisation(lbls_values_zu , meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
+#    preds_values_xv = undo_normalisation(preds_values_xv, meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
+#    lbls_values_xv  = undo_normalisation(lbls_values_xv , meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
+#    preds_values_yv = undo_normalisation(preds_values_yv, meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
+#    lbls_values_yv  = undo_normalisation(lbls_values_yv , meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
+#    preds_values_zv = undo_normalisation(preds_values_zv, meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
+#    lbls_values_zv  = undo_normalisation(lbls_values_zv , meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
+#    preds_values_xw = undo_normalisation(preds_values_xw, meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
+#    lbls_values_xw  = undo_normalisation(lbls_values_xw , meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
+#    preds_values_yw = undo_normalisation(preds_values_yw, meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
+#    lbls_values_yw  = undo_normalisation(lbls_values_yw , meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
+#    preds_values_zw = undo_normalisation(preds_values_zw, meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
+#    lbls_values_zw  = undo_normalisation(lbls_values_zw , meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
+#    print('finished undoing normalisation')
+#
+#    #Close netCDF-file
+#    stats.close()
+#
 ###Reconstruct flow fields###
 def reconstruct_field(preds, x, xs_unique, y, ys_unique, z, zs_unique, tstep, tsteps_unique):
     
@@ -674,7 +675,7 @@ if args.reconstruct_fields:
     d.close()
 
 ###Loop over heights for all components considering the time steps specified below, and make scatterplots of labels vs fluxes (CNN and Smagorinsky) at each height for all specified time steps combined###
-
+print('Start making plots')
 #Fetch unresolved fluxes from netCDF-file
 fields = nc.Dataset("reconstructed_fields.nc", "r")
 
