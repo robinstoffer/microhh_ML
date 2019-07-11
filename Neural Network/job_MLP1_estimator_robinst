@@ -64,7 +64,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 #Enable Horovod timeline
 #export HOROVOD_TIMELINE='/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN14/horovod.json'
 
-python3 /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/MLP1_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP4' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --training_filepath '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --num_steps 1000 --batch_size 1000 --checkpoint_steps 1000
+python3 /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/MLP1_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP5' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --training_filepath '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
 #use python3 -u to flush output from e.g. print statements directly to the output file
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
