@@ -308,12 +308,17 @@ def MLP_model_fn(features, labels, mode, params):
     '''MLP model with 1 hidden layer. \\
             NOTE: this function accesses the global variables means_dict_avgt, stdevs_dict_avgt, and utau_ref.'''
 
+    #Define wrappers for input variables, which can be used to set-up the inference graph
+    input_u = tf.identity(features['uc_sample'], name = 'input_u')
+    input_v = tf.identity(features['vc_sample'], name = 'input_v')
+    input_w = tf.identity(features['wc_sample'], name = 'input_w')
+    input_p = tf.identity(features['pc_sample'], name = 'input_p')
+
     #Define input layer
-    if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
+    if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function        
         #input_layer = tf.concat([features['uc_sample'],features['vc_sample'], \
         #        features['wc_sample']], axis=1)
-        input_layer = tf.concat([features['uc_sample'],features['vc_sample'], \
-                features['wc_sample'],features['pc_sample']], axis=1, name = 'input')
+        input_layer = tf.concat([input_u, input_v, input_w, input_p], axis=1, name = 'input_layer')
 
         ##Visualize inputs
         #tf.summary.histogram('input_u', input_layer[:,:,:,:,0])
@@ -325,7 +330,7 @@ def MLP_model_fn(features, labels, mode, params):
         input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
                 features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
                 features['wgradx_sample'],features['wgrady_sample'],features['wgradz_sample'], \
-                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']], axis=1, name = 'input')
+                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']], axis=1, name = 'input_layer')
         
         #input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
         #        features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
