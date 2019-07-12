@@ -313,7 +313,7 @@ def MLP_model_fn(features, labels, mode, params):
         #input_layer = tf.concat([features['uc_sample'],features['vc_sample'], \
         #        features['wc_sample']], axis=1)
         input_layer = tf.concat([features['uc_sample'],features['vc_sample'], \
-                features['wc_sample'],features['pc_sample']], axis=1)
+                features['wc_sample'],features['pc_sample']], axis=1, name = 'input')
 
         ##Visualize inputs
         #tf.summary.histogram('input_u', input_layer[:,:,:,:,0])
@@ -325,7 +325,7 @@ def MLP_model_fn(features, labels, mode, params):
         input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
                 features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
                 features['wgradx_sample'],features['wgrady_sample'],features['wgradz_sample'], \
-                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']], axis=1)
+                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']], axis=1, name = 'input')
         
         #input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
         #        features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
@@ -350,7 +350,7 @@ def MLP_model_fn(features, labels, mode, params):
     dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1", \
             activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
     dense1 = dense1_layerdef.apply(input_layer)
-    output_layerdef = tf.layers.Dense(units=num_labels, name="outputs", \
+    output_layerdef = tf.layers.Dense(units=num_labels, name="output", \
             activation=None, kernel_initializer=params["kernel_initializer"])
     output_norm = output_layerdef.apply(dense1)
     ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
@@ -360,7 +360,8 @@ def MLP_model_fn(features, labels, mode, params):
     #Make output layer conditional on the height of the staggered vertical dimension. At zh=0, several components are by definition 0 in turbulent channel flow (i.e. the ones located at the bottom wall. Consequently, the corresponding output values should be explicitly set to 0. 
     #NOTE1: floating point comparison of zh to 0. is OK in this case because zh at the surface was defined as exactly 0. in the training data generation procedure (see grid_objects_trainining.py in Training data folder). Zero has an exact representation in floating point format. 
     #NOTE2: for this code True should be evaluated as 1 and False as 0.
-    channel_bool = tf.expand_dims(tf.math.not_equal(features['zhloc_sample'], 0.), axis=1) #Select all samples where components should not be set to 0.
+    input_height = tf.identity(features['zhloc_sample'], name = 'input_height')
+    channel_bool = tf.expand_dims(tf.math.not_equal(input_height, 0.), axis=1) #Select all samples where components should not be set to 0.
     #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
     #Select all transport components that should not be set to 0.
     nonstaggered_components_bool = tf.constant(
@@ -370,53 +371,55 @@ def MLP_model_fn(features, labels, mode, params):
     #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
     mask = tf.cast(tf.math.logical_or(channel_bool, nonstaggered_components_bool), output_norm.dtype) #Cast boolean to float for multiplications below
     #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
-    output_mask = tf.math.multiply(output_norm, mask)
+    output_mask = tf.math.multiply(output_norm, mask, name = 'output_masked')
     #a4 = tf.print("output_mask: ", output_mask, output_stream=tf.logging.info, summarize=-1)
-    labels_mask = tf.math.multiply(labels, mask) #NOTE: the concerning labels should also be put to 0 because of the applied normalisation.
+    labels_mask = tf.math.multiply(labels, mask, name = 'labels_masked') #NOTE: the concerning labels should also be put to 0 because of the applied normalisation.
     #a5 = tf.print("labels_mask: ", labels_mask, output_stream=tf.logging.info, summarize=-1)
     #Trick to execute tf.print ops defined ai. For these ops, set output_stream to tf.logging.info and summarize to -1.
     #with tf.control_dependencies([a1,a2,a3,a4,a5]):
     #    output_mask = tf.identity(output_mask)
     
-
     ###Visualize outputs
     tf.summary.histogram('output_norm', output_mask)
 
     #Denormalize the output fluxes
     #NOTE1: As a last step, the mask should again be applied to ensure the output for the concerning components at the surface is exactly 0.
-    if mode == tf.estimator.ModeKeys.PREDICT:
-        means = tf.constant([[ 
-            means_dict_avgt['unres_tau_xu_sample'],
-            means_dict_avgt['unres_tau_yu_sample'],
-            means_dict_avgt['unres_tau_zu_sample'],
-            means_dict_avgt['unres_tau_xv_sample'],
-            means_dict_avgt['unres_tau_yv_sample'],
-            means_dict_avgt['unres_tau_zv_sample'],
-            means_dict_avgt['unres_tau_xw_sample'],
-            means_dict_avgt['unres_tau_yw_sample'],
-            means_dict_avgt['unres_tau_zw_sample']]])
+    #NOTE2: These calculations are only needed for inference, but in order to show up in the computation graph (and thus allowing to include it in the frozen graph) this should nonetheless be part of the main model_fn function.
+    #if mode == tf.estimator.ModeKeys.PREDICT:
+    means = tf.constant([[ 
+        means_dict_avgt['unres_tau_xu_sample'],
+        means_dict_avgt['unres_tau_yu_sample'],
+        means_dict_avgt['unres_tau_zu_sample'],
+        means_dict_avgt['unres_tau_xv_sample'],
+        means_dict_avgt['unres_tau_yv_sample'],
+        means_dict_avgt['unres_tau_zv_sample'],
+        means_dict_avgt['unres_tau_xw_sample'],
+        means_dict_avgt['unres_tau_yw_sample'],
+        means_dict_avgt['unres_tau_zw_sample']]])
     
-        stdevs = tf.constant([[ 
-            stdevs_dict_avgt['unres_tau_xu_sample'],
-            stdevs_dict_avgt['unres_tau_yu_sample'],
-            stdevs_dict_avgt['unres_tau_zu_sample'],
-            stdevs_dict_avgt['unres_tau_xv_sample'],
-            stdevs_dict_avgt['unres_tau_yv_sample'],
-            stdevs_dict_avgt['unres_tau_zv_sample'],
-            stdevs_dict_avgt['unres_tau_xw_sample'],
-            stdevs_dict_avgt['unres_tau_yw_sample'],
-            stdevs_dict_avgt['unres_tau_zw_sample']]])
+    stdevs = tf.constant([[ 
+        stdevs_dict_avgt['unres_tau_xu_sample'],
+        stdevs_dict_avgt['unres_tau_yu_sample'],
+        stdevs_dict_avgt['unres_tau_zu_sample'],
+        stdevs_dict_avgt['unres_tau_xv_sample'],
+        stdevs_dict_avgt['unres_tau_yv_sample'],
+        stdevs_dict_avgt['unres_tau_zv_sample'],
+        stdevs_dict_avgt['unres_tau_xw_sample'],
+        stdevs_dict_avgt['unres_tau_yw_sample'],
+        stdevs_dict_avgt['unres_tau_zw_sample']]])
 
-        output_stdevs      = tf.math.multiply(output_mask, stdevs)
-        output_means       = tf.math.add(output_stdevs, means)
-        output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
-        output_denorm      = tf.math.multiply(output_meansstdevs, mask)
+    output_stdevs      = tf.math.multiply(output_mask, stdevs)
+    output_means       = tf.math.add(output_stdevs, means)
+    output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
+    output_denorm      = tf.math.multiply(output_meansstdevs, mask, name = 'output_denorm')
     
-        #Denormalize the labels
-        #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
+    #Denormalize the labels
+    #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
+    #NOTE2: this does not have to be included in the frozen graph, and thus does not have to be included in the main code.
+    if mode == tf.estimator.ModeKeys.PREDICT:
         labels_stdevs = tf.math.multiply(labels, stdevs) #NOTE: on purpose labels instead of labels_mask.
         labels_means  = tf.math.add(labels_stdevs, means)
-        labels_denorm = tf.math.multiply(labels_means, (utau_ref ** 2))
+        labels_denorm = tf.math.multiply(labels_means, (utau_ref ** 2), name = 'labels_denorm')
         
         #Compute predictions
         if args.benchmark is None:
