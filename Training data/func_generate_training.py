@@ -152,10 +152,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     mvisc_ref = mvisc / (utau_ref * channel_half_width)
 
     #Loop over timesteps
-    for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
+    #for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
         #NOTE1: does not select the last time step stored ('endtime' in {case}.ini file, this would require timesteps + 1 iterations.
-        #NOTE2: when testing, the # of timesteps is by default set equal to 1.
-    #for t in range(1): #FOR TESTING PURPOSES ONLY!
+        #NOTE2: when testing, the # of timesteps should be set equal to 1.
+    for t in range(1): #FOR TESTING PURPOSES ONLY!
         ##Read or define fine-resolution DNS data ##
         ############################################
 
