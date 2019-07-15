@@ -230,10 +230,10 @@ def downsample(finegrid, coarsegrid, variable_name, bool_edge_gridcell = (False,
     #Read in the right coarse coordinates determined by bool_edge_gridcell.
     #z-direction
     if bool_edge_gridcell[0]:
-        zcor_c     = coarsegrid['grid']['zh'][coarsegrid.kgc_edge:coarsegrid.khend]
+        zcor_c     = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend]
         dist_zc    = coarsegrid['grid']['zhdist']
     else:
-        zcor_c     = coarsegrid['grid']['z'][coarsegrid.kgc_center:coarsegrid.kend]
+        zcor_c     = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]
         dist_zc    = coarsegrid['grid']['zdist']
 
     #y-direction

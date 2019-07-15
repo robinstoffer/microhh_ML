@@ -89,6 +89,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     cells_around_centercell = size_samples // 2 #Use floor division to calculate number of gridcells that are above and below the center gridcell of a given sample, which depends on the sample size. NOTE: sampling itself is done in sample_training_data_tfrecord.py.
     igc = cells_around_centercell
     jgc = cells_around_centercell
+    kgc = cells_around_centercell
     
     #Define flag to ensure variables are only created once in netCDF file
     create_variables = True
@@ -152,10 +153,10 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     mvisc_ref = mvisc / (utau_ref * channel_half_width)
 
     #Loop over timesteps
-    #for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
+    for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
         #NOTE1: does not select the last time step stored ('endtime' in {case}.ini file, this would require timesteps + 1 iterations.
         #NOTE2: when testing, the # of timesteps should be set equal to 1.
-    for t in range(1): #FOR TESTING PURPOSES ONLY!
+    #for t in range(1): #FOR TESTING PURPOSES ONLY!
         ##Read or define fine-resolution DNS data ##
         ############################################
 
@@ -187,7 +188,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         ################################################################
 
         #Initialize coarsegrid object
-        coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc)
+        coarsegrid = Coarsegrid(dim_new_grid, finegrid, igc = igc, jgc = jgc, kgc = kgc)
 
         #Calculate representative velocities for each coarse grid cell
         coarsegrid.downsample('u')

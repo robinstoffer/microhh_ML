@@ -25,7 +25,7 @@ class Finegrid:
 
         -periodic_bc: should be a tuple indicating for each spatial direction (z, y, x) whether periodic boundary conditions are assumed (True when present, False when not present).
         
-        -zero_w_topbottom: boolean specifying whether the vertical wind velocity is 0 at the bottom and top levels of the domain or not.
+        -zero_w_topbottom: boolean specifying whether the vertical wind velocity is 0 at the bottom and top levels of the domain or not. This is used to define ghost cells in the vertical direction.
         
         -normalisation_grid: boolean indicating if the specified height of the simulation should be used to normalize the coordinate axes (True), which is for the a turbulent channel flow equal to the half-channel width."""
         
@@ -399,11 +399,11 @@ class Finegrid:
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction
         sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc-bjgc:self.sjend-bjgc,:] #Add ghostcell upstream y-direction
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
-        if self.kgc == 1:
+        if self.kgc == 1: #Mirror profile over BC
             sgc[0:self.kgc,:,:] = 0 - sgc[self.kgc,:,:] #Add ghostcell bottom z-direction
             sgc[self.skend,:,:] = 0 - sgc[self.skend-1,:,:] #Add ghostcell top z-direction
         if bkgc == 1:
-            sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction
+            sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction, making sure that is satisfies the same BC.
         
         #Store new fields in object
         self.var['output'][variable_name]['variable'] = sgc
@@ -580,7 +580,11 @@ class Finegrid:
             raise RuntimeError('Can\'t find variable \"{}\" in object.')
 
 class Coarsegrid:
-    """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. These dimensionsof the coarse grid should be specified as a tuple (z,y,x) (dim_new_grid). Optionally, the number of ghost cells in the horizontal directions (igc,jgc) can be specified as integers. By default, the corresponding amount of ghostcells in the finegrid_object are used. Besides that, a method is provided to downsample variables already present in the finegrid_ojbect. NOTE: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible."""
+    """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. \\
+        These dimensions of the coarse grid should be specified as a tuple (z,y,x) (dim_new_grid). Optionally, the number of ghost cells in all directions (igc,jgc, kgc) can be specified as integers. \\ 
+        By default, the corresponding amount of ghostcells in the finegrid_object are used. Besides that, a method is provided to downsample variables already present in the finegrid_ojbect. \\ 
+        NOTE1: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible. \\
+        NOTE2: in the vertical staggered dimensions (zh, yh, xh) of the grid, similar to the finegrid_object one more ghost cell is added than specified by (igc,jgc, kgc). This is always a copy of the first value, which makes sure that the top value satisfies the BCs (i.e. U = 0 or periodic BC)."""
 
     def __init__(self, dim_new_grid, finegrid_object, **kwargs):
         
@@ -615,16 +619,21 @@ class Coarsegrid:
             if not isinstance(self.jgc, int):
                 raise TypeError('Specified ghost cells should be an integer.')
         except KeyError:
-            self.jgc = self.finegrid.jgc
-        self.kgc_center = self.finegrid.kgc_center
-        self.kgc_edge = self.finegrid.kgc_edge
+           self.jgc = self.finegrid.jgc  
+        try:
+            self.kgc = kwargs['kgc']
+            if not isinstance(self.kgc, int):
+                raise TypeError('Specified ghost cells should be an integer.')
+        except KeyError:
+            self.kgc = self.finegrid.kgc_center  
+
         self.periodic_bc = self.finegrid.periodic_bc
         self.zero_w_topbottom = self.finegrid.zero_w_topbottom
         self.sgn_digits = self.finegrid.sgn_digits
 
         #Boundary condition: the resolution of the coarse grid should be coarser than the fine resolution
         if not (nz <= finegrid_object['grid']['ktot'] and ny <= finegrid_object['grid']['jtot'] and nx <= finegrid_object['grid']['itot']):
-            raise ValueError("The resolution of the coarse grid should be coarser than the fine resolution contained in the Finegrid object.")        
+            raise ValueError("The resolution of the coarse grid should not be finer than the fine resolution contained in the Finegrid object.")        
 
         self.var['grid']['ktot'] = nz
         self.var['grid']['jtot'] = ny
@@ -690,14 +699,16 @@ class Coarsegrid:
             raise KeyError("Specified variable_name not defined in object.")
 
         #Check that ghost cells are not negative
-        if self.jgc < 0 or self.igc < 0 or self.kgc_center < 0 or self.kgc_edge < 0:
+        #if self.jgc < 0 or self.igc < 0 or self.kgc_center < 0 or self.kgc_edge < 0:
+        if self.jgc < 0 or self.igc < 0 or self.kgc < 0 :
             raise ValueError("The specified number of ghostcells cannot be negative.")
             
         #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
-        if self.kgc_edge > 0 and (not self.periodic_bc[0]):
-            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+        #if self.kgc_edge > 0 and (not self.periodic_bc[0]):
+        #    raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
         
-        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+        #if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+        if self.kgc > 0 and not (self.periodic_bc[0] or self.zero_w_topbottom):
             raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
             
         if self.jgc > 0 and not self.periodic_bc[1]:
@@ -710,13 +721,13 @@ class Coarsegrid:
         s = self.var['output'][variable_name]['variable']
         
         #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independent of self.igc/jgc/kgc
-        self.kgc = self.kgc_center
+        #self.kgc = self.kgc_center
         bkgc = 0
         bjgc = 0
         bigc = 0
         if self.var['output'][variable_name]['orientation'][0]:
             bkgc = 1
-            self.kgc = self.kgc_edge
+            #self.kgc = self.kgc_edge
             #s = s[:-1,:,:].copy() NOTE: This line should NOT be commented out in case of periodic BC
         if self.var['output'][variable_name]['orientation'][1]:
             bjgc = 1
@@ -749,13 +760,15 @@ class Coarsegrid:
         sgc[:,:,self.siend-bigc:self.siend+self.igc] = sgc[:,:,self.igc:self.igc+self.igc+bigc] #Add ghostcell downstream x-direction
         sgc[:,0:self.jgc,:] = sgc[:,self.sjend-self.jgc-bjgc:self.sjend-bjgc,:] #Add ghostcell upstream y-direction
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
-        if self.kgc == 1:
-            sgc[0:self.kgc,:,:] = 0 - sgc[self.kgc,:,:] #Add ghostcell bottom z-direction
-            sgc[self.skend,:,:] = 0 - sgc[self.skend-1,:,:] #Add ghostcell top z-direction
+        #Fill new initialized array including ghost cells for vertical direction
+        #NOTE1: assuming that U = 0 at the bottom, the code below mirrors the profile over the bottom/top BC.
+        sgc[0:self.kgc,:,:] = 0 - np.flip(sgc[self.kgc:2*self.kgc,:,:], axis = 0) #Add ghostcells bottom z-direction
+        sgc[self.skend:self.skend+self.kgc,:,:] = 0 - np.flip(sgc[self.skend-bkgc-self.kgc:self.skend-bkgc,:,:], axis = 0) #Add ghostcell top z-direction
 #        if bkgc == 1:
 #            sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction
-        #NOTE: The two lines above should NOT be commented out in case of periodic BC. In case of periodic BC, the ghost cells can implemented in a similar way as in the horizontal directions.
-        
+        #NOTE2: The two lines above should NOT be commented out in case of periodic BC. In case of periodic BC, the ghost cells can implemented in a similar way as in the horizontal directions.
+        #NOTE3: The lines above are taking into account that in the downsampling procedure the top cell in the staggered vertical direction has already been added.
+
         #Store new fields in object
         self.var['output'][variable_name]['variable'] = sgc
         
@@ -775,12 +788,13 @@ class Coarsegrid:
             raise RuntimeError("The shape of the arrays representing the grid centers and edges should be the same, but they are not while this implicitly assumed in the script." )
         
         #Check for each coordinate that no ghostcells are specified when no periodic bc are assumed. No ghost cells are yet implemented for other types of BC's, except one ghost cell in the vertical direction with a no-slip BC.
-        if self.kgc_edge > 0 and (not self.periodic_bc[0]):
-            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
+        #if self.kgc_edge > 0 and (not self.periodic_bc[0]):
+        #    raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
         
-        if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
-            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells within this script. Add additional functionality to this script if needed.")
-                
+        #if self.kgc_center > 0 and (not self.periodic_bc[0]) and not (self.kgc_center == 1 and self.zero_w_topbottom):
+        if self.kgc > 0 and not (self.periodic_bc[0] or self.zero_w_topbottom):
+            raise ValueError("The current settings for the periodic_bc and zero_w_topbottom flags do not allow to implement the specified number of ghost cells in the vertical direction. Add additional functionality to this script if needed.")
+
         if self.jgc > 0 and not self.periodic_bc[1]:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
@@ -788,15 +802,16 @@ class Coarsegrid:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
         #Check that there are not more ghost cells than grid cells. 
-        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (max(self.kgc_center, self.kgc_edge) + 1) > (z.shape[0]):
+        #if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (max(self.kgc_center, self.kgc_edge) + 1) > (z.shape[0]):
+        if (self.igc + 1) > (x.shape[0]) or (self.jgc + 1) > (y.shape[0]) or (self.kgc + 1) > (z.shape[0]):
             raise ValueError("The needed number of ghostcells is larger than the number of grid cells present in the object.") 
         
         #Determine size new output array including ghost cells
         icells = self.var['grid']['itot'] + 2*self.igc
         jcells = self.var['grid']['jtot'] + 2*self.jgc
       #  kcells = self.var['grid']['ktot'] + 2*kgc
-        kcells = self.var['grid']['ktot'] + 2*self.kgc_center
-        khcells = self.var['grid']['ktot'] + 2*self.kgc_edge 
+        kcells = self.var['grid']['ktot'] + 2*self.kgc
+        khcells = self.var['grid']['ktot'] + 2*self.kgc
         
         #Initialize new coordinates and store ghost cells in them
         xgc = np.zeros(icells)
@@ -810,15 +825,15 @@ class Coarsegrid:
         self.ihend = self.igc + self.var['grid']['itot'] + 1
         self.jend = self.jgc + self.var['grid']['jtot']
         self.jhend = self.jgc + self.var['grid']['jtot'] + 1
-        self.kend = self.kgc_center + self.var['grid']['ktot']
-        self.khend = self.kgc_edge + self.var['grid']['ktot'] + 1
+        self.kend = self.kgc + self.var['grid']['ktot']
+        self.khend = self.kgc + self.var['grid']['ktot'] + 1
         
         xgc  = self.__add_ghostcells_cor(xgc , 0,  self.igc, self.iend , x,  self.var['grid']['xsize'])
         xhgc = self.__add_ghostcells_cor(xhgc, 1,  self.igc, self.ihend, xh, self.var['grid']['xsize'])
         ygc  = self.__add_ghostcells_cor(ygc , 0,  self.jgc, self.jend , y,  self.var['grid']['ysize'])
         yhgc = self.__add_ghostcells_cor(yhgc, 1,  self.jgc, self.jhend, yh, self.var['grid']['ysize'])
-        zgc  = self.__add_ghostcells_cor_ver(zgc , 0,  self.kgc_center, self.kend , z,  self.var['grid']['zsize'])
-        zhgc = self.__add_ghostcells_cor_ver(zhgc, 1,  self.kgc_edge, self.khend, zh, self.var['grid']['zsize'])
+        zgc  = self.__add_ghostcells_cor_ver(zgc , 0,  self.kgc, self.kend , z,  self.var['grid']['zsize'])
+        zhgc = self.__add_ghostcells_cor_ver(zhgc, 1,  self.kgc, self.khend, zh, self.var['grid']['zsize'])
 
         self.var['grid']['z'] = zgc
         self.var['grid']['zh'] = zhgc
@@ -839,11 +854,11 @@ class Coarsegrid:
     def __add_ghostcells_cor_ver(self, corgc, bgc, gc, endindex, cor, size):
         """ Add 0 or 1 ghostcell to coordinates corresponding to the vertical direction, making use of the no-slip BC. """
         corgc[gc:endindex-bgc] = cor[:]
-        if not (gc == 0 or gc == 1):
+        if not (gc >= 0):
             raise RuntimeError("Number of ghost cells to be added in vertical direction not consistent with specified BC's.")
-        if gc == 1:
-            corgc[0] = 0 - cor[0]
-            corgc[endindex] = size + (size - corgc[endindex-1])
+        if gc > 0 :
+            corgc[0:gc] = 0 - np.flip(cor[0:gc])
+            corgc[endindex:endindex+gc] = size + (size - np.flip(corgc[endindex-bgc-gc:endindex-bgc]))
         if bgc == 1: 
             corgc[endindex-bgc] = size
         return corgc
@@ -864,15 +879,15 @@ class Coarsegrid:
         s = self.var['output'][variable_name]['variable']
         
         if self.var['output'][variable_name]['orientation'][0]:
-            s = s[self.kgc_edge:self.khend,:,:].copy()
-            z_alt = self.var['grid']['z'][self.kgc_center:self.kend]
+            s = s[self.kgc:self.khend,:,:].copy()
+            z_alt = self.var['grid']['z'][self.kgc:self.kend]
             z_diff = z_alt[1:] - z_alt[:-1]
             z_diff = np.insert(z_diff, 0, z_alt[0])
             z_diff = np.append(z_diff, self.var['grid']['zsize'] - z_alt[-1])
             
         else:
-            s = s[self.kgc_center:self.kend,:,:].copy()
-            z_alt = self.var['grid']['zh'][self.kgc_edge:self.khend]
+            s = s[self.kgc:self.kend,:,:].copy()
+            z_alt = self.var['grid']['zh'][self.kgc:self.khend]
             z_diff = z_alt[1:] - z_alt[:-1]
             
         if self.var['output'][variable_name]['orientation'][1]:
