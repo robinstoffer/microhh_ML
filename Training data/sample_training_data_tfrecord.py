@@ -278,8 +278,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         if vert_ghost_unstag > 0:
 
             #Throw warning when kgc_center is different from 1 since this has not been properly tested.
-            if kgc_center != 1:
-                warnings.warn("The amount of ghost cells in the non-staggered vertical dimension is different from 1, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
+            #if kgc_center != 1:
+            #    warnings.warn("The amount of ghost cells in the non-staggered vertical dimension is different from 1, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
 
         
             #Extract reversed vertical profiles for ghost cells

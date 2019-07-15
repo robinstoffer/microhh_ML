@@ -342,7 +342,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         
         interp_tau_yu_visc[:,:,:] = _interpolate_side_cell(fine_tau_yu_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
         
-        interp_tau_zu_visc[:,:,:] = _interpolate_side_cell(fine_tau_zu_visc, (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (coarsegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
+        interp_tau_zu_visc[:,:,:] = _interpolate_side_cell(fine_tau_zu_visc, (finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend], finegrid['grid']['y'][finegrid.jgc:finegrid.jend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]))
 
         interp_tau_xv_visc[:,:,:] = _interpolate_side_cell(fine_tau_xv_visc, (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]), (finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
 
