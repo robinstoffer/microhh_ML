@@ -762,7 +762,7 @@ class Coarsegrid:
         sgc[:,self.sjend-bjgc:self.sjend+self.jgc,:] = sgc[:,self.jgc:self.jgc+self.jgc+bjgc,:] #Add ghostcell downstream y-direction
         #Fill new initialized array including ghost cells for vertical direction
         #NOTE1: assuming that U = 0 at the bottom, the code below mirrors the profile over the bottom/top BC.
-        sgc[0:self.kgc,:,:] = 0 - np.flip(sgc[self.kgc:2*self.kgc,:,:], axis = 0) #Add ghostcells bottom z-direction
+        sgc[0:self.kgc,:,:] = 0 - np.flip(sgc[self.kgc+1:2*self.kgc+1,:,:], axis = 0) #Add ghostcells bottom z-direction
         sgc[self.skend:self.skend+self.kgc,:,:] = 0 - np.flip(sgc[self.skend-bkgc-self.kgc:self.skend-bkgc,:,:], axis = 0) #Add ghostcell top z-direction
 #        if bkgc == 1:
 #            sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction
@@ -857,7 +857,7 @@ class Coarsegrid:
         if not (gc >= 0):
             raise RuntimeError("Number of ghost cells to be added in vertical direction not consistent with specified BC's.")
         if gc > 0 :
-            corgc[0:gc] = 0 - np.flip(cor[0:gc])
+            corgc[0:gc] = 0 - np.flip(cor[0+1:gc+1])
             corgc[endindex:endindex+gc] = size + (size - np.flip(corgc[endindex-bgc-gc:endindex-bgc]))
         if bgc == 1: 
             corgc[endindex-bgc] = size
