@@ -270,205 +270,205 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             stdev_unres_tau_yw[t] = np.std(unres_tau_yw_singlefield)
             stdev_unres_tau_zw[t] = np.std(unres_tau_zw_singlefield)
 
-        ###Add vertical ghost cells to allow sampling of the bottom and top of the domain, which is done by extrapolating the vertical profile.###
-        vert_ghost_unstag = max(cells_around_centercell - kgc_center, 0) #max(...) ensures that this variable is not set to negative values
-        vert_ghost_stag   = max(cells_around_centercell - kgc_edge, 0)
-
-        #Set corresponding amount of vertical ghostcells for variables with unstaggered vertical dimension
-        if vert_ghost_unstag > 0:
-
-            #Throw warning when kgc_center is different from 1 since this has not been properly tested.
-            #if kgc_center != 1:
-            #    warnings.warn("The amount of ghost cells in the non-staggered vertical dimension is different from 1, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
-
-        
-            #Extract reversed vertical profiles for ghost cells
-            #NOTE1: it is taken into account that the velocity field already contains kgc_center ghost cells in the vertical direction
-            #NOTE2: for the gradients, the already existing ghost cell is replaced as well since it was not calculated using central differences (see documentation np.gradients, specificially the paramater edge_order).
-            #
-            u_ghosts_bottom = np.flip(-uc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            u_ghosts_top    = np.flip(-uc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
-            #
-            v_ghosts_bottom = np.flip(-vc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            v_ghosts_top    = np.flip(-vc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
-            #
-            p_ghosts_bottom = np.flip(-pc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            p_ghosts_top    = np.flip(-pc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
-            #
-            ugradx_ghosts_bottom = np.flip(-ugradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            ugradx_ghosts_top    = np.flip(-ugradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            ugrady_ghosts_bottom = np.flip(-ugrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            ugrady_ghosts_top    = np.flip(-ugrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            ugradz_ghosts_bottom = np.flip(-ugradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            ugradz_ghosts_top    = np.flip(-ugradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            vgradx_ghosts_bottom = np.flip(-vgradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            vgradx_ghosts_top    = np.flip(-vgradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            vgrady_ghosts_bottom = np.flip(-vgrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            vgrady_ghosts_top    = np.flip(-vgrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            vgradz_ghosts_bottom = np.flip(-vgradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            vgradz_ghosts_top    = np.flip(-vgradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            pgradx_ghosts_bottom = np.flip(-pgradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            pgradx_ghosts_top    = np.flip(-pgradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            pgrady_ghosts_bottom = np.flip(-pgrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            pgrady_ghosts_top    = np.flip(-pgrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-            #
-            pgradz_ghosts_bottom = np.flip(-pgradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
-            pgradz_ghosts_top    = np.flip(-pgradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
-
-            #Initialize new arrays to store flow fields with additional ghost cells
-            uc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
-            uc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = uc_singlefield[:,:,:]
-            #
-            vc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
-            vc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = vc_singlefield[:,:,:]
-            #
-            pc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
-            pc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = pc_singlefield[:,:,:]
-            #            
-            ugradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
-            ugradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugradx[kgc_center:kend,:,:]
-            #            
-            ugrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
-            ugrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugrady[kgc_center:kend,:,:]
-            # 
-            ugradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
-            ugradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugradz[kgc_center:kend,:,:]
-            #
-            vgradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
-            vgradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgradx[kgc_center:kend,:,:]
-            #            
-            vgrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
-            vgrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgrady[kgc_center:kend,:,:]
-            # 
-            vgradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
-            vgradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgradz[kgc_center:kend,:,:]
-            #
-            pgradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
-            pgradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgradx[kgc_center:kend,:,:]
-            #            
-            pgrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
-            pgrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgrady[kgc_center:kend,:,:]
-            # 
-            pgradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
-            pgradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgradz[kgc_center:kend,:,:]
-            
-            #Insert extracted vertical profiles as additional ghost cells
-            uc_singlefield_kghost[:vert_ghost_unstag,:,:]  = u_ghosts_bottom[:,:,:]
-            uc_singlefield_kghost[-vert_ghost_unstag:,:,:] = u_ghosts_top[:,:,:]
-            #
-            vc_singlefield_kghost[:vert_ghost_unstag,:,:]  = v_ghosts_bottom[:,:,:]
-            vc_singlefield_kghost[-vert_ghost_unstag:,:,:] = v_ghosts_top[:,:,:]
-            #
-            pc_singlefield_kghost[:vert_ghost_unstag,:,:]  = p_ghosts_bottom[:,:,:]
-            pc_singlefield_kghost[-vert_ghost_unstag:,:,:] = p_ghosts_top[:,:,:]
-            #
-            ugradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugradx_ghosts_bottom[:,:,:]
-            ugradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugradx_ghosts_top[:,:,:]
-            #
-            ugrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugrady_ghosts_bottom[:,:,:]
-            ugrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugrady_ghosts_top[:,:,:]
-            #
-            ugradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugradz_ghosts_bottom[:,:,:]
-            ugradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugradz_ghosts_top[:,:,:]
-            #
-            vgradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgradx_ghosts_bottom[:,:,:]
-            vgradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgradx_ghosts_top[:,:,:]
-            #
-            vgrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgrady_ghosts_bottom[:,:,:]
-            vgrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgrady_ghosts_top[:,:,:]
-            #
-            vgradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgradz_ghosts_bottom[:,:,:]
-            vgradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgradz_ghosts_top[:,:,:]
-            #
-            pgradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgradx_ghosts_bottom[:,:,:]
-            pgradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgradx_ghosts_top[:,:,:]
-            #
-            pgrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgrady_ghosts_bottom[:,:,:]
-            pgrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgrady_ghosts_top[:,:,:]
-            #
-            pgradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgradz_ghosts_bottom[:,:,:]
-            pgradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgradz_ghosts_top[:,:,:]
-
-        else:
-            
-            #For consistency, initialize the arrays in the if-statement above without actually adding vertical ghost cells.
-            uc_singlefield_kghost = uc_singlefield[:,:,:]
-            vc_singlefield_kghost = vc_singlefield[:,:,:]
-            pc_singlefield_kghost = pc_singlefield[:,:,:]
-            ugradx_kghost         = ugradx[:,:,:]
-            ugrady_kghost         = ugrady[:,:,:]
-            ugradz_kghost         = ugradz[:,:,:] 
-            vgradx_kghost         = vgradx[:,:,:]
-            vgrady_kghost         = vgrady[:,:,:]
-            vgradz_kghost         = vgradz[:,:,:]
-            pgradx_kghost         = pgradx[:,:,:]
-            pgrady_kghost         = pgrady[:,:,:]
-            pgradz_kghost         = pgradz[:,:,:]
-
-        #Add ghost cells for variables with staggered vertical dimension
-        if vert_ghost_stag > 0:
-
-            #Throw warning when kgc_edge is more than 0 since this has not been properly tested.
-            if kgc_edge > 0:
-                warnings.warn("The amount of ghost cells in the staggered vertical dimension is larger than 0, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
-        
-            #Extract reversed vertical profiles for ghost cells
-            #NOTE1: it is taken into account that the velocity field already contains kgc_edge ghost cells in the vertical direction
-            #NOTE2: +1/-1 added to ensure the bottom/top BC is not two times included
-            #NOTE3: for the gradients, the possibly already existing ghost cell(s) kgc_edge is replaced as well since it was not calculated using central differences (see documentation np.gradients, specificially the paramater edge_order).
-            #
-            w_ghosts_bottom = np.flip(-wc_singlefield[2*kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
-            w_ghosts_top    = np.flip(-wc_singlefield[khend - kgc_edge - vert_ghost_stag - 1:khend - 1 - kgc_edge,:,:], axis=0)
-            #
-            wgradx_ghosts_bottom = np.flip(-wgradx[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
-            wgradx_ghosts_top    = np.flip(-wgradx[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
-            #
-            wgrady_ghosts_bottom = np.flip(-wgrady[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
-            wgrady_ghosts_top    = np.flip(-wgrady[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
-            #
-            wgradz_ghosts_bottom = np.flip(-wgradz[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
-            wgradz_ghosts_top    = np.flip(-wgradz[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
-
-            #Initialize new arrays to store flow fields with additional ghost cells
-            wc_singlefield_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
-            wc_singlefield_kghost[vert_ghost_stag:-vert_ghost_stag,:,:] = wc_singlefield[:,:,:]
-            #
-            wgradx_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
-            wgradx_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgradx[kgc_edge:khend,:,:]
-            #
-            wgrady_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
-            wgrady_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgrady[kgc_edge:khend,:,:]
-            #
-            wgradz_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
-            wgradz_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgradz[kgc_edge:khend,:,:]
-            
-            #Insert extracted vertical profiles as additional ghost cells
-            wc_singlefield_kghost[:vert_ghost_stag,:,:]  = w_ghosts_bottom[:,:,:]
-            wc_singlefield_kghost[-vert_ghost_stag:,:,:] = w_ghosts_top[:,:,:]
-            #
-            wgradx_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgradx_ghosts_bottom[:,:,:]
-            wgradx_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgradx_ghosts_top[:,:,:]
-            #
-            wgrady_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgrady_ghosts_bottom[:,:,:]
-            wgrady_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgrady_ghosts_top[:,:,:]
-            #
-            wgradz_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgradz_ghosts_bottom[:,:,:]
-            wgradz_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgradz_ghosts_top[:,:,:]
-
-        else:
-            
-            #For consistency, initialize the arrays in the if-statement above without actually adding vertical ghost cells.
-            wc_singlefield_kghost = wc_singlefield[:,:,:]
-            wgradx_kghost         = wgradx[:,:,:]
-            wgrady_kghost         = wgrady[:,:,:]
-            wgradz_kghost         = wgradz[:,:,:]
+#        ###Add vertical ghost cells to allow sampling of the bottom and top of the domain, which is done by extrapolating the vertical profile.###
+#        vert_ghost_unstag = max(cells_around_centercell - kgc_center, 0) #max(...) ensures that this variable is not set to negative values
+#        vert_ghost_stag   = max(cells_around_centercell - kgc_edge, 0)
+#
+#        #Set corresponding amount of vertical ghostcells for variables with unstaggered vertical dimension
+#        if vert_ghost_unstag > 0:
+#
+#            ##Throw warning when kgc_center is different from 1 since this has not been properly tested.
+#            #if kgc_center != 1:
+#            #    warnings.warn("The amount of ghost cells in the non-staggered vertical dimension is different from 1, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
+#
+#        
+#            #Extract reversed vertical profiles for ghost cells
+#            #NOTE1: it is taken into account that the velocity field already contains kgc_center ghost cells in the vertical direction
+#            #NOTE2: for the gradients, the already existing ghost cell is replaced as well since it was not calculated using central differences (see documentation np.gradients, specificially the paramater edge_order).
+#            #
+#            u_ghosts_bottom = np.flip(-uc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            u_ghosts_top    = np.flip(-uc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
+#            #
+#            v_ghosts_bottom = np.flip(-vc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            v_ghosts_top    = np.flip(-vc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
+#            #
+#            p_ghosts_bottom = np.flip(-pc_singlefield[2*kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            p_ghosts_top    = np.flip(-pc_singlefield[kend - kgc_center - vert_ghost_unstag: kend - kgc_center,:,:], axis=0)
+#            #
+#            ugradx_ghosts_bottom = np.flip(-ugradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            ugradx_ghosts_top    = np.flip(-ugradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            ugrady_ghosts_bottom = np.flip(-ugrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            ugrady_ghosts_top    = np.flip(-ugrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            ugradz_ghosts_bottom = np.flip(-ugradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            ugradz_ghosts_top    = np.flip(-ugradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            vgradx_ghosts_bottom = np.flip(-vgradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            vgradx_ghosts_top    = np.flip(-vgradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            vgrady_ghosts_bottom = np.flip(-vgrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            vgrady_ghosts_top    = np.flip(-vgrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            vgradz_ghosts_bottom = np.flip(-vgradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            vgradz_ghosts_top    = np.flip(-vgradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            pgradx_ghosts_bottom = np.flip(-pgradx[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            pgradx_ghosts_top    = np.flip(-pgradx[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            pgrady_ghosts_bottom = np.flip(-pgrady[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            pgrady_ghosts_top    = np.flip(-pgrady[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#            #
+#            pgradz_ghosts_bottom = np.flip(-pgradz[kgc_center:2*kgc_center + vert_ghost_unstag,:,:], axis=0)
+#            pgradz_ghosts_top    = np.flip(-pgradz[kend - kgc_center - vert_ghost_unstag: kend,:,:], axis=0)
+#
+#            #Initialize new arrays to store flow fields with additional ghost cells
+#            uc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+#            uc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = uc_singlefield[:,:,:]
+#            #
+#            vc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+#            vc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = vc_singlefield[:,:,:]
+#            #
+#            pc_singlefield_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+#            pc_singlefield_kghost[vert_ghost_unstag:-vert_ghost_unstag,:,:] = pc_singlefield[:,:,:]
+#            #            
+#            ugradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+#            ugradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugradx[kgc_center:kend,:,:]
+#            #            
+#            ugrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+#            ugrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugrady[kgc_center:kend,:,:]
+#            # 
+#            ugradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xhgc)))
+#            ugradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = ugradz[kgc_center:kend,:,:]
+#            #
+#            vgradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+#            vgradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgradx[kgc_center:kend,:,:]
+#            #            
+#            vgrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+#            vgrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgrady[kgc_center:kend,:,:]
+#            # 
+#            vgradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(yhgc), len(xgc)))
+#            vgradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = vgradz[kgc_center:kend,:,:]
+#            #
+#            pgradx_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+#            pgradx_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgradx[kgc_center:kend,:,:]
+#            #            
+#            pgrady_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+#            pgrady_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgrady[kgc_center:kend,:,:]
+#            # 
+#            pgradz_kghost  = np.zeros((len(zgc) + 2*vert_ghost_unstag, len(ygc), len(xgc)))
+#            pgradz_kghost[vert_ghost_unstag + kgc_center:-vert_ghost_unstag - kgc_center,:,:] = pgradz[kgc_center:kend,:,:]
+#            
+#            #Insert extracted vertical profiles as additional ghost cells
+#            uc_singlefield_kghost[:vert_ghost_unstag,:,:]  = u_ghosts_bottom[:,:,:]
+#            uc_singlefield_kghost[-vert_ghost_unstag:,:,:] = u_ghosts_top[:,:,:]
+#            #
+#            vc_singlefield_kghost[:vert_ghost_unstag,:,:]  = v_ghosts_bottom[:,:,:]
+#            vc_singlefield_kghost[-vert_ghost_unstag:,:,:] = v_ghosts_top[:,:,:]
+#            #
+#            pc_singlefield_kghost[:vert_ghost_unstag,:,:]  = p_ghosts_bottom[:,:,:]
+#            pc_singlefield_kghost[-vert_ghost_unstag:,:,:] = p_ghosts_top[:,:,:]
+#            #
+#            ugradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugradx_ghosts_bottom[:,:,:]
+#            ugradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugradx_ghosts_top[:,:,:]
+#            #
+#            ugrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugrady_ghosts_bottom[:,:,:]
+#            ugrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugrady_ghosts_top[:,:,:]
+#            #
+#            ugradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = ugradz_ghosts_bottom[:,:,:]
+#            ugradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = ugradz_ghosts_top[:,:,:]
+#            #
+#            vgradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgradx_ghosts_bottom[:,:,:]
+#            vgradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgradx_ghosts_top[:,:,:]
+#            #
+#            vgrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgrady_ghosts_bottom[:,:,:]
+#            vgrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgrady_ghosts_top[:,:,:]
+#            #
+#            vgradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = vgradz_ghosts_bottom[:,:,:]
+#            vgradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = vgradz_ghosts_top[:,:,:]
+#            #
+#            pgradx_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgradx_ghosts_bottom[:,:,:]
+#            pgradx_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgradx_ghosts_top[:,:,:]
+#            #
+#            pgrady_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgrady_ghosts_bottom[:,:,:]
+#            pgrady_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgrady_ghosts_top[:,:,:]
+#            #
+#            pgradz_kghost[:vert_ghost_unstag + kgc_center,:,:]  = pgradz_ghosts_bottom[:,:,:]
+#            pgradz_kghost[-vert_ghost_unstag - kgc_center:,:,:] = pgradz_ghosts_top[:,:,:]
+#
+#        else:
+#            
+#            #For consistency, initialize the arrays in the if-statement above without actually adding vertical ghost cells.
+#            uc_singlefield_kghost = uc_singlefield[:,:,:]
+#            vc_singlefield_kghost = vc_singlefield[:,:,:]
+#            pc_singlefield_kghost = pc_singlefield[:,:,:]
+#            ugradx_kghost         = ugradx[:,:,:]
+#            ugrady_kghost         = ugrady[:,:,:]
+#            ugradz_kghost         = ugradz[:,:,:] 
+#            vgradx_kghost         = vgradx[:,:,:]
+#            vgrady_kghost         = vgrady[:,:,:]
+#            vgradz_kghost         = vgradz[:,:,:]
+#            pgradx_kghost         = pgradx[:,:,:]
+#            pgrady_kghost         = pgrady[:,:,:]
+#            pgradz_kghost         = pgradz[:,:,:]
+#
+#        #Add ghost cells for variables with staggered vertical dimension
+#        if vert_ghost_stag > 0:
+#
+#            #Throw warning when kgc_edge is more than 0 since this has not been properly tested.
+#            if kgc_edge > 0:
+#                warnings.warn("The amount of ghost cells in the staggered vertical dimension is larger than 0, which has not been properly tested yet. Test therefore first that the scripts works correctly with the specified number of ghost cells.")
+#        
+#            #Extract reversed vertical profiles for ghost cells
+#            #NOTE1: it is taken into account that the velocity field already contains kgc_edge ghost cells in the vertical direction
+#            #NOTE2: +1/-1 added to ensure the bottom/top BC is not two times included
+#            #NOTE3: for the gradients, the possibly already existing ghost cell(s) kgc_edge is replaced as well since it was not calculated using central differences (see documentation np.gradients, specificially the paramater edge_order).
+#            #
+#            w_ghosts_bottom = np.flip(-wc_singlefield[2*kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+#            w_ghosts_top    = np.flip(-wc_singlefield[khend - kgc_edge - vert_ghost_stag - 1:khend - 1 - kgc_edge,:,:], axis=0)
+#            #
+#            wgradx_ghosts_bottom = np.flip(-wgradx[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+#            wgradx_ghosts_top    = np.flip(-wgradx[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
+#            #
+#            wgrady_ghosts_bottom = np.flip(-wgrady[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+#            wgrady_ghosts_top    = np.flip(-wgrady[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
+#            #
+#            wgradz_ghosts_bottom = np.flip(-wgradz[kgc_edge + 1:2*kgc_edge + vert_ghost_stag + 1,:,:], axis=0)
+#            wgradz_ghosts_top    = np.flip(-wgradz[khend - kgc_edge - vert_ghost_stag - 1: khend - 1,:,:], axis=0)
+#
+#            #Initialize new arrays to store flow fields with additional ghost cells
+#            wc_singlefield_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+#            wc_singlefield_kghost[vert_ghost_stag:-vert_ghost_stag,:,:] = wc_singlefield[:,:,:]
+#            #
+#            wgradx_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+#            wgradx_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgradx[kgc_edge:khend,:,:]
+#            #
+#            wgrady_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+#            wgrady_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgrady[kgc_edge:khend,:,:]
+#            #
+#            wgradz_kghost  = np.zeros((len(zhgc) + 2*vert_ghost_stag, len(ygc), len(xgc)))
+#            wgradz_kghost[vert_ghost_stag + kgc_edge:-vert_ghost_stag - kgc_edge,:,:] = wgradz[kgc_edge:khend,:,:]
+#            
+#            #Insert extracted vertical profiles as additional ghost cells
+#            wc_singlefield_kghost[:vert_ghost_stag,:,:]  = w_ghosts_bottom[:,:,:]
+#            wc_singlefield_kghost[-vert_ghost_stag:,:,:] = w_ghosts_top[:,:,:]
+#            #
+#            wgradx_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgradx_ghosts_bottom[:,:,:]
+#            wgradx_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgradx_ghosts_top[:,:,:]
+#            #
+#            wgrady_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgrady_ghosts_bottom[:,:,:]
+#            wgrady_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgrady_ghosts_top[:,:,:]
+#            #
+#            wgradz_kghost[:vert_ghost_stag + kgc_edge,:,:]  = wgradz_ghosts_bottom[:,:,:]
+#            wgradz_kghost[-vert_ghost_stag - kgc_edge:,:,:] = wgradz_ghosts_top[:,:,:]
+#
+#        else:
+#            
+#            #For consistency, initialize the arrays in the if-statement above without actually adding vertical ghost cells.
+#            wc_singlefield_kghost = wc_singlefield[:,:,:]
+#            wgradx_kghost         = wgradx[:,:,:]
+#            wgrady_kghost         = wgrady[:,:,:]
+#            wgradz_kghost         = wgradz[:,:,:]
 
 
         ###Do the actual sampling.###
