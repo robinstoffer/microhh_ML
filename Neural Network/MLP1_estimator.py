@@ -1,5 +1,5 @@
-from __future__ import print_function
-from custom_hooks import MetadataHook
+#Script that contains MLP for turbulent channel flow case without distributed learning, making use of the tf.Estimator and tf.Dataset API.
+#Author: Robin Stoffer (robin.stoffer@wur.nl)
 import numpy as np
 import netCDF4 as nc
 import tensorflow as tf
@@ -12,7 +12,6 @@ import argparse
 import matplotlib
 matplotlib.use('agg')
 from tensorflow.python import debug as tf_debug
-import sys
 
 #Set logging info
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -26,9 +25,9 @@ ncores = int(subprocess.check_output(["nproc", "--all"]))
 # Instantiate the parser
 parser = argparse.ArgumentParser(description='microhh_ML')
 parser.add_argument('--checkpoint_dir', type=str, default='/projects/1/flowsim/simulation1/CNN_checkpoints',
-                    help='Checkpoint directory (for rank 0)')
+                    help='directory where checkpoints are stored')
 parser.add_argument('--input_dir', type=str, default='/projects/1/flowsim/simulation1/',
-                    help='tfrecords filepaths')
+                    help='directory where tfrecord files are located')
 parser.add_argument('--stored_means_stdevs_filepath', type=str, default='/projects/1/flowsim/simulation1/means_stdevs_allfields.nc', \
         help='filepath for stored means and standard deviations of input variables, which should refer to a nc-file created as part of the training data')
 parser.add_argument('--training_filepath', type=str, default='/projects/1/flowsim/simulation1/training_data.nc', \
@@ -36,12 +35,9 @@ parser.add_argument('--training_filepath', type=str, default='/projects/1/flowsi
 parser.add_argument('--gradients', default=None, \
         action='store_true', \
         help='Wind velocity gradients are used as input for the NN when this is true, otherwhise absolute wind velocities are used.')
-parser.add_argument('--synthetic', default=None, \
-        action='store_true', \
-        help='Synthetic data is used as input when this is true, otherwhise real data from specified input_dir is used')
 parser.add_argument('--benchmark', dest='benchmark', default=None, \
         action='store_true', \
-        help='fullrun includes testing and storing preditions, otherwise it ends after validation loss to facilitate benchmark tests')
+        help='Do fullrun when benchmark is false, which includes producing and storing of preditions. Furthermore, in a fullrun more variables are stored to facilitate reconstruction of the corresponding transport fields. When the benchmark flag is true, the scripts ends immidiately after calculating the validation loss to facilitate benchmark tests.')
 parser.add_argument('--debug', default=None, \
         action='store_true', \
         help='Run script in debug mode to inspect tensor values while the Estimator is in training mode.')
@@ -54,7 +50,7 @@ parser.add_argument('--num_steps', type=int, default=10000, \
 parser.add_argument('--batch_size', type=int, default=100, \
         help='Number of samples selected in each batch')
 parser.add_argument('--profile_steps', type=int, default=10000, \
-        help='Every nth step, a profile measurement is performed')
+        help='Every nth step, a profile measurement is performed that is stored in a JSON-file.')
 parser.add_argument('--summary_steps', type=int, default=100, \
         help='Every nth step, a summary is written for Tensorboard visualization')
 parser.add_argument('--checkpoint_steps', type=int, default=10000, \
@@ -64,7 +60,7 @@ args = parser.parse_args()
 #Define settings
 batch_size = int(args.batch_size)
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
-num_labels = 9
+num_labels = 9 #Number of predicted transport components
 random_seed = 1234
 
 #Define function for standardization (including flattening)
@@ -234,51 +230,10 @@ def train_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
-    dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computationel effort since memory becomes saturated. 
+    dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated. 
     dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.repeat()
     dataset = dataset.batch(batch_size)
-    dataset.prefetch(1)
-
-    return dataset
-
-def input_synthetic_fn(batch_size, num_steps_train, train_mode = True): #NOTE: used for both training and evaluation with synthetic data
-
-    #For testing purpose num_steps is set equal to 3 million divided by batch_size, representing the case where 3 million examples are available for training (preventing memory issues when the number of training steps is high). 
-    #NOTE1: in case of evaluation only 300.000 examples are being generated, representing the case where approximately 10% of the available examples is used for evaluation
-    num_steps_train = int((3*10**6)/batch_size)
-    if not train_mode:
-        num_steps_train = int(0.1*num_steps_train)
-
-    #Get features
-    features = {}
-    distribution = tf.distributions.Uniform(low=[-1.0], high=[1.0])
-    if args.gradients is not None:
-        raise RuntimeError("The usage of gradients in combination with synthetic data has not been implemented yet. Please adjust the settings accordingly.")
-    features['uc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
-    features['vc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
-    features['wc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
-    features['pc_sample'] = tf.squeeze(distribution.sample(sample_shape=(batch_size*num_steps_train, 5, 5, 5)))
-    
-    #Get labels
-    #linear
-    #labels = tf.reduce_sum(features['uc_sample'], [1,2,3])/125 + \
-    #         tf.reduce_sum(features['pc_sample'], [1,2,3])/125 + \
-    #         tf.reduce_sum(features['vc_sample'], [1,2,3])/125 + \
-    #         tf.reduce_sum(features['wc_sample'], [1,2,3])/125
-    #constant
-    #labels = [0.0] * batch_size * num_steps_train
-    #constant with random Gaussian noise
-    gaussian_noise = tf.distributions.Normal(loc=0., scale=0.01)
-    labels = gaussian_noise.sample(sample_shape=(batch_size*num_steps_train, 9))
-
-    #prepare the Dataset object
-    dataset = tf.data.Dataset.from_tensor_slices((features, labels))
-
-    if train_mode:
-        dataset = dataset.batch(batch_size).repeat() #No shuffling needed because samples are randomly generated for all training steps.
-    else:
-        dataset = dataset.batch(batch_size) #No .repeat() method for evaluation to ensure all randomly generated samples are only evaluated once.
     dataset.prefetch(1)
 
     return dataset
@@ -295,79 +250,69 @@ def eval_input_fn(filenames, batch_size, means, stdevs):
     return dataset    
 
 #Define function for splitting the training and validation set
-def split_train_val(time_steps, val_ratio, random_seed):
-    shuffled_steps = np.flip(time_steps) #NOTE: this causes the split not to be random anymore! Always the last timesteps are selected for validation.
+#NOTE: this split is on purpose not random. Always the flow fields corresponding to the last time steps are selected (noting that each tfrecord file contains all the samples of one flow field), such that the flow fields used for validation are as independent as possible from the fields used for training.
+def split_train_val(time_steps, val_ratio):
+    shuffled_steps = np.flip(time_steps)
     val_set_size = max(int(len(time_steps) * val_ratio),1) #max(..) makes sure that always at least 1 file is selected for validation
     val_steps = shuffled_steps[:val_set_size]
     train_steps = shuffled_steps[val_set_size:]
     return train_steps,val_steps
 
 
-#Define model function for CNN estimator
+#Define model function for MLP estimator
 def MLP_model_fn(features, labels, mode, params):
     '''MLP model with 1 hidden layer. \\
-            NOTE: this function accesses the global variables means_dict_avgt, stdevs_dict_avgt, and utau_ref.'''
+            NOTE: this function accesses the global variables args.gradients, means_dict_avgt, stdevs_dict_avgt, and utau_ref.'''
 
-    #Define wrappers for input variables, which can be used to set-up the inference graph
-    input_u = tf.identity(features['uc_sample'], name = 'input_u')
-    input_v = tf.identity(features['vc_sample'], name = 'input_v')
-    input_w = tf.identity(features['wc_sample'], name = 'input_w')
-    input_p = tf.identity(features['pc_sample'], name = 'input_p')
+    #Define identity wrappers for input variables, which can be used to set-up a frozen graph for inference.
+    if args.gradients is None:
+        input_u = tf.identity(features['uc_sample'], name = 'input_u')
+        input_v = tf.identity(features['vc_sample'], name = 'input_v')
+        input_w = tf.identity(features['wc_sample'], name = 'input_w')
+        input_p = tf.identity(features['pc_sample'], name = 'input_p')
+
+    else:
+        input_ugradx = tf.identity(features['ugradx_sample'], name = 'input_ugradx')
+        input_ugrady = tf.identity(features['ugrady_sample'], name = 'input_ugrady')
+        input_ugradz = tf.identity(features['ugradz_sample'], name = 'input_ugradz')
+        input_vgradx = tf.identity(features['vgradx_sample'], name = 'input_vgradx')
+        input_vgrady = tf.identity(features['vgrady_sample'], name = 'input_vgrady')
+        input_vgradz = tf.identity(features['vgradz_sample'], name = 'input_vgradz')
+        input_wgradx = tf.identity(features['wgradx_sample'], name = 'input_wgradx')
+        input_wgrady = tf.identity(features['wgrady_sample'], name = 'input_wgrady')
+        input_wgradz = tf.identity(features['wgradz_sample'], name = 'input_wgradz')
+        input_pgradx = tf.identity(features['pgradx_sample'], name = 'input_pgradx')
+        input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
+        input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
 
     #Define input layer
     if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function        
-        #input_layer = tf.concat([features['uc_sample'],features['vc_sample'], \
-        #        features['wc_sample']], axis=1)
+        
         input_layer = tf.concat([input_u, input_v, input_w, input_p], axis=1, name = 'input_layer')
 
-        ##Visualize inputs
-        #tf.summary.histogram('input_u', input_layer[:,:,:,:,0])
-        #tf.summary.histogram('input_v', input_layer[:,:,:,:,1])
-        #tf.summary.histogram('input_w', input_layer[:,:,:,:,2])
-        #tf.summary.histogram('input_p', input_layer[:,:,:,:,3])
-
     else:
-        input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
-                features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
-                features['wgradx_sample'],features['wgrady_sample'],features['wgradz_sample'], \
-                features['pgradx_sample'],features['pgrady_sample'],features['pgradz_sample']], axis=1, name = 'input_layer')
+        input_layer = tf.concat([input_ugradx, input_ugrady, input_ugradz, \
+                input_vgradx, input_vgrady, input_vgradz, \
+                input_wgradx, input_wgrady, input_wgradz, \
+                input_pgradx, input_pgrady, input_pgradz], axis=1, name = 'input_layer')
         
-        #input_layer = tf.concat([features['ugradx_sample'],features['ugrady_sample'],features['ugradz_sample'], \
-        #        features['vgradx_sample'],features['vgrady_sample'],features['vgradz_sample'], \
-        #        features['wgradx_sample'],features['wgrady_sample'],features['wgradz_sample']], axis=1)
-
-        ##Visualize inputs
-        #tf.summary.histogram('input_ugradx', input_layer[:,:,:,:,0])
-        #tf.summary.histogram('input_ugrady', input_layer[:,:,:,:,1])
-        #tf.summary.histogram('input_ugradz', input_layer[:,:,:,:,2])
-        #tf.summary.histogram('input_vgradx', input_layer[:,:,:,:,3])
-        #tf.summary.histogram('input_vgrady', input_layer[:,:,:,:,4])
-        #tf.summary.histogram('input_vgradz', input_layer[:,:,:,:,5])
-        #tf.summary.histogram('input_wgradx', input_layer[:,:,:,:,6])
-        #tf.summary.histogram('input_wgrady', input_layer[:,:,:,:,7])
-        #tf.summary.histogram('input_wgradz', input_layer[:,:,:,:,8])
-        #tf.summary.histogram('input_pgradx', input_layer[:,:,:,:,9])
-        #tf.summary.histogram('input_pgrady', input_layer[:,:,:,:,10])
-        #tf.summary.histogram('input_pgradz', input_layer[:,:,:,:,11])
-
     #Define layers
-    #flatten = tf.layers.flatten(input_layer, name='flatten')
     dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1", \
             activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
     dense1 = dense1_layerdef.apply(input_layer)
     output_layerdef = tf.layers.Dense(units=num_labels, name="output", \
             activation=None, kernel_initializer=params["kernel_initializer"])
     output_norm = output_layerdef.apply(dense1)
-    ###Visualize activations convolutional layer (NOTE: assuming that activation maps are 1*1*1, otherwhise visualization as an 2d-image may be relevant as well)
+    #Visualize activations hidden layer in TensorBoard
     tf.summary.histogram('activations_hidden_layer1', dense1)
     tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1', tf.nn.zero_fraction(dense1))
 
-    #Make output layer conditional on the height of the staggered vertical dimension. At zh=0, several components are by definition 0 in turbulent channel flow (i.e. the ones located at the bottom wall. Consequently, the corresponding output values should be explicitly set to 0. 
+    #Make output layer conditional on the height of the staggered vertical dimension. At zh=0, several components are by definition 0 in turbulent channel flow (i.e. the ones located at the bottom wall). Consequently, the corresponding output values are explicitly set to 0 by masking them. 
     #NOTE1: floating point comparison of zh to 0. is OK in this case because zh at the surface was defined as exactly 0. in the training data generation procedure (see grid_objects_trainining.py in Training data folder). Zero has an exact representation in floating point format. 
-    #NOTE2: for this code True should be evaluated as 1 and False as 0.
     input_height = tf.identity(features['zhloc_sample'], name = 'input_height')
     channel_bool = tf.expand_dims(tf.math.not_equal(input_height, 0.), axis=1) #Select all samples where components should not be set to 0.
     #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
+    
     #Select all transport components that should not be set to 0.
     nonstaggered_components_bool = tf.constant(
             [[True,  True,  False,  #xu, yu, zu
@@ -380,16 +325,18 @@ def MLP_model_fn(features, labels, mode, params):
     #a4 = tf.print("output_mask: ", output_mask, output_stream=tf.logging.info, summarize=-1)
     labels_mask = tf.math.multiply(labels, mask, name = 'labels_masked') #NOTE: the concerning labels should also be put to 0 because of the applied normalisation.
     #a5 = tf.print("labels_mask: ", labels_mask, output_stream=tf.logging.info, summarize=-1)
-    #Trick to execute tf.print ops defined ai. For these ops, set output_stream to tf.logging.info and summarize to -1.
+    
+    #Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
     #with tf.control_dependencies([a1,a2,a3,a4,a5]):
     #    output_mask = tf.identity(output_mask)
     
-    ###Visualize outputs
+    ###Visualize outputs in TensorBoard
     tf.summary.histogram('output_norm', output_mask)
 
     #Denormalize the output fluxes
-    #NOTE1: As a last step, the mask should again be applied to ensure the output for the concerning components at the surface is exactly 0.
-    #NOTE2: These calculations are only needed for inference, but in order to show up in the computation graph (and thus allowing to include it in the frozen graph) this should nonetheless be part of the main model_fn function.
+    #NOTE1: As a last step, because of the denormalisation the mask defined above should again be applied to the output.
+    #NOTE2: These calculations are only needed for inference, but in order to show up in the computation graph (and thus allowing to include it in the frozen graph) this should nonetheless be part of the main model_fn function).
+    #NOTE3: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
     #if mode == tf.estimator.ModeKeys.PREDICT:
     means = tf.constant([[ 
         means_dict_avgt['unres_tau_xu_sample'],
@@ -421,6 +368,7 @@ def MLP_model_fn(features, labels, mode, params):
     #Denormalize the labels
     #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
     #NOTE2: this does not have to be included in the frozen graph, and thus does not have to be included in the main code.
+    #NOTE3: similar to the code above, utau_ref is included in the denormalisation.
     if mode == tf.estimator.ModeKeys.PREDICT:
         labels_stdevs = tf.math.multiply(labels, stdevs) #NOTE: on purpose labels instead of labels_mask.
         labels_means  = tf.math.add(labels_stdevs, means)
@@ -493,13 +441,14 @@ def MLP_model_fn(features, labels, mode, params):
     #Return tf.estimator.Estimatorspec for training mode
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
-#Define filenames for training and validation
-nt_available = 30 #Amount of time steps available for training/validation, assuming 1) the test set is alread held separately (there are, including the test set, actually 100 time steps available), and 2) that the number of the time step in the filenames ranges from 1 to nt_available without gaps (and thus the time steps corresponding to the test set are located after nt_available).
-nt_total = 100 #Amount of time steps INCLUDING the test set
+#Define filenames of tfrecords for training and validation
+#NOTE: each tfrecords contains all the samples from a single 'snapshot' of the flow, and thus corresponds to a single time step.
+nt_available = 30 #Amount of time steps that should be used for training/validation, assuming  that the number of the time step in the filenames ranges from 1 to nt_available without gaps.
+nt_total = 100 #Amount of time steps INCLUDING all produced tfrecord files (also the ones not used for training/validation).
 #nt_available = 2 #FOR TESTING PURPOSES ONLY!
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
-train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1, random_seed=random_seed) #Set aside 10% of files for validation. Please note that a separate, independent test set should be created manually.
+train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1) #Set aside 10% of files for validation.
 train_filenames = np.zeros((len(train_stepnumbers),), dtype=object)
 val_filenames   = np.zeros((len(val_stepnumbers),), dtype=object)
 
@@ -519,11 +468,12 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
         val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
     j+=1
 
-#Extract friction velocity from training file
+#Extract friction velocity from training file (which is needed for the denormalisation implemented within the MLP)
 training_file = nc.Dataset(args.training_filepath, 'r')
-utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4') #global variable should be 8-bit to be compatible with stored samples (that are in single precision).
+utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
 
-#Calculate means and stdevs for input variables
+#Calculate means and stdevs for input variables (which is needed for the normalisation).
+#NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
 means_stdevs_filepath = args.stored_means_stdevs_filepath
 means_stdevs_file     = nc.Dataset(means_stdevs_filepath, 'r')
 
@@ -640,7 +590,7 @@ else:
     stdevs_dict_avgt['pgrady'] = np.mean(stdevs_dict_t['pgrady'][train_stepnumbers])
     stdevs_dict_avgt['pgradz'] = np.mean(stdevs_dict_t['pgradz'][train_stepnumbers])
 
-#Extract temporally averaged mean & standard deviation labels
+#Extract temporally averaged (over the time steps used for training) mean & standard deviation labels
 means_dict_avgt['unres_tau_xu_sample']  = np.mean(means_dict_t['unres_tau_xu_sample'][train_stepnumbers])
 stdevs_dict_avgt['unres_tau_xu_sample'] = np.mean(stdevs_dict_t['unres_tau_xu_sample'][train_stepnumbers])
 means_dict_avgt['unres_tau_yu_sample']  = np.mean(means_dict_t['unres_tau_yu_sample'][train_stepnumbers])
@@ -670,13 +620,11 @@ os.environ['KMP_SETTINGS'] = str(1)
 os.environ['KMP_AFFINITY'] = 'granularity=fine,compact,1,0'
 os.environ['OMP_NUM_THREADS'] = str(args.intra_op_parallelism_threads)
 
-checkpoint_dir       = args.checkpoint_dir
-
 #Set warmstart_dir to None to disable it
 warmstart_dir = None
 
 #Create RunConfig object to save check_point in the model_dir according to the specified schedule, and to define the session config
-my_checkpointing_config = tf.estimator.RunConfig(model_dir=checkpoint_dir, tf_random_seed=random_seed, save_summary_steps=args.summary_steps, save_checkpoints_steps=args.checkpoint_steps, save_checkpoints_secs = None,session_config=config,keep_checkpoint_max=None, keep_checkpoint_every_n_hours=10000, log_step_count_steps=10, train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
+my_checkpointing_config = tf.estimator.RunConfig(model_dir=args.checkpoint_dir, tf_random_seed=random_seed, save_summary_steps=args.summary_steps, save_checkpoints_steps=args.checkpoint_steps, save_checkpoints_secs = None,session_config=config,keep_checkpoint_max=None, keep_checkpoint_every_n_hours=10000, log_step_count_steps=10, train_distribute=None) #Provide tf.contrib.distribute.DistributionStrategy instance to train_distribute parameter for distributed training
 
 #Define hyperparameters
 if args.gradients is None:
@@ -692,9 +640,9 @@ hyperparams =  {
 }
 
 #Instantiate an Estimator with model defined by model_fn
-CNN = tf.estimator.Estimator(model_fn = MLP_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=checkpoint_dir, warm_start_from = warmstart_dir)
+MLP = tf.estimator.Estimator(model_fn = MLP_model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=args.checkpoint_dir, warm_start_from = warmstart_dir)
 
-profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace format, can be used in conjuction with the other summaries stored during training in Tensorboard.
+profiler_hook = tf.train.ProfilerHook(save_steps = args.profile_steps, output_dir = args.checkpoint_dir) #Hook designed for storing runtime statistics in Chrome trace JSON-format, which can be used in conjuction with the other summaries stored during training in Tensorboard.
 
 if args.debug:
     debug_hook = tf_debug.LocalCLIDebugHook()
@@ -703,31 +651,26 @@ if args.debug:
 else:
     hooks = [profiler_hook]
 
-if args.synthetic is None:
+#Train and evaluate MLP
+train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
+eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='MLP1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
+tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 
-    #Train and evaluate CNN
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='CNN1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
-    tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
+#NOTE: MLP.predict appeared to be unsuitable to compare the predictions from the MLP to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
 
-#    NOTE: CNN.predict appeared to be unsuitable to compare the predictions from the CNN to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
-
-else:
-    train_spec = tf.estimator.TrainSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = True), max_steps=num_steps, hooks=hooks)
-    eval_spec = tf.estimator.EvalSpec(input_fn=lambda:input_synthetic_fn(batch_size, num_steps, train_mode = False), steps=None, name='CNN1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
-    tf.estimator.train_and_evaluate(CNN, train_spec, eval_spec)
 
 ######
-#'Hacky' solution to compare the predictions of the CNN to the true labels stored in the TFRecords files. NOTE: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
-if args.benchmark is None and args.synthetic is None:
+#'Hacky' solution to compare the predictions of the MLP to the true labels stored in the TFRecords files. 
+#NOTE1: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
+#NOTE2: the resulting predictions and labels are automatically stored in a netCDF-file called MLP_predictions.nc, which is placed in the specified checkpoint_dir.
+#NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file. Fast inference is currently being implemented by generating a frozen graph from the trained MLP.
+if args.benchmark is None:
 
     print('Start making predictions for validation files.')
    
     #Loop over val files to prevent memory overflow issues
-    if args.synthetic is not None:
-        val_filenames = ['dummy'] #Dummy value of length 1 to ensure loop is only done once for synthetic data
     
-    create_file = True #Make sure netCDF file is initialized
+    create_file = True #Flag to make sure netCDF file is initialized
  
     #Initialize variables for keeping track of iterations
     tot_sample_end = 0
@@ -735,17 +678,11 @@ if args.benchmark is None and args.synthetic is None:
 
     for val_filename in val_filenames:
 
-        tf.reset_default_graph() #Reset the graph for each iteration
+        tf.reset_default_graph() #Reset the graph for each tfrecord (i.e. each flow 'snapshot')
  
-        #Generate iterator to extract features and labels from input data
-        if args.synthetic is None:
-            iterator = eval_input_fn([val_filename], batch_size, means_dict_avgt, stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once (Note that no .repeat() method is included in eval_input_fn, which is in contrast to train_input_fn).
+        #Generate iterator to extract features and labels from tfrecords
+        iterator = eval_input_fn([val_filename], batch_size, means_dict_avgt, stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
  
-        else:
-            iterator = input_synthetic_fn(batch_size, num_steps, train_mode = False).make_initializable_iterator()
- 
-        ##Run predictions node in computational graph and store both labels and predictions in netCDF file.
-
         #Define operation to extract features and labels from iterator
         fes, lbls = iterator.get_next()
 
@@ -756,9 +693,9 @@ if args.benchmark is None and args.synthetic is None:
         #Save CNN_model such that it can be restored in the tf.Session() below
         saver = tf.train.Saver()
 
-        #Create/open netCDF-file
+        #Create/open netCDF-file to store predictions and labels
         if create_file:
-            filepath = checkpoint_dir + '/MLP_predictions.nc'
+            filepath = args.checkpoint_dir + '/MLP_predictions.nc'
             predictions_file = nc.Dataset(filepath, 'w')
             dim_ns = predictions_file.createDimension("ns",None)
 
@@ -835,7 +772,7 @@ if args.benchmark is None and args.synthetic is None:
 
             #Restore CNN_model within tf.Session()
             #tf.reset_default_graph() #Make graph empty before restoring
-            ckpt  = tf.train.get_checkpoint_state(checkpoint_dir)
+            ckpt  = tf.train.get_checkpoint_state(args.checkpoint_dir)
             saver.restore(sess, ckpt.model_checkpoint_path)
 
             #Initialize iterator
@@ -1067,7 +1004,7 @@ if args.benchmark is None and args.synthetic is None:
                     tot_sample_begin = tot_sample_end #Make sure stored variables are not overwritten.
 
                 except tf.errors.OutOfRangeError:
-                    break #Break out of while-loop after one epoch. NOTE: for this part of the code it is important that the eval_input_fn and train_input_synthetic_fn do not implement the .repeat() method on the created tf.Dataset.
+                    break #Break out of while-loop after one validation file (i.e. one flow 'snapshot'). NOTE: for this part of the code it is important that the eval_input_fn do not implement the .repeat() method on the created tf.Dataset.
     
     predictions_file.close() #Close netCDF-file after each validation file
     print("Finished making predictions for each validation file.")
