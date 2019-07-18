@@ -63,7 +63,7 @@ num_steps = args.num_steps #Number of steps, i.e. number of batches times number
 num_labels = 9 #Number of predicted transport components
 random_seed = 1234
 
-#Define function for standardization (including flattening)
+#Define function for standardization (including flattening for MLP)
 def _standardization(variable, mean, standard_dev):
     variable = tf.reshape(variable,[-1])
     standardized_variable = (variable - mean) / standard_dev
@@ -73,7 +73,7 @@ def _standardization(variable, mean, standard_dev):
 #the output in format (dict(features),tensor(labels)) and normalizes according to specified means and variances.
 def _parse_function(example_proto,means,stdevs):
 
-    if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function
+    if args.gradients is None:
 
         if args.benchmark is None:
             keys_to_features = {
@@ -333,7 +333,7 @@ def MLP_model_fn(features, labels, mode, params):
     ###Visualize outputs in TensorBoard
     tf.summary.histogram('output_norm', output_mask)
 
-    #Denormalize the output fluxes
+    #Denormalize the output fluxes for inference
     #NOTE1: As a last step, because of the denormalisation the mask defined above should again be applied to the output.
     #NOTE2: These calculations are only needed for inference, but in order to show up in the computation graph (and thus allowing to include it in the frozen graph) this should nonetheless be part of the main model_fn function).
     #NOTE3: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
@@ -365,7 +365,7 @@ def MLP_model_fn(features, labels, mode, params):
     output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
     output_denorm      = tf.math.multiply(output_meansstdevs, mask, name = 'output_denorm')
     
-    #Denormalize the labels
+    #Denormalize the labels for inference
     #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
     #NOTE2: this does not have to be included in the frozen graph, and thus does not have to be included in the main code.
     #NOTE3: similar to the code above, utau_ref is included in the denormalisation.
@@ -663,7 +663,7 @@ tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 #'Hacky' solution to compare the predictions of the MLP to the true labels stored in the TFRecords files. 
 #NOTE1: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
 #NOTE2: the resulting predictions and labels are automatically stored in a netCDF-file called MLP_predictions.nc, which is placed in the specified checkpoint_dir.
-#NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file. Fast inference is currently being implemented by generating a frozen graph from the trained MLP.
+#NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file and other scripts. Fast inference is currently being implemented by generating a frozen graph from the trained MLP.
 if args.benchmark is None:
 
     print('Start making predictions for validation files.')
