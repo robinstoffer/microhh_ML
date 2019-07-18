@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH -t 1-00:00:00
-###SBATCH -t 1:00:00
-#SBATCH -N 1
-###SBATCH -n 48
-###SBATCH -p short
-###SBATCH -p gpu_short
-###SBATCH -p gpu
+####SBATCH -t 1:00:00
+####SBATCH -N 1
+####SBATCH -n 48
+#SBATCH -p short
+####SBATCH -p gpu_short
+####SBATCH -p gpu
 
 cd
 cd microhh/cases/moser600/git_repository/Training\ data/

@@ -73,6 +73,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
 
     #Define shapes of output arrays based on stored training data
     nt = a['unres_tau_xu_turb'].shape[0] # NOTE1: nt should be the same for all variables.
+    #nt = 1 #NOTE:FOR TESTING PURPOSES ONLY!!!
     nz = zc.shape[0]
     ny = yc.shape[0]
     nx = xc.shape[0]
