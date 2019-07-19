@@ -339,6 +339,7 @@ def MLP_model_fn(features, labels, mode, params):
         input_v      = tf.identity(features['vc_sample'], name = 'input_v')
         input_w      = tf.identity(features['wc_sample'], name = 'input_w')
         input_p      = tf.identity(features['pc_sample'], name = 'input_p')
+        utau_ref     = tf.identity(utau_ref, name = 'utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         
     else:   
         input_ugradx = tf.identity(features['ugradx_sample'], name = 'input_ugradx')
@@ -445,7 +446,7 @@ def MLP_model_fn(features, labels, mode, params):
               True,  True,  False,  #xv, yv, zv
               False, False, True]]) #xw, yw, zw
     #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
-    mask = tf.cast(tf.math.logical_or(channel_bool, nonstaggered_components_bool), output_stand.dtype) #Cast boolean to float for multiplications below
+    mask = tf.cast(tf.math.logical_or(channel_bool, nonstaggered_components_bool), output_stand.dtype, name = 'mask_BC') #Cast boolean to float for multiplications below
     #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
     output_mask = tf.math.multiply(output_stand, mask, name = 'output_masked')
     #a4 = tf.print("output_mask: ", output_mask, output_stream=tf.logging.info, summarize=-1)
