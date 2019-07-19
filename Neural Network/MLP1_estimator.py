@@ -63,11 +63,12 @@ num_steps = args.num_steps #Number of steps, i.e. number of batches times number
 num_labels = 9 #Number of predicted transport components
 random_seed = 1234
 
-#Define function for standardization (including flattening for MLP)
-def _standardization(variable, mean, standard_dev):
-    variable = tf.reshape(variable,[-1])
-    standardized_variable = (variable - mean) / standard_dev
-    return standardized_variable
+##Define function for making variables dimensionless and standardized.
+##NOTE: uses global variable utau_ref
+#def _standardization(variable, mean, standard_dev):
+#    variable = variable / utau_ref
+#    standardized_variable = (variable - mean) / standard_dev
+#    return standardized_variable
 
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
 #the output in format (dict(features),tensor(labels)) and normalizes according to specified means and variances.
@@ -77,10 +78,10 @@ def _parse_function(example_proto,means,stdevs):
 
         if args.benchmark is None:
             keys_to_features = {
-                'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-                'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-                'wc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-                'pc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+                'uc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                'vc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                'wc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                'pc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'unres_tau_xu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample' :tf.FixedLenFeature([],tf.float32),
@@ -104,10 +105,10 @@ def _parse_function(example_proto,means,stdevs):
 
         else:
             keys_to_features = {
-                'uc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-                'vc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-                'wc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
-                'pc_sample':tf.FixedLenFeature([5,5,5],tf.float32),
+                'uc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                'vc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                'wc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                'pc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'unres_tau_xu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample' :tf.FixedLenFeature([],tf.float32),
@@ -122,27 +123,27 @@ def _parse_function(example_proto,means,stdevs):
 
             
         parsed_features = tf.parse_single_example(example_proto, keys_to_features)
-        parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
-        parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'], stdevs['vc'])
-        parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc'], stdevs['wc'])
-        parsed_features['pc_sample'] = _standardization(parsed_features['pc_sample'], means['pc'], stdevs['pc'])
+        #parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
+        #parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'], stdevs['vc'])
+        #parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc'], stdevs['wc'])
+        #parsed_features['pc_sample'] = _standardization(parsed_features['pc_sample'], means['pc'], stdevs['pc'])
 
     else:
 
         if args.benchmark is None:
             keys_to_features = {
-                'ugradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'ugrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'ugradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'vgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'vgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'vgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'wgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'wgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'wgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'pgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'pgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'pgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+                'ugradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'ugrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'ugradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'vgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'vgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'vgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'wgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'wgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'wgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'pgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'pgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'pgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'unres_tau_xu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample' :tf.FixedLenFeature([],tf.float32),
@@ -165,18 +166,18 @@ def _parse_function(example_proto,means,stdevs):
             }
         else:
             keys_to_features = {
-                'ugradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'ugrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'ugradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'vgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'vgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'vgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'wgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'wgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'wgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'pgradx_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'pgrady_sample':tf.FixedLenFeature([3,3,3],tf.float32),
-                'pgradz_sample':tf.FixedLenFeature([3,3,3],tf.float32),
+                'ugradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'ugrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'ugradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'vgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'vgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'vgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'wgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'wgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'wgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'pgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'pgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                'pgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'unres_tau_xu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample' :tf.FixedLenFeature([],tf.float32),
@@ -190,37 +191,37 @@ def _parse_function(example_proto,means,stdevs):
             }
 
         parsed_features = tf.parse_single_example(example_proto, keys_to_features)
-        parsed_features['ugradx_sample'] = _standardization(parsed_features['ugradx_sample'], means['ugradx'], stdevs['ugradx'])
-        parsed_features['ugrady_sample'] = _standardization(parsed_features['ugrady_sample'], means['ugrady'], stdevs['ugrady'])
-        parsed_features['ugradz_sample'] = _standardization(parsed_features['ugradz_sample'], means['ugradz'], stdevs['ugradz'])
-        parsed_features['vgradx_sample'] = _standardization(parsed_features['vgradx_sample'], means['vgradx'], stdevs['vgradx'])
-        parsed_features['vgrady_sample'] = _standardization(parsed_features['vgrady_sample'], means['vgrady'], stdevs['vgrady'])
-        parsed_features['vgradz_sample'] = _standardization(parsed_features['vgradz_sample'], means['vgradz'], stdevs['vgradz'])
-        parsed_features['wgradx_sample'] = _standardization(parsed_features['wgradx_sample'], means['wgradx'], stdevs['wgradx'])
-        parsed_features['wgrady_sample'] = _standardization(parsed_features['wgrady_sample'], means['wgrady'], stdevs['wgrady'])
-        parsed_features['wgradz_sample'] = _standardization(parsed_features['wgradz_sample'], means['wgradz'], stdevs['wgradz'])
-        parsed_features['pgradx_sample'] = _standardization(parsed_features['pgradx_sample'], means['pgradx'], stdevs['pgradx'])
-        parsed_features['pgrady_sample'] = _standardization(parsed_features['pgrady_sample'], means['pgrady'], stdevs['pgrady'])
-        parsed_features['pgradz_sample'] = _standardization(parsed_features['pgradz_sample'], means['pgradz'], stdevs['pgradz'])
+        #parsed_features['ugradx_sample'] = _standardization(parsed_features['ugradx_sample'], means['ugradx'], stdevs['ugradx'])
+        #parsed_features['ugrady_sample'] = _standardization(parsed_features['ugrady_sample'], means['ugrady'], stdevs['ugrady'])
+        #parsed_features['ugradz_sample'] = _standardization(parsed_features['ugradz_sample'], means['ugradz'], stdevs['ugradz'])
+        #parsed_features['vgradx_sample'] = _standardization(parsed_features['vgradx_sample'], means['vgradx'], stdevs['vgradx'])
+        #parsed_features['vgrady_sample'] = _standardization(parsed_features['vgrady_sample'], means['vgrady'], stdevs['vgrady'])
+        #parsed_features['vgradz_sample'] = _standardization(parsed_features['vgradz_sample'], means['vgradz'], stdevs['vgradz'])
+        #parsed_features['wgradx_sample'] = _standardization(parsed_features['wgradx_sample'], means['wgradx'], stdevs['wgradx'])
+        #parsed_features['wgrady_sample'] = _standardization(parsed_features['wgrady_sample'], means['wgrady'], stdevs['wgrady'])
+        #parsed_features['wgradz_sample'] = _standardization(parsed_features['wgradz_sample'], means['wgradz'], stdevs['wgradz'])
+        #parsed_features['pgradx_sample'] = _standardization(parsed_features['pgradx_sample'], means['pgradx'], stdevs['pgradx'])
+        #parsed_features['pgrady_sample'] = _standardization(parsed_features['pgrady_sample'], means['pgrady'], stdevs['pgrady'])
+        #parsed_features['pgradz_sample'] = _standardization(parsed_features['pgradz_sample'], means['pgradz'], stdevs['pgradz'])
 
-    #Extract labels from the features dictionary, store them in a new labels array, and standardize them
-    def _getlabel(parsed_features_array, label_name, means_array, stdevs_array):
-        single_label = parsed_features_array.pop(label_name)
-        single_label = _standardization(single_label, means_array[label_name], stdevs_array[label_name])
-        return single_label
+    ##Extract labels from the features dictionary, store them in a new labels array, and standardize them
+    #def _getlabel(parsed_features_array, label_name):
+    #    single_label = parsed_features_array.pop(label_name)
+    #    #single_label = _standardization(single_label, means_array[label_name], stdevs_array[label_name])
+    #    return single_label
 
     labels = {}
-    labels['unres_tau_xu'] = _getlabel(parsed_features, 'unres_tau_xu_sample', means, stdevs)
-    labels['unres_tau_yu'] = _getlabel(parsed_features, 'unres_tau_yu_sample', means, stdevs)
-    labels['unres_tau_zu'] = _getlabel(parsed_features, 'unres_tau_zu_sample', means, stdevs)
-    labels['unres_tau_xv'] = _getlabel(parsed_features, 'unres_tau_xv_sample', means, stdevs)
-    labels['unres_tau_yv'] = _getlabel(parsed_features, 'unres_tau_yv_sample', means, stdevs)
-    labels['unres_tau_zv'] = _getlabel(parsed_features, 'unres_tau_zv_sample', means, stdevs)
-    labels['unres_tau_xw'] = _getlabel(parsed_features, 'unres_tau_xw_sample', means, stdevs)
-    labels['unres_tau_yw'] = _getlabel(parsed_features, 'unres_tau_yw_sample', means, stdevs)
-    labels['unres_tau_zw'] = _getlabel(parsed_features, 'unres_tau_zw_sample', means, stdevs)
+    labels['unres_tau_xu'] =  parsed_features.pop('unres_tau_xu_sample')
+    labels['unres_tau_yu'] =  parsed_features.pop('unres_tau_yu_sample')
+    labels['unres_tau_zu'] =  parsed_features.pop('unres_tau_zu_sample')
+    labels['unres_tau_xv'] =  parsed_features.pop('unres_tau_xv_sample')
+    labels['unres_tau_yv'] =  parsed_features.pop('unres_tau_yv_sample')
+    labels['unres_tau_zv'] =  parsed_features.pop('unres_tau_zv_sample')
+    labels['unres_tau_xw'] =  parsed_features.pop('unres_tau_xw_sample')
+    labels['unres_tau_yw'] =  parsed_features.pop('unres_tau_yw_sample')
+    labels['unres_tau_zw'] =  parsed_features.pop('unres_tau_zw_sample')
 
-    labels = tf.squeeze(tf.stack([ labels['unres_tau_xu'], labels['unres_tau_yu'], labels['unres_tau_zu'], labels['unres_tau_xv'],  labels['unres_tau_yv'], labels['unres_tau_zv'], labels['unres_tau_xw'], labels['unres_tau_yw'], labels['unres_tau_zw']], axis=1))
+    labels = tf.stack([ labels['unres_tau_xu'], labels['unres_tau_yu'], labels['unres_tau_zu'], labels['unres_tau_xv'],  labels['unres_tau_yv'], labels['unres_tau_zv'], labels['unres_tau_xw'], labels['unres_tau_yw'], labels['unres_tau_zw']], axis=0)
 
     return parsed_features,labels
 
@@ -264,14 +265,82 @@ def MLP_model_fn(features, labels, mode, params):
     '''MLP model with 1 hidden layer. \\
             NOTE: this function accesses the global variables args.gradients, means_dict_avgt, stdevs_dict_avgt, and utau_ref.'''
 
-    #Define identity wrappers for input variables, which can be used to set-up a frozen graph for inference.
-    if args.gradients is None:
-        input_u = tf.identity(features['uc_sample'], name = 'input_u')
-        input_v = tf.identity(features['vc_sample'], name = 'input_v')
-        input_w = tf.identity(features['wc_sample'], name = 'input_w')
-        input_p = tf.identity(features['pc_sample'], name = 'input_p')
+    #Define tf.constants for storing the means and stdevs of the input variables & labels, which is needed for the normalisation and subsequent denormalisation in this graph
 
+    if args.gradients is None:         
+        
+        means_inputs = tf.constant([[
+            means_dict_avgt['uc'],
+            means_dict_avgt['vc'],
+            means_dict_avgt['wc'],
+            means_dict_avgt['pc']]])
+        
+        stdevs_inputs = tf.constant([[
+            stdevs_dict_avgt['uc'],
+            stdevs_dict_avgt['vc'],
+            stdevs_dict_avgt['wc'],
+            stdevs_dict_avgt['pc']]])
+    
     else:
+
+        means_inputs = tf.constant([[
+            means_dict_avgt['ugradx'],
+            means_dict_avgt['ugrady'],
+            means_dict_avgt['ugradz'],
+            means_dict_avgt['vgradx'],
+            means_dict_avgt['vgrady'],
+            means_dict_avgt['vgradz'],
+            means_dict_avgt['wgradx'],
+            means_dict_avgt['wgrady'],
+            means_dict_avgt['wgradz'],
+            means_dict_avgt['pgradx'],
+            means_dict_avgt['pgrady'],
+            means_dict_avgt['pgradz']]])
+        
+        stdevs_inputs = tf.constant([[
+            stdevs_dict_avgt['ugradx'],
+            stdevs_dict_avgt['ugrady'],
+            stdevs_dict_avgt['ugradz'],
+            stdevs_dict_avgt['vgradx'],
+            stdevs_dict_avgt['vgrady'],
+            stdevs_dict_avgt['vgradz'],
+            stdevs_dict_avgt['wgradx'],
+            stdevs_dict_avgt['wgrady'],
+            stdevs_dict_avgt['wgradz'],
+            stdevs_dict_avgt['pgradx'],
+            stdevs_dict_avgt['pgrady'],
+            stdevs_dict_avgt['pgradz']]])
+        
+    means_labels = tf.constant([[ 
+        means_dict_avgt['unres_tau_xu_sample'],
+        means_dict_avgt['unres_tau_yu_sample'],
+        means_dict_avgt['unres_tau_zu_sample'],
+        means_dict_avgt['unres_tau_xv_sample'],
+        means_dict_avgt['unres_tau_yv_sample'],
+        means_dict_avgt['unres_tau_zv_sample'],
+        means_dict_avgt['unres_tau_xw_sample'],
+        means_dict_avgt['unres_tau_yw_sample'],
+        means_dict_avgt['unres_tau_zw_sample']]])
+    
+    stdevs_labels = tf.constant([[ 
+        stdevs_dict_avgt['unres_tau_xu_sample'],
+        stdevs_dict_avgt['unres_tau_yu_sample'],
+        stdevs_dict_avgt['unres_tau_zu_sample'],
+        stdevs_dict_avgt['unres_tau_xv_sample'],
+        stdevs_dict_avgt['unres_tau_yv_sample'],
+        stdevs_dict_avgt['unres_tau_zv_sample'],
+        stdevs_dict_avgt['unres_tau_xw_sample'],
+        stdevs_dict_avgt['unres_tau_yw_sample'],
+        stdevs_dict_avgt['unres_tau_zw_sample']]])
+
+    #Define identity ops for input variables, which can be used to set-up a frozen graph for inference.
+    if args.gradients is None:
+        input_u      = tf.identity(features['uc_sample'], name = 'input_u')
+        input_v      = tf.identity(features['vc_sample'], name = 'input_v')
+        input_w      = tf.identity(features['wc_sample'], name = 'input_w')
+        input_p      = tf.identity(features['pc_sample'], name = 'input_p')
+        
+    else:   
         input_ugradx = tf.identity(features['ugradx_sample'], name = 'input_ugradx')
         input_ugrady = tf.identity(features['ugrady_sample'], name = 'input_ugrady')
         input_ugradz = tf.identity(features['ugradz_sample'], name = 'input_ugradz')
@@ -285,24 +354,81 @@ def MLP_model_fn(features, labels, mode, params):
         input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
         input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
 
-    #Define input layer
-    if args.gradients is None: #NOTE: args.gradients is a global variable defined outside this function        
+    #Define function to make input variables/labels non-dimensionless and standardize them
+    def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
+        #a3 = tf.print("input_variable", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
+        #input_variable = tf.math.divide(input_variable, scaling_factor) ONLY COMMENT THIS LINE FOR OLD TFRECORD FILES!!!
+        #a4 = tf.print("input_variable", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
+        input_variable = tf.math.subtract(input_variable, mean_variable)
+        #a5 = tf.print("mean_variable",  mean_variable, output_stream=tf.logging.info, summarize=-1)
+        #a6 = tf.print("input_variable_mean", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
+        input_variable = tf.math.divide(input_variable, stdev_variable)
+        #a7 = tf.print("stdev_variable", stdev_variable, output_stream=tf.logging.info, summarize=-1)
+        #a8 = tf.print("input_variable_final", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
+        return input_variable #, a3, a4, a5, a6, a7, a8
+
+    #Standardize input variables
+    if args.gradients is None:
         
-        input_layer = tf.concat([input_u, input_v, input_w, input_p], axis=1, name = 'input_layer')
+        with tf.name_scope("standardization_inputs"): #Group nodes in name scope for easier visualisation in TensorBoard
+            input_u_stand = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], utau_ref)
+            input_v_stand = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], utau_ref)
+            input_w_stand = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], utau_ref)
+            input_p_stand = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], utau_ref)
 
     else:
-        input_layer = tf.concat([input_ugradx, input_ugrady, input_ugradz, \
-                input_vgradx, input_vgrady, input_vgradz, \
-                input_wgradx, input_wgrady, input_wgradz, \
-                input_pgradx, input_pgrady, input_pgradz], axis=1, name = 'input_layer')
+
+        with tf.name_scope("standardization_inputs"): #Group nodes in name scope for easier visualisation in TensorBoard
+            input_ugradx_stand = _standardization(input_ugradx, means_inputs[:,0],  stdevs_inputs[:,0], utau_ref)
+            input_ugrady_stand = _standardization(input_ugrady, means_inputs[:,1],  stdevs_inputs[:,1], utau_ref)
+            input_ugradz_stand = _standardization(input_ugradz, means_inputs[:,2],  stdevs_inputs[:,2], utau_ref)
+            input_vgradx_stand = _standardization(input_vgradx, means_inputs[:,3],  stdevs_inputs[:,3], utau_ref)
+            input_vgrady_stand = _standardization(input_vgrady, means_inputs[:,4],  stdevs_inputs[:,4], utau_ref)
+            input_vgradz_stand = _standardization(input_vgradz, means_inputs[:,5],  stdevs_inputs[:,5], utau_ref)
+            input_wgradx_stand = _standardization(input_wgradx, means_inputs[:,6],  stdevs_inputs[:,6], utau_ref)
+            input_wgrady_stand = _standardization(input_wgrady, means_inputs[:,7],  stdevs_inputs[:,7], utau_ref)
+            input_wgradz_stand = _standardization(input_wgradz, means_inputs[:,8],  stdevs_inputs[:,8], utau_ref)
+            input_pgradx_stand = _standardization(input_pgradx, means_inputs[:,9],  stdevs_inputs[:,9], utau_ref)
+            input_pgrady_stand = _standardization(input_pgrady, means_inputs[:,10], stdevs_inputs[:,10], utau_ref)
+            input_pgradz_stand = _standardization(input_pgradz, means_inputs[:,11], stdevs_inputs[:,11], utau_ref)
+    
+    #Standardize labels
+    #NOTE: the labels are already made dimensionless in the training data procedure, and thus in contrast to the inputs do not have to be multiplied by a scaling factor. 
+    with tf.name_scope("standardization_labels"): #Group nodes in name scope for easier visualisation in TensorBoard
+        #a1 = tf.print("labels", labels[0,:], output_stream=tf.logging.info, summarize=-1)
+        labels_means = tf.math.subtract(labels, means_labels)
+        #a2 = tf.print("means_labels", means_labels, output_stream=tf.logging.info, summarize=-1)
+        #a3 = tf.print("labels_means", labels_means[0,:], output_stream=tf.logging.info, summarize=-1)
+        labels_stand = tf.math.divide(labels_means, stdevs_labels, name = 'labels_stand')
+        #a4 = tf.print("labels_stand", labels_stand[0,:], output_stream=tf.logging.info, summarize=-1)
+        #a5 = tf.print("stdevs_labels", stdevs_labels, output_stream=tf.logging.info, summarize=-1)
+
+    #Define input layer
+    if args.gradients is None:
         
+        input_layer = tf.concat([input_u_stand, input_v_stand, input_w_stand, input_p_stand], axis=1, name = 'input_layer')
+
+    else:
+
+        input_layer = tf.concat([input_ugradx_stand, input_ugrady_stand, input_ugradz_stand, \
+                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand, \
+                input_wgradx_stand, input_wgrady_stand, input_wgradz_stand, \
+                input_pgradx_stand, input_pgrady_stand, input_pgradz_stand], axis=1, name = 'input_layer')
+
+    #Visualize non-dimensionless and standardized input values in TensorBoard
+    tf.summary.histogram('input_u_stand', input_u_stand)
+    tf.summary.histogram('input_v_stand', input_v_stand)
+    tf.summary.histogram('input_w_stand', input_w_stand)
+    tf.summary.histogram('input_p_stand', input_p_stand)
+    tf.summary.histogram('input_layer', input_layer)
+
     #Define layers
     dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1", \
             activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
     dense1 = dense1_layerdef.apply(input_layer)
     output_layerdef = tf.layers.Dense(units=num_labels, name="output", \
             activation=None, kernel_initializer=params["kernel_initializer"])
-    output_norm = output_layerdef.apply(dense1)
+    output_stand = output_layerdef.apply(dense1)
     #Visualize activations hidden layer in TensorBoard
     tf.summary.histogram('activations_hidden_layer1', dense1)
     tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1', tf.nn.zero_fraction(dense1))
@@ -319,14 +445,14 @@ def MLP_model_fn(features, labels, mode, params):
               True,  True,  False,  #xv, yv, zv
               False, False, True]]) #xw, yw, zw
     #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
-    mask = tf.cast(tf.math.logical_or(channel_bool, nonstaggered_components_bool), output_norm.dtype) #Cast boolean to float for multiplications below
+    mask = tf.cast(tf.math.logical_or(channel_bool, nonstaggered_components_bool), output_stand.dtype) #Cast boolean to float for multiplications below
     #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
-    output_mask = tf.math.multiply(output_norm, mask, name = 'output_masked')
+    output_mask = tf.math.multiply(output_stand, mask, name = 'output_masked')
     #a4 = tf.print("output_mask: ", output_mask, output_stream=tf.logging.info, summarize=-1)
-    labels_mask = tf.math.multiply(labels, mask, name = 'labels_masked') #NOTE: the concerning labels should also be put to 0 because of the applied normalisation.
+    labels_mask = tf.math.multiply(labels_stand, mask, name = 'labels_masked') #NOTE: the concerning labels should also be put to 0 because of the applied normalisation.
     #a5 = tf.print("labels_mask: ", labels_mask, output_stream=tf.logging.info, summarize=-1)
     
-    #Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
+    ##Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
     #with tf.control_dependencies([a1,a2,a3,a4,a5]):
     #    output_mask = tf.identity(output_mask)
     
@@ -338,40 +464,19 @@ def MLP_model_fn(features, labels, mode, params):
     #NOTE2: These calculations are only needed for inference, but in order to show up in the computation graph (and thus allowing to include it in the frozen graph) this should nonetheless be part of the main model_fn function).
     #NOTE3: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
     #if mode == tf.estimator.ModeKeys.PREDICT:
-    means = tf.constant([[ 
-        means_dict_avgt['unres_tau_xu_sample'],
-        means_dict_avgt['unres_tau_yu_sample'],
-        means_dict_avgt['unres_tau_zu_sample'],
-        means_dict_avgt['unres_tau_xv_sample'],
-        means_dict_avgt['unres_tau_yv_sample'],
-        means_dict_avgt['unres_tau_zv_sample'],
-        means_dict_avgt['unres_tau_xw_sample'],
-        means_dict_avgt['unres_tau_yw_sample'],
-        means_dict_avgt['unres_tau_zw_sample']]])
-    
-    stdevs = tf.constant([[ 
-        stdevs_dict_avgt['unres_tau_xu_sample'],
-        stdevs_dict_avgt['unres_tau_yu_sample'],
-        stdevs_dict_avgt['unres_tau_zu_sample'],
-        stdevs_dict_avgt['unres_tau_xv_sample'],
-        stdevs_dict_avgt['unres_tau_yv_sample'],
-        stdevs_dict_avgt['unres_tau_zv_sample'],
-        stdevs_dict_avgt['unres_tau_xw_sample'],
-        stdevs_dict_avgt['unres_tau_yw_sample'],
-        stdevs_dict_avgt['unres_tau_zw_sample']]])
-
-    output_stdevs      = tf.math.multiply(output_mask, stdevs)
-    output_means       = tf.math.add(output_stdevs, means)
-    output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
-    output_denorm      = tf.math.multiply(output_meansstdevs, mask, name = 'output_denorm')
+    with tf.name_scope("denormalisation_output"): #Group nodes in name scope for easier visualisation in TensorBoard
+        output_stdevs      = tf.math.multiply(output_mask, stdevs_labels)
+        output_means       = tf.math.add(output_stdevs, means_labels)
+        output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
+    output_denorm = tf.math.multiply(output_meansstdevs, mask, name = 'output_denorm')
     
     #Denormalize the labels for inference
     #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
     #NOTE2: this does not have to be included in the frozen graph, and thus does not have to be included in the main code.
     #NOTE3: similar to the code above, utau_ref is included in the denormalisation.
     if mode == tf.estimator.ModeKeys.PREDICT:
-        labels_stdevs = tf.math.multiply(labels, stdevs) #NOTE: on purpose labels instead of labels_mask.
-        labels_means  = tf.math.add(labels_stdevs, means)
+        labels_stdevs = tf.math.multiply(labels_stand, stdevs_labels) #NOTE: on purpose labels_stand instead of labels_mask.
+        labels_means  = tf.math.add(labels_stdevs, means_labels)
         labels_denorm = tf.math.multiply(labels_means, (utau_ref ** 2), name = 'labels_denorm')
         
         #Compute predictions
@@ -414,7 +519,7 @@ def MLP_model_fn(features, labels, mode, params):
         return numerator / denominator
 
     #Compute evaluation metrics.
-    tf.summary.histogram('labels', labels) #Visualize labels
+    tf.summary.histogram('labels', labels_mask) #Visualize labels
     if mode == tf.estimator.ModeKeys.EVAL:
         mse_all, update_op = tf.metrics.mean_squared_error(labels_mask, output_mask)
         log_mse_all = log10(mse_all)

@@ -320,23 +320,23 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     index_xlow_gradients  = index_x - cells_around_centercell_gradients
                     index_xhigh_gradients = index_x + cells_around_centercell_gradients + 1
     
-                    #Take samples of 5x5x5 and store them
-                    uc_samples[sample_num,:,:,:]     = uc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #Take samples of 5x5x5, flatten them, and store them
+                    uc_samples[sample_num,:,:,:]     = uc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
+                    vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
+                    wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
+                    pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
+                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
         
                     #Store corresponding unresolved transports
                     unres_tau_xu_samples_upstream[sample_num]   = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
