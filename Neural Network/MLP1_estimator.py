@@ -339,7 +339,7 @@ def MLP_model_fn(features, labels, mode, params):
         input_v      = tf.identity(features['vc_sample'], name = 'input_v')
         input_w      = tf.identity(features['wc_sample'], name = 'input_w')
         input_p      = tf.identity(features['pc_sample'], name = 'input_p')
-        utau_ref     = tf.identity(utau_ref, name = 'utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
+        input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         
     else:   
         input_ugradx = tf.identity(features['ugradx_sample'], name = 'input_ugradx')
@@ -354,12 +354,12 @@ def MLP_model_fn(features, labels, mode, params):
         input_pgradx = tf.identity(features['pgradx_sample'], name = 'input_pgradx')
         input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
         input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
-        utau_ref     = tf.identity(utau_ref, name = 'utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
+        input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
 
     #Define function to make input variables/labels non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
         #a3 = tf.print("input_variable", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
-        #input_variable = tf.math.divide(input_variable, scaling_factor) ONLY COMMENT THIS LINE FOR OLD TFRECORD FILES!!!
+        input_variable = tf.math.divide(input_variable, scaling_factor)
         #a4 = tf.print("input_variable", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
         input_variable = tf.math.subtract(input_variable, mean_variable)
         #a5 = tf.print("mean_variable",  mean_variable, output_stream=tf.logging.info, summarize=-1)
@@ -370,29 +370,30 @@ def MLP_model_fn(features, labels, mode, params):
         return input_variable #, a3, a4, a5, a6, a7, a8
 
     #Standardize input variables
+    #NOTE: it is on purpose that P is NOT scaled with utau_ref!!!
     if args.gradients is None:
         
         with tf.name_scope("standardization_inputs"): #Group nodes in name scope for easier visualisation in TensorBoard
-            input_u_stand = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], utau_ref)
-            input_v_stand = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], utau_ref)
-            input_w_stand = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], utau_ref)
-            input_p_stand = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], utau_ref)
+            input_u_stand = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], input_utau_ref)
+            input_v_stand = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], input_utau_ref)
+            input_w_stand = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], input_utau_ref)
+            input_p_stand = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], 1.)
 
     else:
 
         with tf.name_scope("standardization_inputs"): #Group nodes in name scope for easier visualisation in TensorBoard
-            input_ugradx_stand = _standardization(input_ugradx, means_inputs[:,0],  stdevs_inputs[:,0], utau_ref)
-            input_ugrady_stand = _standardization(input_ugrady, means_inputs[:,1],  stdevs_inputs[:,1], utau_ref)
-            input_ugradz_stand = _standardization(input_ugradz, means_inputs[:,2],  stdevs_inputs[:,2], utau_ref)
-            input_vgradx_stand = _standardization(input_vgradx, means_inputs[:,3],  stdevs_inputs[:,3], utau_ref)
-            input_vgrady_stand = _standardization(input_vgrady, means_inputs[:,4],  stdevs_inputs[:,4], utau_ref)
-            input_vgradz_stand = _standardization(input_vgradz, means_inputs[:,5],  stdevs_inputs[:,5], utau_ref)
-            input_wgradx_stand = _standardization(input_wgradx, means_inputs[:,6],  stdevs_inputs[:,6], utau_ref)
-            input_wgrady_stand = _standardization(input_wgrady, means_inputs[:,7],  stdevs_inputs[:,7], utau_ref)
-            input_wgradz_stand = _standardization(input_wgradz, means_inputs[:,8],  stdevs_inputs[:,8], utau_ref)
-            input_pgradx_stand = _standardization(input_pgradx, means_inputs[:,9],  stdevs_inputs[:,9], utau_ref)
-            input_pgrady_stand = _standardization(input_pgrady, means_inputs[:,10], stdevs_inputs[:,10], utau_ref)
-            input_pgradz_stand = _standardization(input_pgradz, means_inputs[:,11], stdevs_inputs[:,11], utau_ref)
+            input_ugradx_stand = _standardization(input_ugradx, means_inputs[:,0],  stdevs_inputs[:,0],  input_utau_ref)
+            input_ugrady_stand = _standardization(input_ugrady, means_inputs[:,1],  stdevs_inputs[:,1],   input_utau_ref)
+            input_ugradz_stand = _standardization(input_ugradz, means_inputs[:,2],  stdevs_inputs[:,2],   input_utau_ref)
+            input_vgradx_stand = _standardization(input_vgradx, means_inputs[:,3],  stdevs_inputs[:,3],   input_utau_ref)
+            input_vgrady_stand = _standardization(input_vgrady, means_inputs[:,4],  stdevs_inputs[:,4],   input_utau_ref)
+            input_vgradz_stand = _standardization(input_vgradz, means_inputs[:,5],  stdevs_inputs[:,5],   input_utau_ref)
+            input_wgradx_stand = _standardization(input_wgradx, means_inputs[:,6],  stdevs_inputs[:,6],   input_utau_ref)
+            input_wgrady_stand = _standardization(input_wgrady, means_inputs[:,7],  stdevs_inputs[:,7],   input_utau_ref)
+            input_wgradz_stand = _standardization(input_wgradz, means_inputs[:,8],  stdevs_inputs[:,8],   input_utau_ref)
+            input_pgradx_stand = _standardization(input_pgradx, means_inputs[:,9],  stdevs_inputs[:,9],   1.)
+            input_pgrady_stand = _standardization(input_pgrady, means_inputs[:,10], stdevs_inputs[:,10],  1.)
+            input_pgradz_stand = _standardization(input_pgradz, means_inputs[:,11], stdevs_inputs[:,11],  1.)
     
     #Standardize labels
     #NOTE: the labels are already made dimensionless in the training data procedure, and thus in contrast to the inputs do not have to be multiplied by a scaling factor. 
@@ -577,7 +578,8 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
 
 #Extract friction velocity from training file (which is needed for the denormalisation implemented within the MLP)
 training_file = nc.Dataset(args.training_filepath, 'r')
-utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
+#utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
+utau_ref = 1. #Set it ONLY to 1. for old tfrecords that do not have to be made non-dimensionless!!!
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.

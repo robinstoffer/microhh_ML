@@ -224,6 +224,10 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         xhloc_samples  = np.zeros((nsamples,1))
         xloc_samples   = np.zeros((nsamples,1))
 
+        #Define arrays to store for each sample flags indicating whether it is located at the bottom/top wall (1) or not (0)
+        flag_topwall_samples    = np.zeros((nsamples,1), dtype=np.int64)
+        flag_bottomwall_samples = np.zeros((nsamples,1), dtype=np.int64)
+        
         #Calculate gradients of wind speed and pressure fields#
         #NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
         #NOTE2: if the half-channel width delta is not equal to 1, revise the gradients calculation below!
@@ -296,7 +300,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         pc_singlefield = pc_singlefield * utau_ref
 
         ###Do the actual sampling.###
-        for index_z in range(cells_around_centercell, kend + cells_around_centercell - kgc_center): #NOTE: -kgc_center compensates for the fact that effectively cells_around_centercell - kgc_center ghost cells were added on each side, which causes the indices of the non-ghost cells in between to shift with this amount as well. In this script kend (which signals the end of the non-ghostcell part of the array) therefore has to be shifted this amount as well since it was not yet included in the array when kend was defined.
+        for index_z in range(kgc_center, kend): #NOTE: kgc_center and kgc_edge should be identical
             index_zlow                    = index_z - cells_around_centercell
             index_zhigh                   = index_z + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
             index_z_noghost               = index_z - cells_around_centercell
@@ -319,24 +323,24 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     # Idem for gradients
                     index_xlow_gradients  = index_x - cells_around_centercell_gradients
                     index_xhigh_gradients = index_x + cells_around_centercell_gradients + 1
-    
+
                     #Take samples of 5x5x5, flatten them, and store them
-                    uc_samples[sample_num,:,:,:]     = uc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
-                    vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
-                    wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
-                    pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh].flatten()
-                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
-                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients].flatten()
+                    uc_samples[sample_num,:,:,:]     = uc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
+                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
         
                     #Store corresponding unresolved transports
                     unres_tau_xu_samples_upstream[sample_num]   = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
@@ -367,6 +371,12 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     xhloc_samples[sample_num] = xhc[index_x_noghost]
                     xloc_samples[sample_num]  = xc[index_x_noghost]
 
+                    #Set flags of bottom/top wall to one when the samples is located at the bottom/top.
+                    if index_z == (kend-1):
+                        flag_topwall_samples[sample_num] = 1
+                    elif index_z == kgc_center:
+                        flag_bottomwall_samples[sample_num] = 1
+    
                     sample_num +=1
                     tot_sample_num+=1
 
@@ -385,7 +395,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, \
         tstep_samples, zhloc_samples, zloc_samples, \
         yhloc_samples, yloc_samples, xhloc_samples, \
-        xloc_samples \
+        xloc_samples, flag_topwall_samples, flag_bottomwall_samples \
         = shuffle(
         uc_samples, vc_samples, wc_samples, pc_samples,
         ugradx_samples, ugrady_samples, ugradz_samples,
@@ -400,7 +410,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, \
         tstep_samples, zhloc_samples, zloc_samples,
         yhloc_samples, yloc_samples, xhloc_samples,
-        xloc_samples)
+        xloc_samples, flag_topwall_samples, flag_bottomwall_samples)
 
         #Store samples in nc-file if required by create_netcdf flag
         if create_netcdf:
@@ -460,13 +470,16 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 varunres_tau_zu_downstream = samples_file.createVariable("unres_tau_zu_samples_downstream","f8",("ns",))
                 varunres_tau_zv_downstream = samples_file.createVariable("unres_tau_zv_samples_downstream","f8",("ns",))
                 varunres_tau_zw_downstream = samples_file.createVariable("unres_tau_zw_samples_downstream","f8",("ns",))
-                vartstep        = samples_file.createVariable("tstep_samples","f8",("ns",))
-                varzhloc        = samples_file.createVariable("zhloc_samples","f8",("ns",))
-                varzloc         = samples_file.createVariable("zloc_samples","f8",("ns",))
-                varyhloc        = samples_file.createVariable("yhloc_samples","f8",("ns",))
-                varyloc         = samples_file.createVariable("yloc_samples","f8",("ns",))
-                varxhloc        = samples_file.createVariable("xhloc_samples","f8",("ns",))
-                varxloc         = samples_file.createVariable("xloc_samples","f8",("ns",))
+                vartstep           = samples_file.createVariable("tstep_samples","f8",("ns",))
+                varzhloc           = samples_file.createVariable("zhloc_samples","f8",("ns",))
+                varzloc            = samples_file.createVariable("zloc_samples","f8",("ns",))
+                varyhloc           = samples_file.createVariable("yhloc_samples","f8",("ns",))
+                varyloc            = samples_file.createVariable("yloc_samples","f8",("ns",))
+                varxhloc           = samples_file.createVariable("xhloc_samples","f8",("ns",))
+                varxloc            = samples_file.createVariable("xloc_samples","f8",("ns",))
+                varflag_topwall    = samples_file.createVariable("flag_topwall_samples","f8",("ns",))
+                varflag_bottomwall = samples_file.createVariable("flag_bottomwall_samples","f8",("ns",))
+                
     
     
             create_variables = False #Make sure the variables are only created once    
@@ -513,6 +526,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             varyloc[tot_sample_begin:tot_sample_end]                    = yloc_samples[:]
             varxhloc[tot_sample_begin:tot_sample_end]                   = xhloc_samples[:]
             varxloc[tot_sample_begin:tot_sample_end]                    = xloc_samples[:]
+            varflag_topwall[tot_sample_begin:tot_sample_end]            = flag_topwall_samples[:]
+            varflag_bottomwall[tot_sample_begin:tot_sample_end]         = flag_bottomwall_samples[:]
     
             #close storage file
             samples_file.close()
@@ -541,7 +556,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream,
                     x_sample_size, y_sample_size, z_sample_size, 
                     tstep_sample, xloc_sample, xhloc_sample, 
-                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample):
+                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                    flag_topwall_sample, flag_bottomwall_sample):
                 """Build a protocol for an individual sample.
                 
                 The inputs are:
@@ -609,6 +625,10 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                   zloc_sample:   float, location of sample in z-direction
                 
                   zhloc_sample:  float, location of sample in zh-direction
+
+                  flag_topwall_sample: integer, flag indicating wheter loc is at the top wall
+
+                  flag_bottomwall_sample: integer, flag indicating wheter loc is at the bottom wall
                 
                 Returns:
 
@@ -642,6 +662,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                                'y_sample_size': _int64_feature(y_sample_size),
                                'z_sample_size': _int64_feature(z_sample_size),
                                'tstep_sample' : _int64_feature(tstep_sample),
+                               'flag_topwall_sample': _int64_feature(flag_topwall_sample),
+                               'flag_bottomwall_sample': _int64_feature(flag_bottomwall_sample),
                                'xloc_sample'  : _float_feature(xloc_sample),
                                'xhloc_sample' : _float_feature(xhloc_sample),
                                'yloc_sample'  : _float_feature(yloc_sample),
@@ -659,7 +681,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
                     x_sample_size, y_sample_size, z_sample_size, 
                     tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples):
+                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                    flag_topwall_samples, flag_bottomwall_samples):
             
                 """Processes and saves samples in TFrecord format.
             
@@ -731,6 +754,9 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 
                   zhloc_samples:  float, location of samples in zh-direction
 
+                  flag_topwall_samples: integer, flag indicating wheter loc is at the top wall
+
+                  flag_bottomwall_samples: integer, flag indicating wheter loc is at the bottom wall
                 """
                 writer = tf.python_io.TFRecordWriter(output_file)
     
@@ -742,7 +768,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, \
                 unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, \
                 tstep_sample, xloc_sample, xhloc_sample, \
-                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample in zip(
+                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample, \
+                flag_topwall_sample, flag_bottomwall_sample in zip(
                         uc_samples, vc_samples, wc_samples, pc_samples, 
                         unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
                         unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
@@ -751,7 +778,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                         unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
                         unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
                         tstep_samples, xloc_samples, xhloc_samples, 
-                        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples):
+                        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                        flag_topwall_samples, flag_bottomwall_samples):
                     
                     example = _convert_to_example(uc_sample, vc_sample, wc_sample, pc_sample, 
                               unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
@@ -762,7 +790,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                               unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
                               x_sample_size, y_sample_size, z_sample_size, 
                               tstep_sample, xloc_sample, xhloc_sample, 
-                              yloc_sample, yhloc_sample, zloc_sample, zhloc_sample)
+                              yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                              flag_topwall_sample, flag_bottomwall_sample)
                     
                     writer.write(example.SerializeToString())
             
@@ -781,7 +810,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
                     x_sample_size, y_sample_size, z_sample_size, 
                     tstep_sample, xloc_sample, xhloc_sample, 
-                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample):
+                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                    flag_topwall_sample, flag_bottomwall_sample):
                 """Build a protocol for an individual sample with gradients.
                 
                 The inputs are:
@@ -866,6 +896,10 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 
                   zhloc_sample:  float, location of sample in zh-direction
 
+                  flag_topwall_sample: integer, flag indicating wheter loc is at the top wall
+
+                  flag_bottomwall_sample: integer, flag indicating wheter loc is at the bottom wall
+
                 Returns:
                   Example proto
                 """
@@ -905,6 +939,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                                'y_sample_size': _int64_feature(y_sample_size),
                                'z_sample_size': _int64_feature(z_sample_size),        
                                'tstep_sample' : _int64_feature(tstep_sample),
+                               'flag_topwall_sample': _int64_feature(flag_topwall_sample),
+                               'flag_bottomwall_sample': _int64_feature(flag_bottomwall_sample),
                                'xloc_sample'  : _float_feature(xloc_sample),
                                'xhloc_sample' : _float_feature(xhloc_sample),
                                'yloc_sample'  : _float_feature(yloc_sample),
@@ -926,7 +962,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
                     x_sample_size, y_sample_size, z_sample_size, 
                     tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples):
+                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                    flag_topwall_samples, flag_bottomwall_samples):
             
                 """Processes and saves samples with gradients in TFrecord format.
             
@@ -1014,6 +1051,10 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 
                   zhloc_samples:  float, location of samples in zh-direction
 
+                  flag_topwall_samples: integer, flag indicating wheter loc is at the top wall
+
+                  flag_bottomwall_samples: integer, flag indicating wheter loc is at the bottom wall
+
                   """
                 writer = tf.python_io.TFRecordWriter(output_file)
     
@@ -1028,7 +1069,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                 unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, \
                 unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, \
                 tstep_sample, xloc_sample, xhloc_sample, \
-                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample in zip(
+                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample, \
+                flag_topwall_sample, flag_bottomwall_sample in zip(
                         ugradx_samples, ugrady_samples, ugradz_samples, 
                         vgradx_samples, vgrady_samples, vgradz_samples, 
                         wgradx_samples, wgrady_samples, wgradz_samples, 
@@ -1040,7 +1082,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                         unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
                         unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
                         tstep_samples, xloc_samples, xhloc_samples, 
-                        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples):
+                        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                        flag_topwall_samples, flag_bottomwall_samples):
 
                     example = _convert_to_example_gradients(
                             ugradx_sample, ugrady_sample, ugradz_sample, 
@@ -1055,7 +1098,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                             unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
                             x_sample_size, y_sample_size, z_sample_size, 
                             tstep_sample, xloc_sample, xhloc_sample, 
-                            yloc_sample, yhloc_sample, zloc_sample, zhloc_sample)
+                            yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                            flag_topwall_sample, flag_bottomwall_sample)
                     writer.write(example.SerializeToString())
             
                 writer.close()
@@ -1071,7 +1115,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
                     size_samples, size_samples, size_samples, 
                     tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples)
+                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                    flag_topwall_samples, flag_bottomwall_samples)
             
             print('Finished writing file: %s' % output_file)
 
@@ -1089,7 +1134,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
                     size_samples_gradients, size_samples_gradients, size_samples_gradients, 
                     tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples)
+                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                    flag_topwall_samples, flag_bottomwall_samples)
 
     #Close data file
     a.close()

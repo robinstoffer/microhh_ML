@@ -3,7 +3,7 @@
 ####SBATCH -t 1:00:00
 ####SBATCH -N 1
 ####SBATCH -n 48
-#SBATCH -p short
+####SBATCH -p short
 ####SBATCH -p gpu_short
 ####SBATCH -p gpu
 
