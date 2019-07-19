@@ -354,6 +354,7 @@ def MLP_model_fn(features, labels, mode, params):
         input_pgradx = tf.identity(features['pgradx_sample'], name = 'input_pgradx')
         input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
         input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
+        utau_ref     = tf.identity(utau_ref, name = 'utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
 
     #Define function to make input variables/labels non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
