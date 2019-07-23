@@ -190,7 +190,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             finegrid.read_binary_variables(input_directory, 'u', t, bool_edge_gridcell_u, normalisation_factor = utau_ref)
             finegrid.read_binary_variables(input_directory, 'v', t, bool_edge_gridcell_v, normalisation_factor = utau_ref)
             finegrid.read_binary_variables(input_directory, 'w', t, bool_edge_gridcell_w, normalisation_factor = utau_ref)
-            finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p, normalisation_factor = utau_ref)
+            finegrid.read_binary_variables(input_directory, 'p', t, bool_edge_gridcell_p, normalisation_factor = 1.)
 
         ##Downsample from fine DNS data to user specified coarse grid ##
         ################################################################

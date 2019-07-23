@@ -297,7 +297,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         uc_singlefield = uc_singlefield * utau_ref
         vc_singlefield = vc_singlefield * utau_ref
         wc_singlefield = wc_singlefield * utau_ref
-        pc_singlefield = pc_singlefield * utau_ref
+        #pc_singlefield = pc_singlefield * utau_ref
 
         ###Do the actual sampling.###
         for index_z in range(kgc_center, kend): #NOTE: kgc_center and kgc_edge should be identical

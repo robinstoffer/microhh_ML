@@ -250,12 +250,15 @@ def _parse_function(example_proto,means,stdevs):
     labels['unres_tau_zw_downstream'] =  parsed_features.pop('unres_tau_zw_sample_downstream')
 
     labels = tf.stack([ 
-        labels['unres_tau_xu_upstream'], labels['unres_tau_yu_upstream'], labels['unres_tau_zu_upstream'],
-        labels['unres_tau_xu_downstream'], labels['unres_tau_yu_downstream'], labels['unres_tau_zu_downstream'], 
-        labels['unres_tau_xv_upstream'], labels['unres_tau_yv_upstream'], labels['unres_tau_zv_upstream'], 
-        labels['unres_tau_xv_downstream'], labels['unres_tau_yv_downstream'], labels['unres_tau_zv_downstream'], 
-        labels['unres_tau_xw_upstream'], labels['unres_tau_yw_upstream'], labels['unres_tau_zw_upstream'],
-        labels['unres_tau_xw_downstream'], labels['unres_tau_yw_downstream'], labels['unres_tau_zw_downstream']
+        labels['unres_tau_xu_upstream'], labels['unres_tau_xu_downstream'], 
+        labels['unres_tau_yu_upstream'], labels['unres_tau_yu_downstream'],
+        labels['unres_tau_zu_upstream'], labels['unres_tau_zu_downstream'],
+        labels['unres_tau_xv_upstream'], labels['unres_tau_xv_downstream'],
+        labels['unres_tau_yv_upstream'], labels['unres_tau_yv_downstream'],
+        labels['unres_tau_zv_upstream'], labels['unres_tau_zv_downstream'],
+        labels['unres_tau_xw_upstream'], labels['unres_tau_xw_downstream'],
+        labels['unres_tau_yw_upstream'], labels['unres_tau_yw_downstream'],
+        labels['unres_tau_zw_upstream'], labels['unres_tau_zw_downstream']
         ], axis=0)
 
     return parsed_features,labels
@@ -416,8 +419,8 @@ def model_fn(features, labels, mode, params):
         stdevs_dict_avgt['unres_tau_zw_sample'],
         stdevs_dict_avgt['unres_tau_zw_sample']]])
 
-    a1 = tf.print("means_labels: ", means_labels, output_stream=tf.logging.info, summarize=-1)
-    a2 = tf.print("stdev_labels: ", stdevs_labels, output_stream=tf.logging.info, summarize=-1)
+    #a1 = tf.print("means_labels: ", means_labels, output_stream=tf.logging.info, summarize=-1)
+    #a2 = tf.print("stdev_labels: ", stdevs_labels, output_stream=tf.logging.info, summarize=-1)
     
     #Define identity ops for input variables, which can be used to set-up a frozen graph for inference.
     if args.gradients is None:
@@ -442,7 +445,7 @@ def model_fn(features, labels, mode, params):
         input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
         input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
 
-    #Define function to make input variables/labels non-dimensionless and standardize them
+    #Define function to make input variables non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
         #a3 = tf.print("input_variable", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
         input_variable = tf.math.divide(input_variable, scaling_factor)
@@ -453,17 +456,17 @@ def model_fn(features, labels, mode, params):
         input_variable = tf.math.divide(input_variable, stdev_variable)
         #a7 = tf.print("stdev_variable", stdev_variable, output_stream=tf.logging.info, summarize=-1)
         #a8 = tf.print("input_variable_final", input_variable[0,:5], output_stream=tf.logging.info, summarize=-1)
-        return input_variable #, a3, a4, a5, a6, a7, a8
+        return input_variable#, a3, a4, a5, a6, a7, a8
 
     #Standardize input variables
     #NOTE: it is on purpose that P is NOT scaled with utau_ref!!!
     if args.gradients is None:
         
         with tf.name_scope("standardization_inputs"): #Group nodes in name scope for easier visualisation in TensorBoard
-            input_u_stand = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], input_utau_ref)
-            input_v_stand = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], input_utau_ref)
-            input_w_stand = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], input_utau_ref)
-            input_p_stand = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], 1.)
+            input_u_stand  = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], input_utau_ref)
+            input_v_stand  = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], input_utau_ref)
+            input_w_stand  = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], input_utau_ref)
+            input_p_stand  = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], input_utau_ref) #ON PURPOSE WRONG STANDARDIZATION P BECAUSE OF AN ERROR IN TRAINING DATA GENERTION!!!!
             
             #Visualize non-dimensionless and standardized input values in TensorBoard
             tf.summary.histogram('input_u_stand', input_u_stand)
@@ -491,11 +494,11 @@ def model_fn(features, labels, mode, params):
     #Standardize labels
     #NOTE: the labels are already made dimensionless in the training data procedure, and thus in contrast to the inputs do not have to be multiplied by a scaling factor. 
     with tf.name_scope("standardization_labels"): #Group nodes in name scope for easier visualisation in TensorBoard
-        a9 = tf.print("labels: ", labels[0,:], output_stream=tf.logging.info, summarize=-1)
+        #a3 = tf.print("labels: ", labels[0,:], output_stream=tf.logging.info, summarize=-1)
         labels_means = tf.math.subtract(labels, means_labels)
-        a6 = tf.print("labels_means: ", labels_means[0,:], output_stream=tf.logging.info, summarize=-1)
+        #a4 = tf.print("labels_means: ", labels_means[0,:], output_stream=tf.logging.info, summarize=-1)
         labels_stand = tf.math.divide(labels_means, stdevs_labels, name = 'labels_stand')
-        a7 = tf.print("labels_stand: ", labels_stand[0,:], output_stream=tf.logging.info, summarize=-1)
+        #a5 = tf.print("labels_stand: ", labels_stand[0,:], output_stream=tf.logging.info, summarize=-1)
     
     #Create mask to implement vertical boundary conditions (currently only no-slip BC implemented). At the top and bottom wall, several components are by definition 0 in turbulent channel flow. Consequently, the corresponding output values are explicitly set to 0 by masking them. 
     flag_topwall = tf.identity(features['flag_topwall_sample'], name = 'flag_topwall')
@@ -526,11 +529,11 @@ def model_fn(features, labels, mode, params):
     #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
     mask = tf.multiply(mask_top, mask_bottom, name = 'mask_noslipBC')
     #output_layer_mask = tf.math.multiply(output_layer_tot, mask, name = 'output_masked')
-    a3 = tf.print("flag_bottomwall: ", flag_bottomwall, output_stream=tf.logging.info, summarize=-1)
-    a4 = tf.print("flag_topwall: ", flag_topwall, output_stream=tf.logging.info, summarize=-1)
-    a5 = tf.print("mask: ", mask[0,:], output_stream=tf.logging.info, summarize=-1)
+    #a3 = tf.print("flag_bottomwall: ", flag_bottomwall, output_stream=tf.logging.info, summarize=-1)
+    #a4 = tf.print("flag_topwall: ", flag_topwall, output_stream=tf.logging.info, summarize=-1)
+    #a5 = tf.print("mask: ", mask[0,:], output_stream=tf.logging.info, summarize=-1)
     labels_mask = tf.math.multiply(labels_stand, mask, name = 'labels_masked') #NOTE: the concerning labels should be put to 0 because of the applied normalisation.
-    a8 = tf.print("labels_mask: ", labels_mask[0,:], output_stream=tf.logging.info, summarize=-1)
+    #a8 = tf.print("labels_mask: ", labels_mask[0,:], output_stream=tf.logging.info, summarize=-1)
     
     #Call create_MLP three times to construct 3 separate MLPs
     #NOTE: the sizes of the input are adjusted to train symmetrically. In doing so, it is assumed that the original size of the input was 5*5*5 grid cells!!!
@@ -602,7 +605,7 @@ def model_fn(features, labels, mode, params):
     tf.summary.histogram('output_layer_mask', output_layer_mask)
 
     ##Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
-    #with tf.control_dependencies([a1,a2,a3,a4,a5,a6,a7,a8,a9]):
+    #with tf.control_dependencies([a1,a2,a3,a4,a5]):
     #    output_layer_mask = tf.identity(output_layer_mask)
     
     #Denormalize the output fluxes for inference
@@ -747,8 +750,8 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
 
 #Extract friction velocity from training file (which is needed for the denormalisation implemented within the MLP)
 training_file = nc.Dataset(args.training_filepath, 'r')
-#utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
-utau_ref = 1. #Set it ONLY to 1. for old tfrecords that do not have to be made non-dimensionless!!!
+utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
+#utau_ref = 1. #Set it ONLY to 1. for old tfrecords that do not have to be made non-dimensionless!!!
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
