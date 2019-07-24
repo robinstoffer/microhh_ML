@@ -501,14 +501,15 @@ def model_fn(features, labels, mode, params):
         #a5 = tf.print("labels_stand: ", labels_stand[0,:], output_stream=tf.logging.info, summarize=-1)
     
     #Create mask to implement vertical boundary conditions (currently only no-slip BC implemented). At the top and bottom wall, several components are by definition 0 in turbulent channel flow. Consequently, the corresponding output values are explicitly set to 0 by masking them. 
-    flag_topwall = tf.identity(features['flag_topwall_sample'], name = 'flag_topwall')
-    flag_topwall_bool = tf.expand_dims(tf.math.not_equal(flag_topwall, 1), axis=1) #Select all samples that are not located at the top wall, and extend dim to be compatible with other arrays
+    flag_topwall = tf.identity(features['flag_topwall_sample'], name = 'flag_topwall') 
     flag_bottomwall = tf.identity(features['flag_bottomwall_sample'], name = 'flag_bottomwall')
-    flag_bottomwall_bool = tf.expand_dims(tf.math.not_equal(flag_bottomwall, 1), axis=1) #Select all samples that are not located at the bottom wall, and extend dim to be compatible with other arrays
-    #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
+    with tf.name_scope("mask_creation"):
+        flag_topwall_bool = tf.expand_dims(tf.math.not_equal(flag_topwall, 1), axis=1) #Select all samples that are not located at the top wall, and extend dim to be compatible with other arrays
+        flag_bottomwall_bool = tf.expand_dims(tf.math.not_equal(flag_bottomwall, 1), axis=1) #Select all samples that are not located at the bottom wall, and extend dim to be compatible with other arrays
+        #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
     
-    #Select all transport components where vertical boundary condition do not apply.
-    components_topwall_bool = tf.constant(
+        #Select all transport components where vertical boundary condition do not apply.
+        components_topwall_bool = tf.constant(
             [[True,  True,  True,   #xu_upstream, yu_upstream, zu_upstream
               True,  True,  False,  #xu_downstream, yu_downstream, zu_downstream
               True,  True,  True,   #xv_upstream, yv_upstream, zv_upstream
@@ -516,18 +517,18 @@ def model_fn(features, labels, mode, params):
               True,  True,  True,   #xw_upstream, yw_upstream, zw_upstream
               False, False, True]]) #xw_downstream, yw_downstream, zw_downstream
     
-    components_bottomwall_bool = tf.constant(
+        components_bottomwall_bool = tf.constant(
             [[True,  True,  False,  #xu_upstream, yu_upstream, zu_upstream
               True,  True,  True,   #xu_downstream, yu_downstream, zu_downstream
               True,  True,  False,  #xv_upstream, yv_upstream, zv_upstream
               True,  True,  True,   #xv_downstream, yv_downstream, zv_downstream
               False, False, True,   #xw_upstream, yw_upstream, zw_upstream
               True,  True,  True]]) #xw_downstream, yw_downstream, zw_downstream
-    #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
-    mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below
-    mask_bottom = tf.cast(tf.math.logical_or(flag_bottomwall_bool, components_bottomwall_bool), tf.float32, name = 'mask_bottom') #Cast boolean to float for multiplications below
-    #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
-    mask = tf.multiply(mask_top, mask_bottom, name = 'mask_noslipBC')
+        #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
+        mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below
+        mask_bottom = tf.cast(tf.math.logical_or(flag_bottomwall_bool, components_bottomwall_bool), tf.float32, name = 'mask_bottom') #Cast boolean to float for multiplications below
+        #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
+        mask = tf.multiply(mask_top, mask_bottom, name = 'mask_noslipBC')
     #output_layer_mask = tf.math.multiply(output_layer_tot, mask, name = 'output_masked')
     #a3 = tf.print("flag_bottomwall: ", flag_bottomwall, output_stream=tf.logging.info, summarize=-1)
     #a4 = tf.print("flag_topwall: ", flag_topwall, output_stream=tf.logging.info, summarize=-1)
@@ -625,8 +626,9 @@ def model_fn(features, labels, mode, params):
     #NOTE2: this does not have to be included in the frozen graph, and thus does not have to be included in the main code.
     #NOTE3: similar to the code above, utau_ref is included in the denormalisation.
     if mode == tf.estimator.ModeKeys.PREDICT:
-        labels_stdevs = tf.math.multiply(labels_stand, stdevs_labels) #NOTE: on purpose labels_stand instead of labels_mask.
-        labels_means  = tf.math.add(labels_stdevs, means_labels)
+        with tf.name_scope("denormalisation_labels"):
+            labels_stdevs = tf.math.multiply(labels_stand, stdevs_labels) #NOTE: on purpose labels_stand instead of labels_mask.
+            labels_means  = tf.math.add(labels_stdevs, means_labels)
         labels_denorm = tf.math.multiply(labels_means, (utau_ref ** 2), name = 'labels_denorm')
         
         #Compute predictions
