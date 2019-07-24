@@ -597,10 +597,10 @@ def model_fn(features, labels, mode, params):
           'w', params)
 
     #Concatenate output layers for validation and inference (NOT training)
-    output_layer_tot = tf.concat([output_layer_u, output_layer_v, output_layer_w], axis=1)
+    output_layer_tot = tf.concat([output_layer_u, output_layer_v, output_layer_w], axis=1, name = 'output_layer_tot')
 
     #Mask output layer
-    output_layer_mask = tf.multiply(output_layer_tot, mask, name = 'output_masked')
+    output_layer_mask = tf.multiply(output_layer_tot, mask, name = 'output_layer_masked')
     
     ###Visualize outputs in TensorBoard
     tf.summary.histogram('output_layer_tot', output_layer_tot)
@@ -619,7 +619,7 @@ def model_fn(features, labels, mode, params):
         output_stdevs      = tf.math.multiply(output_layer_mask, stdevs_labels)
         output_means       = tf.math.add(output_stdevs, means_labels)
         output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
-    output_denorm = tf.math.multiply(output_meansstdevs, mask, name = 'output_denorm')
+    output_denorm = tf.math.multiply(output_meansstdevs, mask, name = 'output_layer_denorm')
     
     #Denormalize the labels for inference
     #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
