@@ -299,7 +299,7 @@ def split_train_val(time_steps, val_ratio):
 
 
 #Define function that builds a separate MLP.
-def create_MLP(inputs, mask, name_MLP, params):
+def create_MLP(inputs, name_MLP, params):
     '''Function to build a MLP with specified inputs and labels (which are needed to build dedicated training ops). Inputs should be a list of tf.Tensors containing the individual variables.\\
             NOTE: this function accesses the global variable arg.gradients and num_labels.'''
 
@@ -307,13 +307,13 @@ def create_MLP(inputs, mask, name_MLP, params):
     input_layer = tf.concat(inputs, axis=1, name = 'input_layer_'+name_MLP)
 
     #Define hidden and output layers
-    dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1", \
+    dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1_"+name_MLP, \
             activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
     dense1 = dense1_layerdef.apply(input_layer)
-    output_layerdef = tf.layers.Dense(units=num_labels, name="output", \
+    output_layerdef = tf.layers.Dense(units=num_labels, name="output_layer_"+name_MLP, \
             activation=None, kernel_initializer=params["kernel_initializer"])
     output_layer = output_layerdef.apply(dense1)
-    output_layer_mask = tf.math.multiply(output_layer, mask)
+    #output_layer_mask = tf.math.multiply(output_layer, mask)
     #Visualize activations hidden layer in TensorBoard
     tf.summary.histogram('activations_hidden_layer1'+name_MLP, dense1)
     tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1'+name_MLP, tf.nn.zero_fraction(dense1))
@@ -324,7 +324,7 @@ def create_MLP(inputs, mask, name_MLP, params):
     tf.summary.histogram('input_layer_'+name_MLP, input_layer)
     tf.summary.histogram('hidden_layer_'+name_MLP, dense1)
     tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1'+name_MLP, tf.nn.zero_fraction(dense1))
-    tf.summary.histogram('output_layer_mask'+name_MLP, output_layer_mask)
+    tf.summary.histogram('output_layer_'+name_MLP, output_layer)
     return output_layer
 
 #Define model function for MLP estimator
@@ -540,12 +540,13 @@ def model_fn(features, labels, mode, params):
     if args.gradients is None:
         
         def _adjust_sizeinput(input_variable, indices):
-            reshaped_variable = tf.reshape(input_variable,[-1,5,5,5])
-            adjusted_size_variable = reshaped_variable[indices]
-            zlen = adjusted_size_variable.shape[1]
-            ylen = adjusted_size_variable.shape[2]
-            xlen = adjusted_size_variable.shape[3]
-            final_variable = tf.reshape(adjusted_size_variable,[-1,zlen*ylen*xlen]) #Take into account the adjusted size via zlen, ylen, and xlen.
+            with tf.name_scope('adjust_sizeinput'):
+                reshaped_variable = tf.reshape(input_variable,[-1,5,5,5])
+                adjusted_size_variable = reshaped_variable[indices]
+                zlen = adjusted_size_variable.shape[1]
+                ylen = adjusted_size_variable.shape[2]
+                xlen = adjusted_size_variable.shape[3]
+                final_variable = tf.reshape(adjusted_size_variable,[-1,zlen*ylen*xlen]) #Take into account the adjusted size via zlen, ylen, and xlen.
             return final_variable
 
         output_layer_u = create_MLP(
@@ -554,21 +555,21 @@ def model_fn(features, labels, mode, params):
                _adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
                _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1]), 
                _adjust_sizeinput(input_p_stand, np.s_[:,:,:,:-1])],
-           mask[:,0:6], 'u', params)
+           'u', params)
         output_layer_v = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:,:-1,1:]), 
                input_v_stand, 
                _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:]), 
                _adjust_sizeinput(input_p_stand, np.s_[:,:,:-1,:])],
-           mask[:,6:12], 'v', params)
+           'v', params)
         output_layer_w = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:-1,:,1:]), 
                _adjust_sizeinput(input_v_stand, np.s_[:,:-1,1:,:]), 
                input_w_stand, 
                _adjust_sizeinput(input_p_stand, np.s_[:,:-1,:,:])],
-           mask[:,12:18], 'w', params)
+          'w', params)
 
     else:
 
@@ -578,21 +579,21 @@ def model_fn(features, labels, mode, params):
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
                input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,
                input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],
-           mask[:,0:6], 'u', params)
+          'u', params)
         output_layer_v = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
                input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,     
                input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],    
-           mask[:,6:12], 'v', params)
+          'v', params)
         output_layer_w = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
                input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,     
                input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],     
-           mask[:,12:18], 'w', params)
+          'w', params)
 
     #Concatenate output layers for validation and inference (NOT training)
     output_layer_tot = tf.concat([output_layer_u, output_layer_v, output_layer_w], axis=1)
