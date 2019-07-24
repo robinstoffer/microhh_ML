@@ -301,30 +301,30 @@ def split_train_val(time_steps, val_ratio):
 #Define function that builds a separate MLP.
 def create_MLP(inputs, name_MLP, params):
     '''Function to build a MLP with specified inputs and labels (which are needed to build dedicated training ops). Inputs should be a list of tf.Tensors containing the individual variables.\\
-            NOTE: this function accesses the global variable arg.gradients and num_labels.'''
+            NOTE: this function accesses the global variable num_labels.'''
 
-    #Define input layer
-    input_layer = tf.concat(inputs, axis=1, name = 'input_layer_'+name_MLP)
+    with tf.name_scope('MLP_'+name_MLP):
 
-    #Define hidden and output layers
-    dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1_"+name_MLP, \
-            activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
-    dense1 = dense1_layerdef.apply(input_layer)
-    output_layerdef = tf.layers.Dense(units=num_labels, name="output_layer_"+name_MLP, \
-            activation=None, kernel_initializer=params["kernel_initializer"])
-    output_layer = output_layerdef.apply(dense1)
-    #output_layer_mask = tf.math.multiply(output_layer, mask)
-    #Visualize activations hidden layer in TensorBoard
-    tf.summary.histogram('activations_hidden_layer1'+name_MLP, dense1)
-    tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1'+name_MLP, tf.nn.zero_fraction(dense1))
+        #Define input layer
+        input_layer = tf.concat(inputs, axis=1, name = 'input_layer_'+name_MLP)
 
-    #Define train_op
+        #Define hidden and output layers
+        dense1_layerdef  = tf.layers.Dense(units=params["n_dense1"], name="dense1_"+name_MLP, \
+                activation=params["activation_function"], kernel_initializer=params["kernel_initializer"])
+        dense1 = dense1_layerdef.apply(input_layer)
+        output_layerdef = tf.layers.Dense(units=num_labels, name="output_layer_"+name_MLP, \
+                activation=None, kernel_initializer=params["kernel_initializer"])
+        output_layer = output_layerdef.apply(dense1)
+        #output_layer_mask = tf.math.multiply(output_layer, mask)
+        #Visualize activations hidden layer in TensorBoard
+        tf.summary.histogram('activations_hidden_layer1'+name_MLP, dense1)
+        tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1'+name_MLP, tf.nn.zero_fraction(dense1))
 
-    #Visualize layers in TensorBoard
-    tf.summary.histogram('input_layer_'+name_MLP, input_layer)
-    tf.summary.histogram('hidden_layer_'+name_MLP, dense1)
-    tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1'+name_MLP, tf.nn.zero_fraction(dense1))
-    tf.summary.histogram('output_layer_'+name_MLP, output_layer)
+        #Visualize layers in TensorBoard
+        tf.summary.histogram('input_layer_'+name_MLP, input_layer)
+        tf.summary.histogram('hidden_layer_'+name_MLP, dense1)
+        tf.summary.scalar('fraction_of_zeros_in_activations_hidden_layer1'+name_MLP, tf.nn.zero_fraction(dense1))
+        tf.summary.histogram('output_layer_'+name_MLP, output_layer)
     return output_layer
 
 #Define model function for MLP estimator
