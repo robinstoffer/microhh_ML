@@ -42,66 +42,82 @@ tstart = 27
 tend   = 30
 
 #Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes.
-#NOTE1:rescale Smagorinsky and training fluxes with a representative friction velocity.
-#NOTE2:for some Smagorinsky and training fluxes the downstream/top cells are removed to make the dimensions consistent with the labels and predictions.
-smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:-1,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:-1,:,:-1]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:-1,:-1,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:])     * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#NOTE1:rescale Smagorinsky, training fluxes, and CNN with a representative friction velocity.
+smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
 #
-unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,:])     * (utau_ref ** 2) #NOTE: data from training file is dimensionless in contrast to the data from the MLP and Smagorinsky scripts, and consquently the rescaling factor is different!
-unres_tau_yu = np.array(c['unres_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
-unres_tau_zu = np.array(c['unres_tau_zu_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
-unres_tau_xv = np.array(c['unres_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
-unres_tau_yv = np.array(c['unres_tau_yv_turb'] [tstart:tend,:,:,:])     * (utau_ref ** 2) 
-unres_tau_zv = np.array(c['unres_tau_zv_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
-unres_tau_xw = np.array(c['unres_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
-print(unres_tau_xw[0,0,:,:])
-unres_tau_yw = np.array(c['unres_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
-unres_tau_zw = np.array(c['unres_tau_zw_turb'] [tstart:tend,:,:,:])     * (utau_ref ** 2) 
-res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])      * (utau_ref ** 2) 
-res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)   
-res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)   
-res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)   
-res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])      * (utau_ref ** 2)   
-res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)   
-res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)   
-res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)   
-res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])      * (utau_ref ** 2)   
-tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])      * (utau_ref ** 2)  
-tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)
-tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)
-tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:-1,:-1])  * (utau_ref ** 2)
-tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])      * (utau_ref ** 2)
-tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)
-tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:-1,:,:-1])  * (utau_ref ** 2)
-tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:-1,:-1,:])  * (utau_ref ** 2)
+unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) #NOTE: data from training file is dimensionless in contrast to the data from the MLP and Smagorinsky scripts, and consquently the rescaling factor is different!
+unres_tau_yu = np.array(c['unres_tau_yu_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_zu = np.array(c['unres_tau_zu_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_xv = np.array(c['unres_tau_xv_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_yv = np.array(c['unres_tau_yv_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_zv = np.array(c['unres_tau_zv_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_xw = np.array(c['unres_tau_xw_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_yw = np.array(c['unres_tau_yw_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+unres_tau_zw = np.array(c['unres_tau_zw_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) 
+res_tau_xu   = np.array(c['res_tau_xu_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2) 
+res_tau_yu   = np.array(c['res_tau_yu_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_zu   = np.array(c['res_tau_zu_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_xv   = np.array(c['res_tau_xv_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_yv   = np.array(c['res_tau_yv_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_zv   = np.array(c['res_tau_zv_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_xw   = np.array(c['res_tau_xw_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_yw   = np.array(c['res_tau_yw_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+res_tau_zw   = np.array(c['res_tau_zw_turb']  [tstart:tend,:,:,:])  * (utau_ref ** 2)   
+tot_tau_xu   = np.array(c['total_tau_xu_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)  
+tot_tau_yu   = np.array(c['total_tau_yu_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
+tot_tau_zu   = np.array(c['total_tau_zu_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
+tot_tau_xv   = np.array(c['total_tau_xv_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
+tot_tau_yv   = np.array(c['total_tau_yv_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
+tot_tau_zv   = np.array(c['total_tau_zv_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
+tot_tau_xw   = np.array(c['total_tau_xw_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
+tot_tau_yw   = np.array(c['total_tau_yw_turb'][tstart:tend,:,:,:])  * (utau_ref ** 2)
 tot_tau_zw   = np.array(c['total_tau_zw_turb'][tstart:tend,:,:,:])      * (utau_ref ** 2)
 #
 if args.reconstruct_fields:
-    preds_values_xu = np.array(a['preds_values_tau_xu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_xu  = np.array(a['lbls_values_tau_xu'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_yu = np.array(a['preds_values_tau_yu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_yu  = np.array(a['lbls_values_tau_yu'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_zu = np.array(a['preds_values_tau_zu'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_zu  = np.array(a['lbls_values_tau_zu'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_xv = np.array(a['preds_values_tau_xv'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_xv  = np.array(a['lbls_values_tau_xv'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_yv = np.array(a['preds_values_tau_yv'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_yv  = np.array(a['lbls_values_tau_yv'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_zv = np.array(a['preds_values_tau_zv'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_zv  = np.array(a['lbls_values_tau_zv'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_xw = np.array(a['preds_values_tau_xw'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_xw  = np.array(a['lbls_values_tau_xw'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_yw = np.array(a['preds_values_tau_yw'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_yw  = np.array(a['lbls_values_tau_yw'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    preds_values_zw = np.array(a['preds_values_tau_zw'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-    lbls_values_zw  = np.array(a['lbls_values_tau_zw'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xu_upstream   = np.array(a['preds_values_tau_xu_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xu_upstream    = np.array(a['lbls_values_tau_xu_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xu_downstream = np.array(a['preds_values_tau_xu_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xu_downstream  = np.array(a['lbls_values_tau_xu_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yu_upstream   = np.array(a['preds_values_tau_yu_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yu_upstream    = np.array(a['lbls_values_tau_yu_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yu_downstream = np.array(a['preds_values_tau_yu_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yu_downstream  = np.array(a['lbls_values_tau_yu_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zu_upstream   = np.array(a['preds_values_tau_zu_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zu_upstream    = np.array(a['lbls_values_tau_zu_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zu_downstream = np.array(a['preds_values_tau_zu_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zu_downstream  = np.array(a['lbls_values_tau_zu_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xv_upstream   = np.array(a['preds_values_tau_xv_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xv_upstream    = np.array(a['lbls_values_tau_xv_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xv_downstream = np.array(a['preds_values_tau_xv_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xv_downstream  = np.array(a['lbls_values_tau_xv_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yv_upstream   = np.array(a['preds_values_tau_yv_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yv_upstream    = np.array(a['lbls_values_tau_yv_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yv_downstream = np.array(a['preds_values_tau_yv_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yv_downstream  = np.array(a['lbls_values_tau_yv_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zv_upstream   = np.array(a['preds_values_tau_zv_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zv_upstream    = np.array(a['lbls_values_tau_zv_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zv_downstream = np.array(a['preds_values_tau_zv_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zv_downstream  = np.array(a['lbls_values_tau_zv_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xw_upstream   = np.array(a['preds_values_tau_xw_upstream'][:])   * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xw_upstream    = np.array(a['lbls_values_tau_xw_upstream'][:])    * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_xw_downstream = np.array(a['preds_values_tau_xw_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_xw_downstream  = np.array(a['lbls_values_tau_xw_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yw_upstream = np.array(a['preds_values_tau_yw_upstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yw_upstream  = np.array(a['lbls_values_tau_yw_upstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_yw_downstream = np.array(a['preds_values_tau_yw_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_yw_downstream  = np.array(a['lbls_values_tau_yw_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zw_upstream = np.array(a['preds_values_tau_zw_upstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zw_upstream  = np.array(a['lbls_values_tau_zw_upstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    preds_values_zw_downstream = np.array(a['preds_values_tau_zw_downstream'][:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+    lbls_values_zw_downstream  = np.array(a['lbls_values_tau_zw_downstream'][:])  * ((utau_ref ** 2) / (utau_ref_channel ** 2))
     zhloc_values    = np.array(a['zhloc_samples'][:])
     zloc_values     = np.array(a['zloc_samples'][:])
     yhloc_values    = np.array(a['yhloc_samples'][:])
@@ -112,7 +128,8 @@ if args.reconstruct_fields:
 
 #Extract heights
 zc  = np.array(c['zc'][:])
-zhc = np.array(c['zhc'][:-1])
+zhc = np.array(a['zhc'][:])
+#zgcextra = np.array(a['zgcextra'][:])
 
 ##Calculate trace part of subgrid-stress, and substract this from the diagonal components (except for Smagorinsky for which it is not included)
 #trace_train = (unres_tau_xu + unres_tau_yv + unres_tau_zw) * (1./3.)
@@ -304,26 +321,34 @@ if args.reconstruct_fields:
     var_unres_tau_zv_lbls = d.createVariable("unres_tau_zv_lbls","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
     var_unres_tau_zw_lbls = d.createVariable("unres_tau_zw_lbls","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
 
-    #Call function to recontruct fields of labels for all nine components
+    #Call function to recontruct fields of labels for all nine components and both upstream/downstream components
     print('start reconstructing labels')
-    var_unres_tau_xu_lbls[:,:,:,:] = reconstruct_field(lbls_values_xu, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
+    unres_tau_xu_lbls_upstream = reconstruct_field(lbls_values_xu_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
+    unres_tau_xu_lbls_downstream = reconstruct_field(lbls_values_xu_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
     print('first component done')
-    var_unres_tau_xv_lbls[:,:,:,:] = reconstruct_field(lbls_values_xv, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_xv_lbls_upstream = reconstruct_field(lbls_values_xv_upstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_xv_lbls_downstream = reconstruct_field(lbls_values_xv_downstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('second component done')
-    var_unres_tau_xw_lbls[:,:,:,:] = reconstruct_field(lbls_values_xw, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
-    print(var_unres_tau_xw_lbls[0,0,:,:])
+    unres_tau_xw_lbls_upstream = reconstruct_field(lbls_values_xw_upstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique)
+    unres_tau_xw_lbls_downstream = reconstruct_field(lbls_values_xw_downstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique)
     print('third component done')
-    var_unres_tau_yu_lbls[:,:,:,:] = reconstruct_field(lbls_values_yu, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yu_lbls_upstream = reconstruct_field(lbls_values_yu_upstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yu_lbls_downstream = reconstruct_field(lbls_values_yu_downstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('fourth component done')
-    var_unres_tau_yv_lbls[:,:,:,:] = reconstruct_field(lbls_values_yv, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yv_lbls_upstream = reconstruct_field(lbls_values_yv_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yv_lbls_downstream = reconstruct_field(lbls_values_yv_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('fifth component done')
-    var_unres_tau_yw_lbls[:,:,:,:] = reconstruct_field(lbls_values_yw, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yw_lbls_upstream = reconstruct_field(lbls_values_yw_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yw_lbls_downstream = reconstruct_field(lbls_values_yw_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('sixth component done')
-    var_unres_tau_zu_lbls[:,:,:,:] = reconstruct_field(lbls_values_zu, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_zu_lbls_upstream = reconstruct_field(lbls_values_zu_upstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_zu_lbls_downstream = reconstruct_field(lbls_values_zu_downstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('seventh component done')
-    var_unres_tau_zv_lbls[:,:,:,:] = reconstruct_field(lbls_values_zv, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    var_unres_tau_zv_lbls_upstream = reconstruct_field(lbls_values_zv_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    var_unres_tau_zv_lbls_downstream = reconstruct_field(lbls_values_zv_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('eighth component done')
-    var_unres_tau_zw_lbls[:,:,:,:] = reconstruct_field(lbls_values_zw, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    var_unres_tau_zw_lbls_upstream = reconstruct_field(lbls_values_zw_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    var_unres_tau_zw_lbls_downstream = reconstruct_field(lbls_values_zw_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('nineth component done')
 
     #Create variables for storage reconstructed fields of predictions
@@ -339,33 +364,63 @@ if args.reconstruct_fields:
 
     #Call function to recontruct fields of predictions for all nine components
     print('start reconstructing predictions')
-    preds_values_xu = reconstruct_field(preds_values_xu, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
-    var_unres_tau_xu_CNN[:,:,:,:] = preds_values_xu
+    preds_values_xu_upstream = reconstruct_field(preds_values_xu_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
+    preds_values_xu_downstream = reconstruct_field(preds_values_xu_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
     print('first component done')
-    preds_values_xv = reconstruct_field(preds_values_xv, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
-    var_unres_tau_xv_CNN[:,:,:,:] = preds_values_xv
+    preds_values_xv_upstream = reconstruct_field(preds_values_xv_upstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
+    preds_values_xv_downstream = reconstruct_field(preds_values_xv_downstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
     print('second component done')
-    preds_values_xw = reconstruct_field(preds_values_xw, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique)
-    var_unres_tau_xw_CNN[:,:,:,:] = preds_values_xw
+    preds_values_xw_upstream = reconstruct_field(preds_values_xw_upstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique)
+    preds_values_xw_downstream = reconstruct_field(preds_values_xw_downstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique)
     print('third component done')
-    preds_values_yu = reconstruct_field(preds_values_yu, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_yu_CNN[:,:,:,:] = preds_values_yu
+    preds_values_yu_upstream = reconstruct_field(preds_values_yu_upstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    preds_values_yu_downstream = reconstruct_field(preds_values_yu_downstream, xhloc_values, xhloc_unique, yhloc_values, yhloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('fourth component done')
-    preds_values_yv = reconstruct_field(preds_values_yv, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
-    var_unres_tau_yv_CNN[:,:,:,:] = preds_values_yv
+    preds_values_yv_upstream = reconstruct_field(preds_values_yv_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
+    preds_values_yv_downstream = reconstruct_field(preds_values_yv_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique)
     print('fifth component done')
-    preds_values_yw = reconstruct_field(preds_values_yw, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_yw_CNN[:,:,:,:] = preds_values_yw
+    preds_values_yw_upstream = reconstruct_field(preds_values_yw_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    preds_values_yw_downstream = reconstruct_field(preds_values_yw_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('sixth component done')
-    preds_values_zu = reconstruct_field(preds_values_zu, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_zu_CNN[:,:,:,:] = preds_values_zu
+    preds_values_zu_upstream = reconstruct_field(preds_values_zu_upstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    preds_values_zu_downstream = reconstruct_field(preds_values_zu_downstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('seventh component done')
-    preds_values_zv = reconstruct_field(preds_values_zv, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_zv_CNN[:,:,:,:] = preds_values_zv
+    preds_values_zv_upstream = reconstruct_field(preds_values_zv_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    preds_values_zv_downstream = reconstruct_field(preds_values_zv_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('eighth component done')
-    preds_values_zw = reconstruct_field(preds_values_zw, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_zw_CNN[:,:,:,:] = preds_values_zw
+    preds_values_zw_upstream = reconstruct_field(preds_values_zw_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    preds_values_zw_downstream = reconstruct_field(preds_values_zw_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('nineth component done')
+    
+    #Combine upstream and downstream components together, where at each height the upstream and downstream components are selected alternately (as should be done during inference).
+    print('Start combining upstream and downstream components.')
+    def _combine_upstream_downstream(upstream_field, downstream_field, dims = (nt,nz,ny,nx)):
+        combined_field = np.zeros((dims[0],dims[1]+1,dims[2],dims[3]))
+        #Define where the sum of the indices for x- and y-direction are odd, such that the fields can be alternately stored at each height.
+        y_ind       = np.arange(dims[2])
+        x_ind       = np.arange(dims[3])
+        xcor, ycor  = np.meshgrid(x_ind, y_ind)
+        horcor      = xcor + ycor
+        horcor_odd  = allcor % 2 != 0
+        horcor_even = allcor % 2 == 0
+
+        for t in range(dims[0]):
+            for k in range(dims[1]+1):
+                if k == 0:
+                    combined_field[t,k,:,:] = upstream_field[t,k,:,:] 
+                elif k == (dims[1]):
+                    combined_field[t,k,:,:] = downstream_field[t,k-1,:,:]
+                #Make distinction between k=even and k=odd to alternate storage
+                elif k % 2 == 0: #k is even
+                    combined_field[t,k,:,:][horcor_odd]  = upstream_field[t,k,:,:][horcor_odd]
+                    combined_field[t,k,;,:][horcor_even] = downstream_field[t,k-1,:,:][horcor_even]
+                elif k % 2 != 0: #k is odd
+                    combined_field[t,k,:,:][horcor_even] = upstream_field[t,k,:,:][horcor_even]
+                    combined_field[t,k,;,:][horcor_odd]  = downstream_field[t,k-1,:,:][horcor_odd]
+                else:
+                    raise RuntimeError("Error occured in script as this line should not have been reached. Check carefully for bugs.")
+
+
     
     #Create variables for storage unresolved, resolved, and total transports
     var_unres_tau_xu_traceless = d.createVariable("unres_tau_xu_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))

@@ -26,7 +26,6 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
 
     #Fetch grid information from flowfields_filepath
     a = nc.Dataset(flowfields_filepath, 'r')
-    nt, nz, ny, nx = a['unres_tau_xu_tot'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
     igc            = int(a['igc'][:])
     jgc            = int(a['jgc'][:])
     kgc_center     = int(a['kgc_center'][:])
@@ -53,7 +52,13 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
     yc  = np.array(a['yc'][:])
     xhc = np.array(a['xhc'][:])
     xc  = np.array(a['xc'][:])
-    
+
+    #Define shapes of output arrays based on stored training data 
+    nt, _, _, _ = a['unres_tau_xu_turb'].shape # NOTE1: nt should be the same for all variables. NOTE2: nz,ny,nx are considered from unres_tau_xu because it is located on the grid centers in all three directions and does not contain ghost cells.
+    nz = zc.shape[0]
+    ny = yc.shape[0]
+    nx = xc.shape[0]
+
     #Open file with eddy diffusivity
     b = nc.Dataset(eddy_diffusivity_filepath, 'r')
 
@@ -95,8 +100,8 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
 
         #Loop over grid cells to calculate the fluxes
         for k in range(kgc_center,kend):
-            k_stag = k - kgc_center #Take into account that the staggered vertical dimension does not contain one ghost cell
-            dz    = zhgc[k_stag+1]- zhgc[k_stag]
+            #k_stag = k - kgc_center #Take into account that the staggered vertical dimension does not contain one ghost cell
+            dz    = zhgc[k+1]- zhgc[k]
             dzi   = 1./dz
             dzhib = 1./(zgc[k] - zgc[k-1])
             #dzhit = 1./(zgc[k+1] - zgc[k])
@@ -130,13 +135,13 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
                     #Calculate turbulent fluxes accoring to Smagorinsky-Lilly model. NOTE: take into account that the Smagorinsky fluxes do not contain ghost cells
                     smag_tau_xu[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i]  * (u[k,j,i+1] - u[k,j,i]) * dxi
                     smag_tau_xv[k-kgc_center,j-jgc,i-igc] = -1. * eviscsu * ((u[k,j,i] - u[k,j-1,i]) * dyhib + (v[k,j,i] - v[k,j,i-1]) * dxhib)
-                    smag_tau_xw[k-kgc_center,j-jgc,i-igc] = -1. * eviscbu * ((u[k,j,i] - u[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib)
+                    smag_tau_xw[k-kgc_center,j-jgc,i-igc] = -1. * eviscbu * ((u[k,j,i] - u[k-1,j,i]) * dzhib + (w[k,j,i] - w[k,j,i-1]) * dxhib)
                     smag_tau_yu[k-kgc_center,j-jgc,i-igc] = -1. * eviscwv * ((v[k,j,i] - v[k,j,i-1]) * dxhib + (u[k,j,i] - u[k,j-1,i]) * dyhib)
                     smag_tau_yv[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i] * (v[k,j+1,i] - v[k,j,i]) * dyi
-                    smag_tau_yw[k-kgc_center,j-jgc,i-igc] = -1. * eviscbv * ((v[k,j,i] - v[k-1,j,i]) * dzhib + (w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib)
-                    smag_tau_zu[k-kgc_center,j-jgc,i-igc] = -1. * eviscww * ((w[k_stag,j,i] - w[k_stag,j,i-1]) * dxhib + (u[k,j,i] - u[k-1,j,i]) * dzhib)
-                    smag_tau_zv[k-kgc_center,j-jgc,i-igc] = -1. * eviscsw * ((w[k_stag,j,i] - w[k_stag,j-1,i]) * dyhib + (v[k,j,i] - v[k-1,j,i]) * dzhib)
-                    smag_tau_zw[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i] * (w[k_stag+1,j,i] - w[k_stag,j,i]) * dzi
+                    smag_tau_yw[k-kgc_center,j-jgc,i-igc] = -1. * eviscbv * ((v[k,j,i] - v[k-1,j,i]) * dzhib + (w[k,j,i] - w[k,j-1,i]) * dyhib)
+                    smag_tau_zu[k-kgc_center,j-jgc,i-igc] = -1. * eviscww * ((w[k,j,i] - w[k,j,i-1]) * dxhib + (u[k,j,i] - u[k-1,j,i]) * dzhib)
+                    smag_tau_zv[k-kgc_center,j-jgc,i-igc] = -1. * eviscsw * ((w[k,j,i] - w[k,j-1,i]) * dyhib + (v[k,j,i] - v[k-1,j,i]) * dzhib)
+                    smag_tau_zw[k-kgc_center,j-jgc,i-igc] = -2. * evisc[k,j,i] * (w[k+1,j,i] - w[k,j,i]) * dzi
                     
 #        #If there is no flux at the bottom/top boundaries (i.e. when zero_w_topbottom = True), the fluxes located at the bottom and top are set to 0.
 #        if zero_w_topbottom:
@@ -148,6 +153,7 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
 #            smag_tau_yw[0,:,:] = 0.
 #        
         #Add one top/downstream cell to fluxes in the directions where they are located on the grid edges, assuming they are the same as the one at the bottom/upstream edge of the domain.
+        #NOTE: this should work when the horizontal directions have periodic BCs, and the vertical direction has a no-slip BC.
         #z-direction
         smag_tau_zu[-1,:,:] = smag_tau_zu[0,:,:]
         smag_tau_zv[-1,:,:] = smag_tau_zv[0,:,:]

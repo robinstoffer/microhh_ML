@@ -115,8 +115,8 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
 
     #Get normalized molecular viscosity and friction velocity
     mvisc_ref = float(a['mvisc_ref'][:])
-    mvisc     = float(a['mvisc'][:])
-    #mvisc_ref = float(a['mvisc'][:]) #QUICK AND DIRTY: use molecular viscosity that is not normalized for quick checks
+    #mvisc     = float(a['mvisc'][:])
+    mvisc = 0. #Don't take molecular contribution into account to be consistent with the training data of the MLP.
     utau_ref  = float(a['utau_ref'][:])
 
     #Extract information about the grid
@@ -173,11 +173,11 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
         eddy_diffusivity = mlen * np.sqrt(strain2) + mvisc
 
         #For a resolved wall the viscosity at the wall is needed. For now, assume that the eddy viscosity is zero, so set ghost cell such that the viscosity interpolated to the surface equals the molecular viscosity
-        if kgc_center != 1:
-            raise ValueError("The Smagorinsky filter has been implemented only for 1 ghost cell in the vertical direction. Please change the specified ghost cells in the vertical direction accordingly.")
+        #if kgc_center != 1:
+        #    raise ValueError("The Smagorinsky filter has been implemented only for 1 ghost cell in the vertical direction. Please change the specified ghost cells in the vertical direction accordingly.")
 
-        eddy_diffusivity[0,:,:] = 2 * mvisc - eddy_diffusivity[kgc_center,:,:]
-        eddy_diffusivity[kend,:,:] = 2 * mvisc - eddy_diffusivity[kend-1,:,:]
+        eddy_diffusivity[0:kgc_center,:,:]         = 2 * mvisc - np.flip(eddy_diffusivity[kgc_center:kgc_center+kgc_center,:,:], axis = 0)
+        eddy_diffusivity[kend:kend+kgc_center,:,:] = 2 * mvisc - np.flip(eddy_diffusivity[kend-kgc_center:kend,:,:], axis = 0)
 
         #Store calculated values in nc-file
         if create_variables:
