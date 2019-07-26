@@ -126,111 +126,33 @@ if args.reconstruct_fields:
     xloc_values     = np.array(a['xloc_samples'][:])
     tstep_values    = np.array(a['tstep_samples'][:]).astype('int') #make sure time steps are stored as integers, not as floats
 
-#Extract heights
+#Extract coordinates
+nt, _, _, _ = unres_tau_xu.shape
 zc  = np.array(c['zc'][:])
-zhc = np.array(a['zhc'][:])
-#zgcextra = np.array(a['zgcextra'][:])
+nz = len(zc)
+zhc = np.array(c['zhc'][:])
+zgcextra = np.array(c['zgcextra'][:])
+yc  = np.array(c['yc'][:])
+ny = len(yc)
+yhc = np.array(c['yhc'][:])
+ygcextra = np.array(c['ygcextra'][:])
+xc  = np.array(c['xc'][:])
+nx = len(xc)
+xhc = np.array(c['xhc'][:])
+xgcextra = np.array(c['xgcextra'][:])
 
-##Calculate trace part of subgrid-stress, and substract this from the diagonal components (except for Smagorinsky for which it is not included)
+#NOTE: commented out code below does not work anymore because additional ghost cells have been added to the used transport components in a non-symmetric way.
+##Calculate trace part of subgrid-stress, and subtract this from labels for fair comparison with Smagorinsky fluxes
 #trace_train = (unres_tau_xu + unres_tau_yv + unres_tau_zw) * (1./3.)
-#print(trace_train[:,:,5,6])
-#print(trace_train.shape)
-#unres_tau_xu = unres_tau_xu - trace_train
-#unres_tau_yv = unres_tau_yv - trace_train
-#unres_tau_zw = unres_tau_zw - trace_train
-##
-#if args.reconstruct_fields:
-#    trace_CNN = (preds_values_xu + preds_values_yv + preds_values_zw) * (1./3.)
-#    preds_values_xu = preds_values_xu - trace_CNN
-#    preds_values_yv = preds_values_yv - trace_CNN
-#    preds_values_zw = preds_values_zw - trace_CNN
-
-#Calculate trace part of subgrid-stress, and subtract this from labels for fair comparison with Smagorinsky fluxes
-trace_train = (unres_tau_xu + unres_tau_yv + unres_tau_zw) * (1./3.)
-unres_tau_xu_traceless = unres_tau_xu - trace_train
-unres_tau_yv_traceless = unres_tau_yv - trace_train
-unres_tau_zw_traceless = unres_tau_zw - trace_train
+#unres_tau_xu_traceless = unres_tau_xu - trace_train
+#unres_tau_yv_traceless = unres_tau_yv - trace_train
+#unres_tau_zw_traceless = unres_tau_zw - trace_train
 
 #Close files
 a.close()
 b.close()
 c.close()
 
-
-#if args.reconstruct_fields:
-#    
-#    #Fetch means and stdevs to undo normalisation labels and predictions
-#    stats = nc.Dataset(args.stats_file,'r')
-#    mean_xu = np.array(stats['mean_unres_tau_xu_sample'][:])
-#    mean_yu = np.array(stats['mean_unres_tau_yu_sample'][:])
-#    mean_zu = np.array(stats['mean_unres_tau_zu_sample'][:])
-#    mean_xv = np.array(stats['mean_unres_tau_xv_sample'][:])
-#    mean_yv = np.array(stats['mean_unres_tau_yv_sample'][:])
-#    mean_zv = np.array(stats['mean_unres_tau_zv_sample'][:])
-#    mean_xw = np.array(stats['mean_unres_tau_xw_sample'][:])
-#    mean_yw = np.array(stats['mean_unres_tau_yw_sample'][:])
-#    mean_zw = np.array(stats['mean_unres_tau_zw_sample'][:])
-#    #
-#    stdev_xu = np.array(stats['stdev_unres_tau_xu_sample'][:])
-#    stdev_yu = np.array(stats['stdev_unres_tau_yu_sample'][:])
-#    stdev_zu = np.array(stats['stdev_unres_tau_zu_sample'][:])
-#    stdev_xv = np.array(stats['stdev_unres_tau_xv_sample'][:])
-#    stdev_yv = np.array(stats['stdev_unres_tau_yv_sample'][:])
-#    stdev_zv = np.array(stats['stdev_unres_tau_zv_sample'][:])
-#    stdev_xw = np.array(stats['stdev_unres_tau_xw_sample'][:])
-#    stdev_yw = np.array(stats['stdev_unres_tau_yw_sample'][:])
-#    stdev_zw = np.array(stats['stdev_unres_tau_zw_sample'][:])
-#    
-#    #Average means over time steps used for training (steps 0 up to and including 27) since only these were used to normalize the data
-#    meant_xu = np.mean(mean_xu[0:tstart])
-#    meant_yu = np.mean(mean_yu[0:tstart])
-#    meant_zu = np.mean(mean_zu[0:tstart])
-#    meant_xv = np.mean(mean_xv[0:tstart])
-#    meant_yv = np.mean(mean_yv[0:tstart])
-#    meant_zv = np.mean(mean_zv[0:tstart])
-#    meant_xw = np.mean(mean_xw[0:tstart])
-#    meant_yw = np.mean(mean_yw[0:tstart])
-#    meant_zw = np.mean(mean_zw[0:tstart])
-#    #
-#    stdevt_xu = np.mean(stdev_xu[0:tstart])
-#    stdevt_yu = np.mean(stdev_yu[0:tstart])
-#    stdevt_zu = np.mean(stdev_zu[0:tstart])
-#    stdevt_xv = np.mean(stdev_xv[0:tstart])
-#    stdevt_yv = np.mean(stdev_yv[0:tstart])
-#    stdevt_zv = np.mean(stdev_zv[0:tstart])
-#    stdevt_xw = np.mean(stdev_xw[0:tstart])
-#    stdevt_yw = np.mean(stdev_yw[0:tstart])
-#    stdevt_zw = np.mean(stdev_zw[0:tstart])    
-#
-#    #Undo normalisation, including the one done earlier with the friction velocity
-#    print('begin to undo normalisation')
-#    def undo_normalisation(lbls, means, stdevs, time_steps):
-#        lbls  = (lbls * stdevs) + means
-#        return lbls
-#    
-#    preds_values_xu = undo_normalisation(preds_values_xu, meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2) 
-#    lbls_values_xu  = undo_normalisation(lbls_values_xu , meant_xu, stdevt_xu, tstep_values) * (utau_ref ** 2)
-#    preds_values_yu = undo_normalisation(preds_values_yu, meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
-#    lbls_values_yu  = undo_normalisation(lbls_values_yu , meant_yu, stdevt_yu, tstep_values) * (utau_ref ** 2)
-#    preds_values_zu = undo_normalisation(preds_values_zu, meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
-#    lbls_values_zu  = undo_normalisation(lbls_values_zu , meant_zu, stdevt_zu, tstep_values) * (utau_ref ** 2)
-#    preds_values_xv = undo_normalisation(preds_values_xv, meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
-#    lbls_values_xv  = undo_normalisation(lbls_values_xv , meant_xv, stdevt_xv, tstep_values) * (utau_ref ** 2)
-#    preds_values_yv = undo_normalisation(preds_values_yv, meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
-#    lbls_values_yv  = undo_normalisation(lbls_values_yv , meant_yv, stdevt_yv, tstep_values) * (utau_ref ** 2)
-#    preds_values_zv = undo_normalisation(preds_values_zv, meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
-#    lbls_values_zv  = undo_normalisation(lbls_values_zv , meant_zv, stdevt_zv, tstep_values) * (utau_ref ** 2)
-#    preds_values_xw = undo_normalisation(preds_values_xw, meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
-#    lbls_values_xw  = undo_normalisation(lbls_values_xw , meant_xw, stdevt_xw, tstep_values) * (utau_ref ** 2)
-#    preds_values_yw = undo_normalisation(preds_values_yw, meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
-#    lbls_values_yw  = undo_normalisation(lbls_values_yw , meant_yw, stdevt_yw, tstep_values) * (utau_ref ** 2)
-#    preds_values_zw = undo_normalisation(preds_values_zw, meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
-#    lbls_values_zw  = undo_normalisation(lbls_values_zw , meant_zw, stdevt_zw, tstep_values) * (utau_ref ** 2)
-#    print('finished undoing normalisation')
-#
-#    #Close netCDF-file
-#    stats.close()
-#
 ###Reconstruct flow fields###
 def reconstruct_field(preds, x, xs_unique, y, ys_unique, z, zs_unique, tstep, tsteps_unique):
     
@@ -275,51 +197,94 @@ if args.reconstruct_fields:
     #Create netCDF-file to store reconstructed fields
     d = nc.Dataset('reconstructed_fields.nc','w')
 
-    #Extract unique coordinates and time steps
+    #Extract additional coordinates and time steps
+    zhcless = zhc[:-1]
+    yhcless = yhc[:-1]
+    xhcless = xhc[:-1]
+    tstep_unique = np.unique(tstep_values)
     zloc_unique  = np.unique(zloc_values)
     zhloc_unique = np.unique(zhloc_values)
     yloc_unique  = np.unique(yloc_values)
     yhloc_unique = np.unique(yhloc_values)
     xloc_unique  = np.unique(xloc_values)
     xhloc_unique = np.unique(xhloc_values)
-    tstep_unique = np.unique(tstep_values)
+
 
     #Create dimensions for storage in nc-file
-    dim_zloc_unique  = d.createDimension("zloc_unique", len(zloc_unique))
-    dim_zhloc_unique = d.createDimension("zhloc_unique",len(zhloc_unique))
-    dim_yloc_unique  = d.createDimension("yloc_unique", len(yloc_unique))
-    dim_yhloc_unique = d.createDimension("yhloc_unique",len(yhloc_unique))
-    dim_xloc_unique  = d.createDimension("xloc_unique", len(xloc_unique))
-    dim_xhloc_unique = d.createDimension("xhloc_unique",len(xhloc_unique))
-    dim_tstep_unique = d.createDimension("tstep_unique",len(tstep_unique))
+    d.createDimension("zc", len(zc))
+    d.createDimension("zgcextra", len(zgcextra))
+    d.createDimension("zhc",len(zhc))
+    d.createDimension("zhcless",len(zhcless))
+    d.createDimension("yc", len(yc))
+    d.createDimension("ygcextra", len(ygcextra))
+    d.createDimension("yhc",len(yhc))
+    d.createDimension("yhcless",len(yhcless))
+    d.createDimension("xc", len(xc))
+    d.createDimension("xgcextra", len(xgcextra))
+    d.createDimension("xhc",len(xhc))
+    d.createDimension("xhcless",len(xhcless))
+    d.createDimension("tstep_unique",len(tstep_unique))
 
     #Create variables for dimensions and store them
-    var_zloc_unique  = d.createVariable("zloc_unique" ,"f8",("zloc_unique",))
-    var_zhloc_unique = d.createVariable("zhloc_unique","f8",("zhloc_unique",))
-    var_yloc_unique  = d.createVariable("yloc_unique" ,"f8",("yloc_unique",))
-    var_yhloc_unique = d.createVariable("yhloc_unique","f8",("yhloc_unique",))
-    var_xloc_unique  = d.createVariable("xloc_unique" ,"f8",("xloc_unique",))
-    var_xhloc_unique = d.createVariable("xhloc_unique","f8",("xhloc_unique",))
-    var_tstep_unique = d.createVariable("tstep_unique","f8",("tstep_unique",))
+    var_zc           = d.createVariable("zc",           "f8", ("zc",))
+    var_zgcextra     = d.createVariable("zgcextra",     "f8", ("zgcextra",))
+    var_zhc          = d.createVariable("zhc",          "f8", ("zhc",))
+    var_zhcless      = d.createVariable("zhcless",      "f8", ("zhcless",))
+    var_yc           = d.createVariable("yc",           "f8", ("yc",))
+    var_ygcextra     = d.createVariable("ygcextra",     "f8", ("ygcextra",))
+    var_yhc          = d.createVariable("yhc",          "f8", ("yhc",))
+    var_yhcless      = d.createVariable("yhcless",      "f8", ("yhcless",))
+    var_xc           = d.createVariable("xc",           "f8", ("xc",))
+    var_xgcextra     = d.createVariable("xgcextra",     "f8", ("xgcextra",))
+    var_xhc          = d.createVariable("xhc",          "f8", ("xhc",))
+    var_xhcless      = d.createVariable("xhcless",      "f8", ("xhcless",))
+    var_tstep_unique = d.createVariable("tstep_unique", "f8", ("tstep_unique",))
 
-    var_zloc_unique[:]  = zloc_unique[:]
-    var_zhloc_unique[:] = zhloc_unique[:]
-    var_yloc_unique[:]  = yloc_unique[:]
-    var_yhloc_unique[:] = yhloc_unique[:]
-    var_xloc_unique[:]  = xloc_unique[:]
-    var_xhloc_unique[:] = xhloc_unique[:]
-    var_tstep_unique[:] = tstep_unique[:]
+    var_zc[:]            = zc
+    var_zgcextra[:]      = zgcextra
+    var_zhc[:]           = zhc
+    var_zhcless[:]       = zhcless
+    var_yc[:]            = yc
+    var_ygcextra[:]      = ygcextra
+    var_yhc[:]           = yhc
+    var_yhcless[:]       = yhcless
+    var_xc[:]            = xc
+    var_xgcextra[:]      = xgcextra
+    var_xhc[:]           = xhc
+    var_xhcless[:]       = xhcless
+    var_tstep_unique[:]  = tstep_unique
 
     #Create variables for storage labels
-    var_unres_tau_xu_lbls = d.createVariable("unres_tau_xu_lbls","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_xv_lbls = d.createVariable("unres_tau_xv_lbls","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_xw_lbls = d.createVariable("unres_tau_xw_lbls","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_yu_lbls = d.createVariable("unres_tau_yu_lbls","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_yv_lbls = d.createVariable("unres_tau_yv_lbls","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_yw_lbls = d.createVariable("unres_tau_yw_lbls","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zu_lbls = d.createVariable("unres_tau_zu_lbls","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_zv_lbls = d.createVariable("unres_tau_zv_lbls","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zw_lbls = d.createVariable("unres_tau_zw_lbls","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    var_unres_tau_xu_lbls = d.createVariable("unres_tau_xu_lbls","f8",("tstep_unique","zc","yc","xgcextra"))
+    var_unres_tau_xv_lbls = d.createVariable("unres_tau_xv_lbls","f8",("tstep_unique","zc","yhcless","xhc"))
+    var_unres_tau_xw_lbls = d.createVariable("unres_tau_xw_lbls","f8",("tstep_unique","zhcless","yc","xhc"))
+    var_unres_tau_yu_lbls = d.createVariable("unres_tau_yu_lbls","f8",("tstep_unique","zc","yhc","xhcless"))
+    var_unres_tau_yv_lbls = d.createVariable("unres_tau_yv_lbls","f8",("tstep_unique","zc","ygcextra","xc"))
+    var_unres_tau_yw_lbls = d.createVariable("unres_tau_yw_lbls","f8",("tstep_unique","zhcless","yhc","xc"))
+    var_unres_tau_zu_lbls = d.createVariable("unres_tau_zu_lbls","f8",("tstep_unique","zhc","yc","xhcless"))
+    var_unres_tau_zv_lbls = d.createVariable("unres_tau_zv_lbls","f8",("tstep_unique","zhc","yhcless","xc"))
+    var_unres_tau_zw_lbls = d.createVariable("unres_tau_zw_lbls","f8",("tstep_unique","zgcextra","yc","xc"))
+    #
+    var_unres_tau_xu_lbls_upstream = d.createVariable("unres_tau_xu_lbls_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_lbls_upstream = d.createVariable("unres_tau_xv_lbls_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_xw_lbls_upstream = d.createVariable("unres_tau_xw_lbls_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_yu_lbls_upstream = d.createVariable("unres_tau_yu_lbls_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_lbls_upstream = d.createVariable("unres_tau_yv_lbls_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_lbls_upstream = d.createVariable("unres_tau_yw_lbls_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_lbls_upstream = d.createVariable("unres_tau_zu_lbls_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_zv_lbls_upstream = d.createVariable("unres_tau_zv_lbls_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zw_lbls_upstream = d.createVariable("unres_tau_zw_lbls_upstream","f8",("tstep_unique","zc","yc","xc"))
+    #
+    var_unres_tau_xu_lbls_downstream = d.createVariable("unres_tau_xu_lbls_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_lbls_downstream = d.createVariable("unres_tau_xv_lbls_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_xw_lbls_downstream = d.createVariable("unres_tau_xw_lbls_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_yu_lbls_downstream = d.createVariable("unres_tau_yu_lbls_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_lbls_downstream = d.createVariable("unres_tau_yv_lbls_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_lbls_downstream = d.createVariable("unres_tau_yw_lbls_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_lbls_downstream = d.createVariable("unres_tau_zu_lbls_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_zv_lbls_downstream = d.createVariable("unres_tau_zv_lbls_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zw_lbls_downstream = d.createVariable("unres_tau_zw_lbls_downstream","f8",("tstep_unique","zc","yc","xc"))
+    #
 
     #Call function to recontruct fields of labels for all nine components and both upstream/downstream components
     print('start reconstructing labels')
@@ -344,23 +309,44 @@ if args.reconstruct_fields:
     unres_tau_zu_lbls_upstream = reconstruct_field(lbls_values_zu_upstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     unres_tau_zu_lbls_downstream = reconstruct_field(lbls_values_zu_downstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('seventh component done')
-    var_unres_tau_zv_lbls_upstream = reconstruct_field(lbls_values_zv_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_zv_lbls_downstream = reconstruct_field(lbls_values_zv_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_zv_lbls_upstream = reconstruct_field(lbls_values_zv_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_zv_lbls_downstream = reconstruct_field(lbls_values_zv_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('eighth component done')
-    var_unres_tau_zw_lbls_upstream = reconstruct_field(lbls_values_zw_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
-    var_unres_tau_zw_lbls_downstream = reconstruct_field(lbls_values_zw_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_zw_lbls_upstream = reconstruct_field(lbls_values_zw_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
+    unres_tau_zw_lbls_downstream = reconstruct_field(lbls_values_zw_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('nineth component done')
 
     #Create variables for storage reconstructed fields of predictions
-    var_unres_tau_xu_CNN = d.createVariable("unres_tau_xu_CNN","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_xv_CNN = d.createVariable("unres_tau_xv_CNN","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_xw_CNN = d.createVariable("unres_tau_xw_CNN","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_yu_CNN = d.createVariable("unres_tau_yu_CNN","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_yv_CNN = d.createVariable("unres_tau_yv_CNN","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_yw_CNN = d.createVariable("unres_tau_yw_CNN","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zu_CNN = d.createVariable("unres_tau_zu_CNN","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_zv_CNN = d.createVariable("unres_tau_zv_CNN","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zw_CNN = d.createVariable("unres_tau_zw_CNN","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    var_unres_tau_xu_CNN = d.createVariable("unres_tau_xu_CNN","f8",("tstep_unique","zc","yc","xgcextra"))      
+    var_unres_tau_xv_CNN = d.createVariable("unres_tau_xv_CNN","f8",("tstep_unique","zc","yhcless","xhc"))     
+    var_unres_tau_xw_CNN = d.createVariable("unres_tau_xw_CNN","f8",("tstep_unique","zhcless","yc","xhc"))     
+    var_unres_tau_yu_CNN = d.createVariable("unres_tau_yu_CNN","f8",("tstep_unique","zc","yhc","xhcless"))
+    var_unres_tau_yv_CNN = d.createVariable("unres_tau_yv_CNN","f8",("tstep_unique","zc","ygcextra","xc"))
+    var_unres_tau_yw_CNN = d.createVariable("unres_tau_yw_CNN","f8",("tstep_unique","zhcless","yhc","xc"))
+    var_unres_tau_zu_CNN = d.createVariable("unres_tau_zu_CNN","f8",("tstep_unique","zhc","yc","xhcless"))
+    var_unres_tau_zv_CNN = d.createVariable("unres_tau_zv_CNN","f8",("tstep_unique","zhc","yhcless","xc"))
+    var_unres_tau_zw_CNN = d.createVariable("unres_tau_zw_CNN","f8",("tstep_unique","zgcextra","yc","xc")) 
+    #
+    var_unres_tau_xu_CNN_upstream = d.createVariable("unres_tau_xu_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_CNN_upstream = d.createVariable("unres_tau_xv_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_xw_CNN_upstream = d.createVariable("unres_tau_xw_CNN_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_yu_CNN_upstream = d.createVariable("unres_tau_yu_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_CNN_upstream = d.createVariable("unres_tau_yv_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_CNN_upstream = d.createVariable("unres_tau_yw_CNN_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_CNN_upstream = d.createVariable("unres_tau_zu_CNN_upstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_zv_CNN_upstream = d.createVariable("unres_tau_zv_CNN_upstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zw_CNN_upstream = d.createVariable("unres_tau_zw_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))
+    #
+    var_unres_tau_xu_CNN_downstream = d.createVariable("unres_tau_xu_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_CNN_downstream = d.createVariable("unres_tau_xv_CNN_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_xw_CNN_downstream = d.createVariable("unres_tau_xw_CNN_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_yu_CNN_downstream = d.createVariable("unres_tau_yu_CNN_downstream","f8",("tstep_unique","zc","yhcless","xhcless"))
+    var_unres_tau_yv_CNN_downstream = d.createVariable("unres_tau_yv_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_CNN_downstream = d.createVariable("unres_tau_yw_CNN_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zu_CNN_downstream = d.createVariable("unres_tau_zu_CNN_downstream","f8",("tstep_unique","zhcless","yc","xhcless"))
+    var_unres_tau_zv_CNN_downstream = d.createVariable("unres_tau_zv_CNN_downstream","f8",("tstep_unique","zhcless","yhcless","xc"))
+    var_unres_tau_zw_CNN_downstream = d.createVariable("unres_tau_zw_CNN_downstream","f8",("tstep_unique","zc","yc","xc"))
+    #
 
     #Call function to recontruct fields of predictions for all nine components
     print('start reconstructing predictions')
@@ -394,100 +380,215 @@ if args.reconstruct_fields:
     
     #Combine upstream and downstream components together, where at each height the upstream and downstream components are selected alternately (as should be done during inference).
     print('Start combining upstream and downstream components.')
-    def _combine_upstream_downstream(upstream_field, downstream_field, dims = (nt,nz,ny,nx)):
-        combined_field = np.zeros((dims[0],dims[1]+1,dims[2],dims[3]))
-        #Define where the sum of the indices for x- and y-direction are odd, such that the fields can be alternately stored at each height.
-        y_ind       = np.arange(dims[2])
-        x_ind       = np.arange(dims[3])
-        xcor, ycor  = np.meshgrid(x_ind, y_ind)
-        horcor      = xcor + ycor
-        horcor_odd  = allcor % 2 != 0
-        horcor_even = allcor % 2 == 0
+    def _combine_upstream_downstream(upstream_field, downstream_field, sample_dir, dims):
+        
+        #Choose sample indices and output shape based on specified sample_dir
+        if not (sample_dir == 'x' or sample_dir == 'y' or sample_dir == 'z'):
+            raise RuntimeError("The specified sampling direction should be 'x', 'y', or 'z'.")
+        
+        if sample_dir   == 'x':
+            dims[3] = dims[3] + 1
+            sample_dim = dims[3]
+            dim1_ind = np.arange(dims[1])
+            dim2_ind = np.arange(dims[2])
+        elif sample_dir == 'y':
+            dims[2] = dims[2] + 1
+            sample_dim = dims[2]
+            dim1_ind = np.arange(dims[1])
+            dim2_ind = np.arange(dims[3])
+        else:
+            dims[1] = dims[1] + 1
+            sample_dim = dims[1]
+            dim1_ind = np.arange(dims[2])
+            dim2_ind = np.arange(dims[3])
 
-        for t in range(dims[0]):
-            for k in range(dims[1]+1):
-                if k == 0:
-                    combined_field[t,k,:,:] = upstream_field[t,k,:,:] 
-                elif k == (dims[1]):
-                    combined_field[t,k,:,:] = downstream_field[t,k-1,:,:]
-                #Make distinction between k=even and k=odd to alternate storage
-                elif k % 2 == 0: #k is even
-                    combined_field[t,k,:,:][horcor_odd]  = upstream_field[t,k,:,:][horcor_odd]
-                    combined_field[t,k,;,:][horcor_even] = downstream_field[t,k-1,:,:][horcor_even]
-                elif k % 2 != 0: #k is odd
-                    combined_field[t,k,:,:][horcor_even] = upstream_field[t,k,:,:][horcor_even]
-                    combined_field[t,k,;,:][horcor_odd]  = downstream_field[t,k-1,:,:][horcor_odd]
-                else:
-                    raise RuntimeError("Error occured in script as this line should not have been reached. Check carefully for bugs.")
+        combined_field = np.zeros((dims[0],dims[1],dims[2],dims[3]))
+        #Define where the sum of the indices for x- and y-direction are odd, such that the fields can be alternately stored in specified sample_dir.
+        dim1cor, dim2cor  = np.meshgrid(dim2_ind, dim1_ind)
+        twodimcor         = dim1cor + dim2cor
+        twodimcor_odd     = twodimcor % 2 != 0
+        twodimcor_odd     = np.tile(twodimcor_odd, (nt,1,1))
+        twodimcor_even    = twodimcor % 2 == 0
+        twodimcor_even    = np.tile(twodimcor_even, (nt,1,1))
 
+        for i in range(sample_dim):
+            #Determine index slices
+            if sample_dir == 'x':
+                indices_up   = np.s_[:,:,:,i]
+                indices_down = np.s_[:,:,:,i-1]
+            elif sample_dir == 'y':
+                indices_up   = np.s_[:,:,i,:]
+                indices_down = np.s_[:,:,i-1,:]
+            else:
+                indices_up   = np.s_[:,i,:,:]
+                indices_down = np.s_[:,i-1,:,:]
+            
+            #Assign upstream and downstream values to combined field
+            if i == 0:
+                combined_field[indices_up] = upstream_field[indices_up] 
+            elif i == (sample_dim-1):
+                combined_field[indices_up] = downstream_field[indices_down]
+            #Make distinction between i=even and i=odd to alternate storage
+            elif i % 2 == 0: #i is even
+                combined_field[indices_up][twodimcor_odd]  = upstream_field[indices_up][twodimcor_odd]
+                combined_field[indices_up][twodimcor_even] = downstream_field[indices_down][twodimcor_even]
+            elif i % 2 != 0: #i is odd
+                combined_field[indices_up][twodimcor_even] = upstream_field[indices_up][twodimcor_even]
+                combined_field[indices_up][twodimcor_odd]  = downstream_field[indices_down][twodimcor_odd]
+            else:
+                raise RuntimeError("Error occured in script as this line should not have been reached. Check carefully for bugs.")
+        return combined_field
 
+    #Call function above for all preds and labels
+    preds_values_xu =  _combine_upstream_downstream(preds_values_xu_upstream, preds_values_xu_downstream, dims = [nt,nz,ny,nx], sample_dir = 'x')
+    preds_values_yu =  _combine_upstream_downstream(preds_values_yu_upstream, preds_values_yu_downstream, dims = [nt,nz,ny,nx], sample_dir = 'y')
+    preds_values_zu =  _combine_upstream_downstream(preds_values_zu_upstream, preds_values_zu_downstream, dims = [nt,nz,ny,nx], sample_dir = 'z')
+    preds_values_xv =  _combine_upstream_downstream(preds_values_xv_upstream, preds_values_xv_downstream, dims = [nt,nz,ny,nx], sample_dir = 'x')
+    preds_values_yv =  _combine_upstream_downstream(preds_values_yv_upstream, preds_values_yv_downstream, dims = [nt,nz,ny,nx], sample_dir = 'y')
+    preds_values_zv =  _combine_upstream_downstream(preds_values_zv_upstream, preds_values_zv_downstream, dims = [nt,nz,ny,nx], sample_dir = 'z')
+    preds_values_xw =  _combine_upstream_downstream(preds_values_xw_upstream, preds_values_xw_downstream, dims = [nt,nz,ny,nx], sample_dir = 'x')
+    preds_values_yw =  _combine_upstream_downstream(preds_values_yw_upstream, preds_values_yw_downstream, dims = [nt,nz,ny,nx], sample_dir = 'y')
+    preds_values_zw =  _combine_upstream_downstream(preds_values_zw_upstream, preds_values_zw_downstream, dims = [nt,nz,ny,nx], sample_dir = 'z')
+    #
+    unres_tau_xu_lbls =  _combine_upstream_downstream(unres_tau_xu_lbls_upstream, unres_tau_xu_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'x')
+    unres_tau_yu_lbls =  _combine_upstream_downstream(unres_tau_yu_lbls_upstream, unres_tau_yu_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'y')
+    unres_tau_zu_lbls =  _combine_upstream_downstream(unres_tau_zu_lbls_upstream, unres_tau_zu_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'z')
+    unres_tau_xv_lbls =  _combine_upstream_downstream(unres_tau_xv_lbls_upstream, unres_tau_xv_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'x')
+    unres_tau_yv_lbls =  _combine_upstream_downstream(unres_tau_yv_lbls_upstream, unres_tau_yv_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'y')
+    unres_tau_zv_lbls =  _combine_upstream_downstream(unres_tau_zv_lbls_upstream, unres_tau_zv_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'z')
+    unres_tau_xw_lbls =  _combine_upstream_downstream(unres_tau_xw_lbls_upstream, unres_tau_xw_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'x')
+    unres_tau_yw_lbls =  _combine_upstream_downstream(unres_tau_yw_lbls_upstream, unres_tau_yw_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'y')
+    unres_tau_zw_lbls =  _combine_upstream_downstream(unres_tau_zw_lbls_upstream, unres_tau_zw_lbls_downstream, dims = [nt,nz,ny,nx], sample_dir = 'z')
+
+    #Store variables in netCDF file
+    #Labels
+    var_unres_tau_xu_lbls[:,:,:,:] = unres_tau_xu_lbls[:,:,:,:]
+    var_unres_tau_xv_lbls[:,:,:,:] = unres_tau_xv_lbls[:,:,:,:]
+    var_unres_tau_xw_lbls[:,:,:,:] = unres_tau_xw_lbls[:,:,:,:]
+    var_unres_tau_yu_lbls[:,:,:,:] = unres_tau_yu_lbls[:,:,:,:]
+    var_unres_tau_yv_lbls[:,:,:,:] = unres_tau_yv_lbls[:,:,:,:]
+    var_unres_tau_yw_lbls[:,:,:,:] = unres_tau_yw_lbls[:,:,:,:]
+    var_unres_tau_zu_lbls[:,:,:,:] = unres_tau_zu_lbls[:,:,:,:]
+    var_unres_tau_zv_lbls[:,:,:,:] = unres_tau_zv_lbls[:,:,:,:]
+    var_unres_tau_zw_lbls[:,:,:,:] = unres_tau_zw_lbls[:,:,:,:]
+    #
+    var_unres_tau_xu_lbls_upstream[:,:,:,:] = unres_tau_xu_lbls_upstream[:,:,:,:]
+    var_unres_tau_xv_lbls_upstream[:,:,:,:] = unres_tau_xv_lbls_upstream[:,:,:,:]
+    var_unres_tau_xw_lbls_upstream[:,:,:,:] = unres_tau_xw_lbls_upstream[:,:,:,:]
+    var_unres_tau_yu_lbls_upstream[:,:,:,:] = unres_tau_yu_lbls_upstream[:,:,:,:]
+    var_unres_tau_yv_lbls_upstream[:,:,:,:] = unres_tau_yv_lbls_upstream[:,:,:,:]
+    var_unres_tau_yw_lbls_upstream[:,:,:,:] = unres_tau_yw_lbls_upstream[:,:,:,:]
+    var_unres_tau_zu_lbls_upstream[:,:,:,:] = unres_tau_zu_lbls_upstream[:,:,:,:]
+    var_unres_tau_zv_lbls_upstream[:,:,:,:] = unres_tau_zv_lbls_upstream[:,:,:,:]
+    var_unres_tau_zw_lbls_upstream[:,:,:,:] = unres_tau_zw_lbls_upstream[:,:,:,:]
+    #
+    var_unres_tau_xu_lbls_downstream[:,:,:,:] = unres_tau_xu_lbls_downstream[:,:,:,:]
+    var_unres_tau_xv_lbls_downstream[:,:,:,:] = unres_tau_xv_lbls_downstream[:,:,:,:]
+    var_unres_tau_xw_lbls_downstream[:,:,:,:] = unres_tau_xw_lbls_downstream[:,:,:,:]
+    var_unres_tau_yu_lbls_downstream[:,:,:,:] = unres_tau_yu_lbls_downstream[:,:,:,:]
+    var_unres_tau_yv_lbls_downstream[:,:,:,:] = unres_tau_yv_lbls_downstream[:,:,:,:]
+    var_unres_tau_yw_lbls_downstream[:,:,:,:] = unres_tau_yw_lbls_downstream[:,:,:,:]
+    var_unres_tau_zu_lbls_downstream[:,:,:,:] = unres_tau_zu_lbls_downstream[:,:,:,:]
+    var_unres_tau_zv_lbls_downstream[:,:,:,:] = unres_tau_zv_lbls_downstream[:,:,:,:]
+    var_unres_tau_zw_lbls_downstream[:,:,:,:] = unres_tau_zw_lbls_downstream[:,:,:,:]
+    #Predictions
+    var_unres_tau_xu_CNN[:,:,:,:] = preds_values_xu[:,:,:,:]
+    var_unres_tau_xv_CNN[:,:,:,:] = preds_values_xv[:,:,:,:]
+    var_unres_tau_xw_CNN[:,:,:,:] = preds_values_xw[:,:,:,:]
+    var_unres_tau_yu_CNN[:,:,:,:] = preds_values_yu[:,:,:,:]
+    var_unres_tau_yv_CNN[:,:,:,:] = preds_values_yv[:,:,:,:]
+    var_unres_tau_yw_CNN[:,:,:,:] = preds_values_yw[:,:,:,:]
+    var_unres_tau_zu_CNN[:,:,:,:] = preds_values_zu[:,:,:,:]
+    var_unres_tau_zv_CNN[:,:,:,:] = preds_values_zv[:,:,:,:]
+    var_unres_tau_zw_CNN[:,:,:,:] = preds_values_zw[:,:,:,:]
+    #
+    var_unres_tau_xu_CNN_upstream[:,:,:,:] = preds_values_xu_upstream[:,:,:,:]
+    var_unres_tau_xv_CNN_upstream[:,:,:,:] = preds_values_xv_upstream[:,:,:,:]
+    var_unres_tau_xw_CNN_upstream[:,:,:,:] = preds_values_xw_upstream[:,:,:,:]
+    var_unres_tau_yu_CNN_upstream[:,:,:,:] = preds_values_yu_upstream[:,:,:,:]
+    var_unres_tau_yv_CNN_upstream[:,:,:,:] = preds_values_yv_upstream[:,:,:,:]
+    var_unres_tau_yw_CNN_upstream[:,:,:,:] = preds_values_yw_upstream[:,:,:,:]
+    var_unres_tau_zu_CNN_upstream[:,:,:,:] = preds_values_zu_upstream[:,:,:,:]
+    var_unres_tau_zv_CNN_upstream[:,:,:,:] = preds_values_zv_upstream[:,:,:,:]
+    #
+    var_unres_tau_xu_CNN_downstream[:,:,:,:] = preds_values_xu_downstream[:,:,:,:]
+    var_unres_tau_xv_CNN_downstream[:,:,:,:] = preds_values_xv_downstream[:,:,:,:]
+    var_unres_tau_xw_CNN_downstream[:,:,:,:] = preds_values_xw_downstream[:,:,:,:]
+    var_unres_tau_yu_CNN_downstream[:,:,:,:] = preds_values_yu_downstream[:,:,:,:]
+    var_unres_tau_yv_CNN_downstream[:,:,:,:] = preds_values_yv_downstream[:,:,:,:]
+    var_unres_tau_yw_CNN_downstream[:,:,:,:] = preds_values_yw_downstream[:,:,:,:]
+    var_unres_tau_zu_CNN_downstream[:,:,:,:] = preds_values_zu_downstream[:,:,:,:]
+    var_unres_tau_zv_CNN_downstream[:,:,:,:] = preds_values_zv_downstream[:,:,:,:]
+    var_unres_tau_zw_CNN_downstream[:,:,:,:] = preds_values_zw_downstream[:,:,:,:]
+    var_unres_tau_zw_CNN_downstream[:,:,:,:] = preds_values_zw_downstream[:,:,:,:]
+    
     
     #Create variables for storage unresolved, resolved, and total transports
-    var_unres_tau_xu_traceless = d.createVariable("unres_tau_xu_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_yv_traceless = d.createVariable("unres_tau_yv_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_zw_traceless = d.createVariable("unres_tau_zw_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    #var_unres_tau_xu_traceless = d.createVariable("unres_tau_xu_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    #var_unres_tau_yv_traceless = d.createVariable("unres_tau_yv_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    #var_unres_tau_zw_traceless = d.createVariable("unres_tau_zw_traceless","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
     #
-    var_unres_tau_xu = d.createVariable("unres_tau_xu","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_xv = d.createVariable("unres_tau_xv","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_xw = d.createVariable("unres_tau_xw","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_yu = d.createVariable("unres_tau_yu","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_yv = d.createVariable("unres_tau_yv","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_yw = d.createVariable("unres_tau_yw","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zu = d.createVariable("unres_tau_zu","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_zv = d.createVariable("unres_tau_zv","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zw = d.createVariable("unres_tau_zw","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_res_tau_xu   = d.createVariable("res_tau_xu"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_res_tau_xv   = d.createVariable("res_tau_xv"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_res_tau_xw   = d.createVariable("res_tau_xw"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_res_tau_yu   = d.createVariable("res_tau_yu"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_res_tau_yv   = d.createVariable("res_tau_yv"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_res_tau_yw   = d.createVariable("res_tau_yw"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_res_tau_zu   = d.createVariable("res_tau_zu"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_res_tau_zv   = d.createVariable("res_tau_zv"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_res_tau_zw   = d.createVariable("res_tau_zw"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_xu   = d.createVariable("tot_tau_xu"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_xv   = d.createVariable("tot_tau_xv"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_tot_tau_xw   = d.createVariable("tot_tau_xw"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_tot_tau_yu   = d.createVariable("tot_tau_yu"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_tot_tau_yv   = d.createVariable("tot_tau_yv"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_yw   = d.createVariable("tot_tau_yw"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_tot_tau_zu   = d.createVariable("tot_tau_zu"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_tot_tau_zv   = d.createVariable("tot_tau_zv"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_tot_tau_zw   = d.createVariable("tot_tau_zw"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    var_unres_tau_xu = d.createVariable("unres_tau_xu","f8",("tstep_unique","zc","yc","xgcextra"))
+    var_unres_tau_xv = d.createVariable("unres_tau_xv","f8",("tstep_unique","zc","yhc","xhc"))
+    var_unres_tau_xw = d.createVariable("unres_tau_xw","f8",("tstep_unique","zhc","yc","xhc"))
+    var_unres_tau_yu = d.createVariable("unres_tau_yu","f8",("tstep_unique","zc","yhc","xhc"))
+    var_unres_tau_yv = d.createVariable("unres_tau_yv","f8",("tstep_unique","zc","ygcextra","xc"))
+    var_unres_tau_yw = d.createVariable("unres_tau_yw","f8",("tstep_unique","zhc","yhc","xc"))
+    var_unres_tau_zu = d.createVariable("unres_tau_zu","f8",("tstep_unique","zhc","yc","xhc"))
+    var_unres_tau_zv = d.createVariable("unres_tau_zv","f8",("tstep_unique","zhc","yhc","xc"))
+    var_unres_tau_zw = d.createVariable("unres_tau_zw","f8",("tstep_unique","zgcextra","yc","xc"))
+    var_res_tau_xu   = d.createVariable("res_tau_xu"  ,"f8",("tstep_unique","zc","yc","xgcextra"))
+    var_res_tau_xv   = d.createVariable("res_tau_xv"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    var_res_tau_xw   = d.createVariable("res_tau_xw"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    var_res_tau_yu   = d.createVariable("res_tau_yu"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    var_res_tau_yv   = d.createVariable("res_tau_yv"  ,"f8",("tstep_unique","zc","ygcextra","xc"))
+    var_res_tau_yw   = d.createVariable("res_tau_yw"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    var_res_tau_zu   = d.createVariable("res_tau_zu"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    var_res_tau_zv   = d.createVariable("res_tau_zv"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    var_res_tau_zw   = d.createVariable("res_tau_zw"  ,"f8",("tstep_unique","zgcextra","yc","xc"))
+    var_tot_tau_xu   = d.createVariable("tot_tau_xu"  ,"f8",("tstep_unique","zc","yc","xgcextra"))
+    var_tot_tau_xv   = d.createVariable("tot_tau_xv"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    var_tot_tau_xw   = d.createVariable("tot_tau_xw"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    var_tot_tau_yu   = d.createVariable("tot_tau_yu"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    var_tot_tau_yv   = d.createVariable("tot_tau_yv"  ,"f8",("tstep_unique","zc","ygcextra","xc"))
+    var_tot_tau_yw   = d.createVariable("tot_tau_yw"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    var_tot_tau_zu   = d.createVariable("tot_tau_zu"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    var_tot_tau_zv   = d.createVariable("tot_tau_zv"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    var_tot_tau_zw   = d.createVariable("tot_tau_zw"  ,"f8",("tstep_unique","zgcextra","yc","xc"))
     #
-    var_unres_tau_xu_smag = d.createVariable("unres_tau_xu_smag","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_xv_smag = d.createVariable("unres_tau_xv_smag","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_xw_smag = d.createVariable("unres_tau_xw_smag","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_yu_smag = d.createVariable("unres_tau_yu_smag","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_unres_tau_yv_smag = d.createVariable("unres_tau_yv_smag","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_unres_tau_yw_smag = d.createVariable("unres_tau_yw_smag","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zu_smag = d.createVariable("unres_tau_zu_smag","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_unres_tau_zv_smag = d.createVariable("unres_tau_zv_smag","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_unres_tau_zw_smag = d.createVariable("unres_tau_zw_smag","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_xu_smag   = d.createVariable("tot_tau_xu_smag"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_xv_smag   = d.createVariable("tot_tau_xv_smag"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_tot_tau_xw_smag   = d.createVariable("tot_tau_xw_smag"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_tot_tau_yu_smag   = d.createVariable("tot_tau_yu_smag"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_tot_tau_yv_smag   = d.createVariable("tot_tau_yv_smag"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_yw_smag   = d.createVariable("tot_tau_yw_smag"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_tot_tau_zu_smag   = d.createVariable("tot_tau_zu_smag"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_tot_tau_zv_smag   = d.createVariable("tot_tau_zv_smag"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_tot_tau_zw_smag   = d.createVariable("tot_tau_zw_smag"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    var_unres_tau_xu_smag = d.createVariable("unres_tau_xu_smag","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_xv_smag = d.createVariable("unres_tau_xv_smag","f8",("tstep_unique","zc","yhc","xhc"))
+    var_unres_tau_xw_smag = d.createVariable("unres_tau_xw_smag","f8",("tstep_unique","zhc","yc","xhc"))
+    var_unres_tau_yu_smag = d.createVariable("unres_tau_yu_smag","f8",("tstep_unique","zc","yhc","xhc"))
+    var_unres_tau_yv_smag = d.createVariable("unres_tau_yv_smag","f8",("tstep_unique","zc","yc","xc"))
+    var_unres_tau_yw_smag = d.createVariable("unres_tau_yw_smag","f8",("tstep_unique","zhc","yhc","xc"))
+    var_unres_tau_zu_smag = d.createVariable("unres_tau_zu_smag","f8",("tstep_unique","zhc","yc","xhc"))
+    var_unres_tau_zv_smag = d.createVariable("unres_tau_zv_smag","f8",("tstep_unique","zhc","yhc","xc"))
+    var_unres_tau_zw_smag = d.createVariable("unres_tau_zw_smag","f8",("tstep_unique","zc","yc","xc"))
+    var_tot_tau_xu_smag   = d.createVariable("tot_tau_xu_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
+    var_tot_tau_xv_smag   = d.createVariable("tot_tau_xv_smag"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    var_tot_tau_xw_smag   = d.createVariable("tot_tau_xw_smag"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    var_tot_tau_yu_smag   = d.createVariable("tot_tau_yu_smag"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    var_tot_tau_yv_smag   = d.createVariable("tot_tau_yv_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
+    var_tot_tau_yw_smag   = d.createVariable("tot_tau_yw_smag"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    var_tot_tau_zu_smag   = d.createVariable("tot_tau_zu_smag"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    var_tot_tau_zv_smag   = d.createVariable("tot_tau_zv_smag"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    var_tot_tau_zw_smag   = d.createVariable("tot_tau_zw_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
     #
-    var_tot_tau_xu_CNN   = d.createVariable("tot_tau_xu_CNN"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_xv_CNN   = d.createVariable("tot_tau_xv_CNN"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_tot_tau_xw_CNN   = d.createVariable("tot_tau_xw_CNN"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_tot_tau_yu_CNN   = d.createVariable("tot_tau_yu_CNN"  ,"f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_tot_tau_yv_CNN   = d.createVariable("tot_tau_yv_CNN"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_tot_tau_yw_CNN   = d.createVariable("tot_tau_yw_CNN"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_tot_tau_zu_CNN   = d.createVariable("tot_tau_zu_CNN"  ,"f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_tot_tau_zv_CNN   = d.createVariable("tot_tau_zv_CNN"  ,"f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_tot_tau_zw_CNN   = d.createVariable("tot_tau_zw_CNN"  ,"f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
+    var_tot_tau_xu_CNN   = d.createVariable("tot_tau_xu_CNN"  ,"f8",("tstep_unique","zc","yc","xgcextra"))
+    var_tot_tau_xv_CNN   = d.createVariable("tot_tau_xv_CNN"  ,"f8",("tstep_unique","zc","yhcless","xhc"))
+    var_tot_tau_xw_CNN   = d.createVariable("tot_tau_xw_CNN"  ,"f8",("tstep_unique","zhcless","yc","xhc"))
+    var_tot_tau_yu_CNN   = d.createVariable("tot_tau_yu_CNN"  ,"f8",("tstep_unique","zc","yhc","xhcless"))
+    var_tot_tau_yv_CNN   = d.createVariable("tot_tau_yv_CNN"  ,"f8",("tstep_unique","zc","ygcextra","xc"))
+    var_tot_tau_yw_CNN   = d.createVariable("tot_tau_yw_CNN"  ,"f8",("tstep_unique","zhcless","yhc","xc"))
+    var_tot_tau_zu_CNN   = d.createVariable("tot_tau_zu_CNN"  ,"f8",("tstep_unique","zhc","yc","xhcless"))
+    var_tot_tau_zv_CNN   = d.createVariable("tot_tau_zv_CNN"  ,"f8",("tstep_unique","zhc","yhcless","xc"))
+    var_tot_tau_zw_CNN   = d.createVariable("tot_tau_zw_CNN"  ,"f8",("tstep_unique","zgcextra","yc","xc"))
 
     #Store values for unresolved, resolved, and total fluxes training data, Smagorinsky, and CNN
-    var_unres_tau_xu_traceless[:,:,:,:] = unres_tau_xu_traceless
-    var_unres_tau_yv_traceless[:,:,:,:] = unres_tau_yv_traceless
-    var_unres_tau_zw_traceless[:,:,:,:] = unres_tau_zw_traceless
+    #var_unres_tau_xu_traceless[:,:,:,:] = unres_tau_xu_traceless
+    #var_unres_tau_yv_traceless[:,:,:,:] = unres_tau_yv_traceless
+    #var_unres_tau_zw_traceless[:,:,:,:] = unres_tau_zw_traceless
     #
     var_unres_tau_xu[:,:,:,:] = unres_tau_xu
     var_unres_tau_xv[:,:,:,:] = unres_tau_xv
@@ -527,121 +628,122 @@ if args.reconstruct_fields:
     var_unres_tau_zu_smag[:,:,:,:] = smag_tau_zu
     var_unres_tau_zv_smag[:,:,:,:] = smag_tau_zv
     var_unres_tau_zw_smag[:,:,:,:] = smag_tau_zw
-    var_tot_tau_xu_smag[:,:,:,:]   = smag_tau_xu + res_tau_xu
+    var_tot_tau_xu_smag[:,:,:,:]   = smag_tau_xu + res_tau_xu[:,:,:,1:]
     var_tot_tau_xv_smag[:,:,:,:]   = smag_tau_xv + res_tau_xv
     var_tot_tau_xw_smag[:,:,:,:]   = smag_tau_xw + res_tau_xw
     var_tot_tau_yu_smag[:,:,:,:]   = smag_tau_yu + res_tau_yu
-    var_tot_tau_yv_smag[:,:,:,:]   = smag_tau_yv + res_tau_yv
+    var_tot_tau_yv_smag[:,:,:,:]   = smag_tau_yv + res_tau_yv[:,:,1:,:]
     var_tot_tau_yw_smag[:,:,:,:]   = smag_tau_yw + res_tau_yw
     var_tot_tau_zu_smag[:,:,:,:]   = smag_tau_zu + res_tau_zu
     var_tot_tau_zv_smag[:,:,:,:]   = smag_tau_zv + res_tau_zv
-    var_tot_tau_zw_smag[:,:,:,:]   = smag_tau_zw + res_tau_zw
-    #
+    var_tot_tau_zw_smag[:,:,:,:]   = smag_tau_zw + res_tau_zw[:,1:,:,:]
+    #NOTE: compensate for missing ghost cells in CNN preds
     var_tot_tau_xu_CNN[:,:,:,:]    = preds_values_xu  + res_tau_xu
-    var_tot_tau_xv_CNN[:,:,:,:]    = preds_values_xv  + res_tau_xv
-    var_tot_tau_xw_CNN[:,:,:,:]    = preds_values_xw  + res_tau_xw
-    var_tot_tau_yu_CNN[:,:,:,:]    = preds_values_yu  + res_tau_yu
+    var_tot_tau_xv_CNN[:,:,:,:]    = preds_values_xv  + res_tau_xv[:,:,:-1,:]
+    var_tot_tau_xw_CNN[:,:,:,:]    = preds_values_xw  + res_tau_xw[:,:-1,:,:]
+    var_tot_tau_yu_CNN[:,:,:,:]    = preds_values_yu  + res_tau_yu[:,:,:,:-1]
     var_tot_tau_yv_CNN[:,:,:,:]    = preds_values_yv  + res_tau_yv
-    var_tot_tau_yw_CNN[:,:,:,:]    = preds_values_yw  + res_tau_yw
-    var_tot_tau_zu_CNN[:,:,:,:]    = preds_values_zu  + res_tau_zu
-    var_tot_tau_zv_CNN[:,:,:,:]    = preds_values_zv  + res_tau_zv
+    var_tot_tau_yw_CNN[:,:,:,:]    = preds_values_yw  + res_tau_yw[:,:-1,:,:]
+    var_tot_tau_zu_CNN[:,:,:,:]    = preds_values_zu  + res_tau_zu[:,:,:,:-1]
+    var_tot_tau_zv_CNN[:,:,:,:]    = preds_values_zv  + res_tau_zv[:,:,:-1,:]
     var_tot_tau_zw_CNN[:,:,:,:]    = preds_values_zw  + res_tau_zw
 
     #Create variables for storage horizontal averages
-    var_unres_tau_xu_horavg = d.createVariable("unres_tau_xu_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_xv_horavg = d.createVariable("unres_tau_xv_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_xw_horavg = d.createVariable("unres_tau_xw_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_yu_horavg = d.createVariable("unres_tau_yu_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_yv_horavg = d.createVariable("unres_tau_yv_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_yw_horavg = d.createVariable("unres_tau_yw_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zu_horavg = d.createVariable("unres_tau_zu_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zv_horavg = d.createVariable("unres_tau_zv_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zw_horavg = d.createVariable("unres_tau_zw_horavg","f8",("tstep_unique","zloc_unique"))
-    var_res_tau_xu_horavg   = d.createVariable("res_tau_xu_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_res_tau_xv_horavg   = d.createVariable("res_tau_xv_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_res_tau_xw_horavg   = d.createVariable("res_tau_xw_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_res_tau_yu_horavg   = d.createVariable("res_tau_yu_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_res_tau_yv_horavg   = d.createVariable("res_tau_yv_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_res_tau_yw_horavg   = d.createVariable("res_tau_yw_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_res_tau_zu_horavg   = d.createVariable("res_tau_zu_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_res_tau_zv_horavg   = d.createVariable("res_tau_zv_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_res_tau_zw_horavg   = d.createVariable("res_tau_zw_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xu_horavg   = d.createVariable("tot_tau_xu_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xv_horavg   = d.createVariable("tot_tau_xv_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xw_horavg   = d.createVariable("tot_tau_xw_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_yu_horavg   = d.createVariable("tot_tau_yu_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_yv_horavg   = d.createVariable("tot_tau_yv_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_yw_horavg   = d.createVariable("tot_tau_yw_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zu_horavg   = d.createVariable("tot_tau_zu_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zv_horavg   = d.createVariable("tot_tau_zv_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zw_horavg   = d.createVariable("tot_tau_zw_horavg","f8",  ("tstep_unique","zloc_unique"))
+    var_unres_tau_xu_horavg = d.createVariable("unres_tau_xu_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xv_horavg = d.createVariable("unres_tau_xv_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xw_horavg = d.createVariable("unres_tau_xw_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_yu_horavg = d.createVariable("unres_tau_yu_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yv_horavg = d.createVariable("unres_tau_yv_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yw_horavg = d.createVariable("unres_tau_yw_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zu_horavg = d.createVariable("unres_tau_zu_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zv_horavg = d.createVariable("unres_tau_zv_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zw_horavg = d.createVariable("unres_tau_zw_horavg","f8",("tstep_unique","zgcextra"))
+    var_res_tau_xu_horavg   = d.createVariable("res_tau_xu_horavg","f8",  ("tstep_unique","zc"))
+    var_res_tau_xv_horavg   = d.createVariable("res_tau_xv_horavg","f8",  ("tstep_unique","zc"))
+    var_res_tau_xw_horavg   = d.createVariable("res_tau_xw_horavg","f8",  ("tstep_unique","zhc"))
+    var_res_tau_yu_horavg   = d.createVariable("res_tau_yu_horavg","f8",  ("tstep_unique","zc"))
+    var_res_tau_yv_horavg   = d.createVariable("res_tau_yv_horavg","f8",  ("tstep_unique","zc"))
+    var_res_tau_yw_horavg   = d.createVariable("res_tau_yw_horavg","f8",  ("tstep_unique","zhc"))
+    var_res_tau_zu_horavg   = d.createVariable("res_tau_zu_horavg","f8",  ("tstep_unique","zhc"))
+    var_res_tau_zv_horavg   = d.createVariable("res_tau_zv_horavg","f8",  ("tstep_unique","zhc"))
+    var_res_tau_zw_horavg   = d.createVariable("res_tau_zw_horavg","f8",  ("tstep_unique","zgcextra"))
+    var_tot_tau_xu_horavg   = d.createVariable("tot_tau_xu_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xv_horavg   = d.createVariable("tot_tau_xv_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xw_horavg   = d.createVariable("tot_tau_xw_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_yu_horavg   = d.createVariable("tot_tau_yu_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yv_horavg   = d.createVariable("tot_tau_yv_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yw_horavg   = d.createVariable("tot_tau_yw_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zu_horavg   = d.createVariable("tot_tau_zu_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zv_horavg   = d.createVariable("tot_tau_zv_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zw_horavg   = d.createVariable("tot_tau_zw_horavg","f8",  ("tstep_unique","zgcextra"))
     #
-    var_unres_tau_xu_smag_horavg = d.createVariable("unres_tau_xu_smag_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_xv_smag_horavg = d.createVariable("unres_tau_xv_smag_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_xw_smag_horavg = d.createVariable("unres_tau_xw_smag_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_yu_smag_horavg = d.createVariable("unres_tau_yu_smag_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_yv_smag_horavg = d.createVariable("unres_tau_yv_smag_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_yw_smag_horavg = d.createVariable("unres_tau_yw_smag_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zu_smag_horavg = d.createVariable("unres_tau_zu_smag_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zv_smag_horavg = d.createVariable("unres_tau_zv_smag_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zw_smag_horavg = d.createVariable("unres_tau_zw_smag_horavg","f8",("tstep_unique","zloc_unique"))
-    var_tot_tau_xu_smag_horavg   = d.createVariable("tot_tau_xu_smag_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xv_smag_horavg   = d.createVariable("tot_tau_xv_smag_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xw_smag_horavg   = d.createVariable("tot_tau_xw_smag_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_yu_smag_horavg   = d.createVariable("tot_tau_yu_smag_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_yv_smag_horavg   = d.createVariable("tot_tau_yv_smag_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_yw_smag_horavg   = d.createVariable("tot_tau_yw_smag_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zu_smag_horavg   = d.createVariable("tot_tau_zu_smag_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zv_smag_horavg   = d.createVariable("tot_tau_zv_smag_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zw_smag_horavg   = d.createVariable("tot_tau_zw_smag_horavg","f8",  ("tstep_unique","zloc_unique"))
+    var_unres_tau_xu_smag_horavg = d.createVariable("unres_tau_xu_smag_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xv_smag_horavg = d.createVariable("unres_tau_xv_smag_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xw_smag_horavg = d.createVariable("unres_tau_xw_smag_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_yu_smag_horavg = d.createVariable("unres_tau_yu_smag_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yv_smag_horavg = d.createVariable("unres_tau_yv_smag_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yw_smag_horavg = d.createVariable("unres_tau_yw_smag_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zu_smag_horavg = d.createVariable("unres_tau_zu_smag_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zv_smag_horavg = d.createVariable("unres_tau_zv_smag_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zw_smag_horavg = d.createVariable("unres_tau_zw_smag_horavg","f8",("tstep_unique","zc"))
+    var_tot_tau_xu_smag_horavg   = d.createVariable("tot_tau_xu_smag_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xv_smag_horavg   = d.createVariable("tot_tau_xv_smag_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xw_smag_horavg   = d.createVariable("tot_tau_xw_smag_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_yu_smag_horavg   = d.createVariable("tot_tau_yu_smag_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yv_smag_horavg   = d.createVariable("tot_tau_yv_smag_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yw_smag_horavg   = d.createVariable("tot_tau_yw_smag_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zu_smag_horavg   = d.createVariable("tot_tau_zu_smag_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zv_smag_horavg   = d.createVariable("tot_tau_zv_smag_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zw_smag_horavg   = d.createVariable("tot_tau_zw_smag_horavg","f8",  ("tstep_unique","zc"))
     #
-    var_unres_tau_xu_CNN_horavg = d.createVariable("unres_tau_xu_CNN_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_xv_CNN_horavg = d.createVariable("unres_tau_xv_CNN_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_xw_CNN_horavg = d.createVariable("unres_tau_xw_CNN_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_yu_CNN_horavg = d.createVariable("unres_tau_yu_CNN_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_yv_CNN_horavg = d.createVariable("unres_tau_yv_CNN_horavg","f8",("tstep_unique","zloc_unique"))
-    var_unres_tau_yw_CNN_horavg = d.createVariable("unres_tau_yw_CNN_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zu_CNN_horavg = d.createVariable("unres_tau_zu_CNN_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zv_CNN_horavg = d.createVariable("unres_tau_zv_CNN_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_unres_tau_zw_CNN_horavg = d.createVariable("unres_tau_zw_CNN_horavg","f8",("tstep_unique","zloc_unique"))
-    var_tot_tau_xu_CNN_horavg   = d.createVariable("tot_tau_xu_CNN_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xv_CNN_horavg   = d.createVariable("tot_tau_xv_CNN_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_xw_CNN_horavg   = d.createVariable("tot_tau_xw_CNN_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_yu_CNN_horavg   = d.createVariable("tot_tau_yu_CNN_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_yv_CNN_horavg   = d.createVariable("tot_tau_yv_CNN_horavg","f8",  ("tstep_unique","zloc_unique"))
-    var_tot_tau_yw_CNN_horavg   = d.createVariable("tot_tau_yw_CNN_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zu_CNN_horavg   = d.createVariable("tot_tau_zu_CNN_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zv_CNN_horavg   = d.createVariable("tot_tau_zv_CNN_horavg","f8",  ("tstep_unique","zhloc_unique"))
-    var_tot_tau_zw_CNN_horavg   = d.createVariable("tot_tau_zw_CNN_horavg","f8",  ("tstep_unique","zloc_unique"))
+    var_unres_tau_xu_CNN_horavg = d.createVariable("unres_tau_xu_CNN_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xv_CNN_horavg = d.createVariable("unres_tau_xv_CNN_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_xw_CNN_horavg = d.createVariable("unres_tau_xw_CNN_horavg","f8",("tstep_unique","zhcless"))
+    var_unres_tau_yu_CNN_horavg = d.createVariable("unres_tau_yu_CNN_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yv_CNN_horavg = d.createVariable("unres_tau_yv_CNN_horavg","f8",("tstep_unique","zc"))
+    var_unres_tau_yw_CNN_horavg = d.createVariable("unres_tau_yw_CNN_horavg","f8",("tstep_unique","zhcless"))
+    var_unres_tau_zu_CNN_horavg = d.createVariable("unres_tau_zu_CNN_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zv_CNN_horavg = d.createVariable("unres_tau_zv_CNN_horavg","f8",("tstep_unique","zhc"))
+    var_unres_tau_zw_CNN_horavg = d.createVariable("unres_tau_zw_CNN_horavg","f8",("tstep_unique","zgcextra"))
+    var_tot_tau_xu_CNN_horavg   = d.createVariable("tot_tau_xu_CNN_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xv_CNN_horavg   = d.createVariable("tot_tau_xv_CNN_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_xw_CNN_horavg   = d.createVariable("tot_tau_xw_CNN_horavg","f8",  ("tstep_unique","zhcless"))
+    var_tot_tau_yu_CNN_horavg   = d.createVariable("tot_tau_yu_CNN_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yv_CNN_horavg   = d.createVariable("tot_tau_yv_CNN_horavg","f8",  ("tstep_unique","zc"))
+    var_tot_tau_yw_CNN_horavg   = d.createVariable("tot_tau_yw_CNN_horavg","f8",  ("tstep_unique","zhcless"))
+    var_tot_tau_zu_CNN_horavg   = d.createVariable("tot_tau_zu_CNN_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zv_CNN_horavg   = d.createVariable("tot_tau_zv_CNN_horavg","f8",  ("tstep_unique","zhc"))
+    var_tot_tau_zw_CNN_horavg   = d.createVariable("tot_tau_zw_CNN_horavg","f8",  ("tstep_unique","zgcextra"))
  
     #Create variables for storage fractions sub-grid fluxes
-    var_frac_unres_tau_xu = d.createVariable("frac_unres_tau_xu","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_frac_unres_tau_xv = d.createVariable("frac_unres_tau_xv","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_frac_unres_tau_xw = d.createVariable("frac_unres_tau_xw","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_frac_unres_tau_yu = d.createVariable("frac_unres_tau_yu","f8",("tstep_unique","zloc_unique","yhloc_unique","xhloc_unique"))
-    var_frac_unres_tau_yv = d.createVariable("frac_unres_tau_yv","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_frac_unres_tau_yw = d.createVariable("frac_unres_tau_yw","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_frac_unres_tau_zu = d.createVariable("frac_unres_tau_zu","f8",("tstep_unique","zhloc_unique","yloc_unique","xhloc_unique"))
-    var_frac_unres_tau_zv = d.createVariable("frac_unres_tau_zv","f8",("tstep_unique","zhloc_unique","yhloc_unique","xloc_unique"))
-    var_frac_unres_tau_zw = d.createVariable("frac_unres_tau_zw","f8",("tstep_unique","zloc_unique","yloc_unique","xloc_unique"))
-    var_frac_unres_tau_xu_horavg = d.createVariable("frac_unres_tau_xu_horavg","f8",("tstep_unique","zloc_unique"))
-    var_frac_unres_tau_xv_horavg = d.createVariable("frac_unres_tau_xv_horavg","f8",("tstep_unique","zloc_unique"))
-    var_frac_unres_tau_xw_horavg = d.createVariable("frac_unres_tau_xw_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_frac_unres_tau_yu_horavg = d.createVariable("frac_unres_tau_yu_horavg","f8",("tstep_unique","zloc_unique"))
-    var_frac_unres_tau_yv_horavg = d.createVariable("frac_unres_tau_yv_horavg","f8",("tstep_unique","zloc_unique"))
-    var_frac_unres_tau_yw_horavg = d.createVariable("frac_unres_tau_yw_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_frac_unres_tau_zu_horavg = d.createVariable("frac_unres_tau_zu_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_frac_unres_tau_zv_horavg = d.createVariable("frac_unres_tau_zv_horavg","f8",("tstep_unique","zhloc_unique"))
-    var_frac_unres_tau_zw_horavg = d.createVariable("frac_unres_tau_zw_horavg","f8",("tstep_unique","zloc_unique"))
+    var_frac_unres_tau_xu = d.createVariable("frac_unres_tau_xu","f8",("tstep_unique","zc","yc","xgcextra"))
+    var_frac_unres_tau_xv = d.createVariable("frac_unres_tau_xv","f8",("tstep_unique","zc","yhc","xhc"))
+    var_frac_unres_tau_xw = d.createVariable("frac_unres_tau_xw","f8",("tstep_unique","zhc","yc","xhc"))
+    var_frac_unres_tau_yu = d.createVariable("frac_unres_tau_yu","f8",("tstep_unique","zc","yhc","xhc"))
+    var_frac_unres_tau_yv = d.createVariable("frac_unres_tau_yv","f8",("tstep_unique","zc","ygcextra","xc"))
+    var_frac_unres_tau_yw = d.createVariable("frac_unres_tau_yw","f8",("tstep_unique","zhc","yhc","xc"))
+    var_frac_unres_tau_zu = d.createVariable("frac_unres_tau_zu","f8",("tstep_unique","zhc","yc","xhc"))
+    var_frac_unres_tau_zv = d.createVariable("frac_unres_tau_zv","f8",("tstep_unique","zhc","yhc","xc"))
+    var_frac_unres_tau_zw = d.createVariable("frac_unres_tau_zw","f8",("tstep_unique","zgcextra","yc","xc"))
+    var_frac_unres_tau_xu_horavg = d.createVariable("frac_unres_tau_xu_horavg","f8",("tstep_unique","zc"))
+    var_frac_unres_tau_xv_horavg = d.createVariable("frac_unres_tau_xv_horavg","f8",("tstep_unique","zc"))
+    var_frac_unres_tau_xw_horavg = d.createVariable("frac_unres_tau_xw_horavg","f8",("tstep_unique","zhc"))
+    var_frac_unres_tau_yu_horavg = d.createVariable("frac_unres_tau_yu_horavg","f8",("tstep_unique","zc"))
+    var_frac_unres_tau_yv_horavg = d.createVariable("frac_unres_tau_yv_horavg","f8",("tstep_unique","zc"))
+    var_frac_unres_tau_yw_horavg = d.createVariable("frac_unres_tau_yw_horavg","f8",("tstep_unique","zhc"))
+    var_frac_unres_tau_zu_horavg = d.createVariable("frac_unres_tau_zu_horavg","f8",("tstep_unique","zhc"))
+    var_frac_unres_tau_zv_horavg = d.createVariable("frac_unres_tau_zv_horavg","f8",("tstep_unique","zhc"))
+    var_frac_unres_tau_zw_horavg = d.createVariable("frac_unres_tau_zw_horavg","f8",("tstep_unique","zgcextra"))
 
     #Calculate fraction unresolved compared to resolved fluxes, both point-by-point and horizontally averaged
-    #NOTE: Some extreme outliers in the fractions occur when the total momentum transport reaches 0. To preven this from happening, the fractions are confined to the range -10 to 10.
+    #NOTE1: Some extreme outliers in the fractions occur when the total momentum transport reaches 0. To preven this from happening, the fractions are confined to the range -10 to 10.
+    #NOTE2: The Smagorinsky fluxes and CNN fluxes do not have some additional ghost cells as opposed to the other variables. Therefore, these are removed below when required.
     var_unres_tau_xu_horavg[:,:]          = np.mean(unres_tau_xu,                 axis=(2,3), keepdims=False)
     var_res_tau_xu_horavg[:,:]            = np.mean(res_tau_xu,                   axis=(2,3), keepdims=False)
     var_tot_tau_xu_horavg[:,:]            = np.mean(tot_tau_xu,                   axis=(2,3), keepdims=False)
     var_unres_tau_xu_smag_horavg[:,:]     = np.mean(smag_tau_xu,                  axis=(2,3), keepdims=False)
     var_unres_tau_xu_CNN_horavg[:,:]      = np.mean(preds_values_xu,              axis=(2,3), keepdims=False)
-    var_tot_tau_xu_smag_horavg[:,:]       = np.mean(smag_tau_xu + res_tau_xu,     axis=(2,3), keepdims=False)
+    var_tot_tau_xu_smag_horavg[:,:]       = np.mean(smag_tau_xu + res_tau_xu[:,:,:,1:],     axis=(2,3), keepdims=False)
     var_tot_tau_xu_CNN_horavg[:,:]        = np.mean(preds_values_xu + res_tau_xu, axis=(2,3), keepdims=False)
     var_frac_unres_tau_xu[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_xu[:,:,:,:])        / np.array(var_res_tau_xu[:,:,:,:]))       ,-10)
     var_frac_unres_tau_xu_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_xu_horavg[:,:]) / np.array(var_res_tau_xu_horavg[:,:])),-10)
@@ -652,7 +754,7 @@ if args.reconstruct_fields:
     var_unres_tau_xv_smag_horavg[:,:]     = np.mean(smag_tau_xv,                  axis=(2,3), keepdims=False)
     var_unres_tau_xv_CNN_horavg[:,:]      = np.mean(preds_values_xv,              axis=(2,3), keepdims=False)
     var_tot_tau_xv_smag_horavg[:,:]       = np.mean(smag_tau_xv + res_tau_xv,     axis=(2,3), keepdims=False)
-    var_tot_tau_xv_CNN_horavg[:,:]        = np.mean(preds_values_xv + res_tau_xv, axis=(2,3), keepdims=False)
+    var_tot_tau_xv_CNN_horavg[:,:]        = np.mean(preds_values_xv + res_tau_xv[:,:,:-1,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_xv[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_xv[:,:,:,:])        / np.array(var_res_tau_xv[:,:,:,:]))       ,-10)
     var_frac_unres_tau_xv_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_xv_horavg[:,:]) / np.array(var_res_tau_xv_horavg[:,:])),-10)
     #
@@ -662,7 +764,7 @@ if args.reconstruct_fields:
     var_unres_tau_xw_smag_horavg[:,:]     = np.mean(smag_tau_xw,                  axis=(2,3), keepdims=False)
     var_unres_tau_xw_CNN_horavg[:,:]      = np.mean(preds_values_xw,              axis=(2,3), keepdims=False)
     var_tot_tau_xw_smag_horavg[:,:]       = np.mean(smag_tau_xw + res_tau_xw,     axis=(2,3), keepdims=False)
-    var_tot_tau_xw_CNN_horavg[:,:]        = np.mean(preds_values_xw + res_tau_xw, axis=(2,3), keepdims=False)
+    var_tot_tau_xw_CNN_horavg[:,:]        = np.mean(preds_values_xw + res_tau_xw[:,:-1,:,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_xw[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_xw[:,:,:,:])        / np.array(var_res_tau_xw[:,:,:,:]))       ,-10)
     var_frac_unres_tau_xw_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_xw_horavg[:,:]) / np.array(var_res_tau_xw_horavg[:,:])),-10)
     #
@@ -672,7 +774,7 @@ if args.reconstruct_fields:
     var_unres_tau_yu_smag_horavg[:,:]     = np.mean(smag_tau_yu,                  axis=(2,3), keepdims=False)
     var_unres_tau_yu_CNN_horavg[:,:]      = np.mean(preds_values_yu,              axis=(2,3), keepdims=False)
     var_tot_tau_yu_smag_horavg[:,:]       = np.mean(smag_tau_yu + res_tau_yu,     axis=(2,3), keepdims=False)
-    var_tot_tau_yu_CNN_horavg[:,:]        = np.mean(preds_values_yu + res_tau_yu, axis=(2,3), keepdims=False)
+    var_tot_tau_yu_CNN_horavg[:,:]        = np.mean(preds_values_yu + res_tau_yu[:,:,:,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_yu[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_yu[:,:,:,:])        / np.array(var_res_tau_yu[:,:,:,:]))       ,-10)
     var_frac_unres_tau_yu_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_yu_horavg[:,:]) / np.array(var_res_tau_yu_horavg[:,:])),-10)
     #
@@ -681,7 +783,7 @@ if args.reconstruct_fields:
     var_tot_tau_yv_horavg[:,:]            = np.mean(tot_tau_yv,                   axis=(2,3), keepdims=False)
     var_unres_tau_yv_smag_horavg[:,:]     = np.mean(smag_tau_yv,                  axis=(2,3), keepdims=False)
     var_unres_tau_yv_CNN_horavg[:,:]      = np.mean(preds_values_yv,              axis=(2,3), keepdims=False)
-    var_tot_tau_yv_smag_horavg[:,:]       = np.mean(smag_tau_yv + res_tau_yv,     axis=(2,3), keepdims=False)
+    var_tot_tau_yv_smag_horavg[:,:]       = np.mean(smag_tau_yv + res_tau_yv[:,:,1:,:],     axis=(2,3), keepdims=False)
     var_tot_tau_yv_CNN_horavg[:,:]        = np.mean(preds_values_yv + res_tau_yv, axis=(2,3), keepdims=False)
     var_frac_unres_tau_yv[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_yv[:,:,:,:])        / np.array(var_res_tau_yv[:,:,:,:]))       ,-10)
     var_frac_unres_tau_yv_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_yv_horavg[:,:]) / np.array(var_res_tau_yv_horavg[:,:])),-10)
@@ -692,7 +794,7 @@ if args.reconstruct_fields:
     var_unres_tau_yw_smag_horavg[:,:]     = np.mean(smag_tau_yw,                  axis=(2,3), keepdims=False)
     var_unres_tau_yw_CNN_horavg[:,:]      = np.mean(preds_values_yw,              axis=(2,3), keepdims=False)
     var_tot_tau_yw_smag_horavg[:,:]       = np.mean(smag_tau_yw + res_tau_yw,     axis=(2,3), keepdims=False)
-    var_tot_tau_yw_CNN_horavg[:,:]        = np.mean(preds_values_yw + res_tau_yw, axis=(2,3), keepdims=False)
+    var_tot_tau_yw_CNN_horavg[:,:]        = np.mean(preds_values_yw + res_tau_yw[:,:-1,:,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_yw[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_yw[:,:,:,:])        / np.array(var_res_tau_yw[:,:,:,:]))       ,-10)
     var_frac_unres_tau_yw_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_yw_horavg[:,:]) / np.array(var_res_tau_yw_horavg[:,:])),-10)
     #
@@ -702,7 +804,7 @@ if args.reconstruct_fields:
     var_unres_tau_zu_smag_horavg[:,:]     = np.mean(smag_tau_zu,                  axis=(2,3), keepdims=False)
     var_unres_tau_zu_CNN_horavg[:,:]      = np.mean(preds_values_zu,              axis=(2,3), keepdims=False)
     var_tot_tau_zu_smag_horavg[:,:]       = np.mean(smag_tau_zu + res_tau_zu,     axis=(2,3), keepdims=False)
-    var_tot_tau_zu_CNN_horavg[:,:]        = np.mean(preds_values_zu + res_tau_zu, axis=(2,3), keepdims=False)
+    var_tot_tau_zu_CNN_horavg[:,:]        = np.mean(preds_values_zu + res_tau_zu[:,:,:,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_zu[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_zu[:,:,:,:])        / np.array(var_res_tau_zu[:,:,:,:]))       ,-10)
     var_frac_unres_tau_zu_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_zu_horavg[:,:]) / np.array(var_res_tau_zu_horavg[:,:])),-10)
     #
@@ -712,7 +814,7 @@ if args.reconstruct_fields:
     var_unres_tau_zv_smag_horavg[:,:]     = np.mean(smag_tau_zv,                  axis=(2,3), keepdims=False)
     var_unres_tau_zv_CNN_horavg[:,:]      = np.mean(preds_values_zv,              axis=(2,3), keepdims=False)
     var_tot_tau_zv_smag_horavg[:,:]       = np.mean(smag_tau_zv + res_tau_zv,     axis=(2,3), keepdims=False)
-    var_tot_tau_zv_CNN_horavg[:,:]        = np.mean(preds_values_zv + res_tau_zv, axis=(2,3), keepdims=False)
+    var_tot_tau_zv_CNN_horavg[:,:]        = np.mean(preds_values_zv + res_tau_zv[:,:,:-1,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_zv[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_zv[:,:,:,:])        / np.array(var_res_tau_zv[:,:,:,:]))       ,-10)
     var_frac_unres_tau_zv_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_zv_horavg[:,:]) / np.array(var_res_tau_zv_horavg[:,:])),-10)
     #
@@ -721,7 +823,7 @@ if args.reconstruct_fields:
     var_tot_tau_zw_horavg[:,:]            = np.mean(tot_tau_zw,                   axis=(2,3), keepdims=False)
     var_unres_tau_zw_smag_horavg[:,:]     = np.mean(smag_tau_zw,                  axis=(2,3), keepdims=False)
     var_unres_tau_zw_CNN_horavg[:,:]      = np.mean(preds_values_zw,              axis=(2,3), keepdims=False)
-    var_tot_tau_zw_smag_horavg[:,:]       = np.mean(smag_tau_zw + res_tau_zw,     axis=(2,3), keepdims=False)
+    var_tot_tau_zw_smag_horavg[:,:]       = np.mean(smag_tau_zw + res_tau_zw[:,1:,:,:],     axis=(2,3), keepdims=False)
     var_tot_tau_zw_CNN_horavg[:,:]        = np.mean(preds_values_zw + res_tau_zw, axis=(2,3), keepdims=False)
     var_frac_unres_tau_zw[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_zw[:,:,:,:])        / np.array(var_res_tau_zw[:,:,:,:]))       ,-10)
     var_frac_unres_tau_zw_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_zw_horavg[:,:]) / np.array(var_res_tau_zw_horavg[:,:])),-10)
@@ -730,87 +832,88 @@ if args.reconstruct_fields:
     d.close()
 
 ###Loop over heights for all components considering the time steps specified below, and make scatterplots of labels vs fluxes (CNN and Smagorinsky) at each height for all specified time steps combined###
-print('Start making plots')
-#Fetch unresolved fluxes from netCDF-file
-fields = nc.Dataset("reconstructed_fields.nc", "r")
-
-#Extract CNN fluxes
-unres_tau_xu_CNN = np.array(fields['unres_tau_xu_CNN'][:,:,:,:])
-unres_tau_xv_CNN = np.array(fields['unres_tau_xv_CNN'][:,:,:,:])
-unres_tau_xw_CNN = np.array(fields['unres_tau_xw_CNN'][:,:,:,:])
-unres_tau_yu_CNN = np.array(fields['unres_tau_yu_CNN'][:,:,:,:])
-unres_tau_yv_CNN = np.array(fields['unres_tau_yv_CNN'][:,:,:,:])
-unres_tau_yw_CNN = np.array(fields['unres_tau_yw_CNN'][:,:,:,:])
-unres_tau_zu_CNN = np.array(fields['unres_tau_zu_CNN'][:,:,:,:])
-unres_tau_zv_CNN = np.array(fields['unres_tau_zv_CNN'][:,:,:,:])
-unres_tau_zw_CNN = np.array(fields['unres_tau_zw_CNN'][:,:,:,:])
-#
-unres_tau_xu_CNN_horavg = np.array(fields['unres_tau_xu_CNN_horavg'][:,:])
-unres_tau_xv_CNN_horavg = np.array(fields['unres_tau_xv_CNN_horavg'][:,:])
-unres_tau_xw_CNN_horavg = np.array(fields['unres_tau_xw_CNN_horavg'][:,:])
-unres_tau_yu_CNN_horavg = np.array(fields['unres_tau_yu_CNN_horavg'][:,:])
-unres_tau_yv_CNN_horavg = np.array(fields['unres_tau_yv_CNN_horavg'][:,:])
-unres_tau_yw_CNN_horavg = np.array(fields['unres_tau_yw_CNN_horavg'][:,:])
-unres_tau_zu_CNN_horavg = np.array(fields['unres_tau_zu_CNN_horavg'][:,:])
-unres_tau_zv_CNN_horavg = np.array(fields['unres_tau_zv_CNN_horavg'][:,:])
-unres_tau_zw_CNN_horavg = np.array(fields['unres_tau_zw_CNN_horavg'][:,:])
-
-#Extract Smagorinsky fluxes
-unres_tau_xu_smag = np.array(fields['unres_tau_xu_smag'][:,:,:,:])
-unres_tau_xv_smag = np.array(fields['unres_tau_xv_smag'][:,:,:,:])
-unres_tau_xw_smag = np.array(fields['unres_tau_xw_smag'][:,:,:,:])
-unres_tau_yu_smag = np.array(fields['unres_tau_yu_smag'][:,:,:,:])
-unres_tau_yv_smag = np.array(fields['unres_tau_yv_smag'][:,:,:,:])
-unres_tau_yw_smag = np.array(fields['unres_tau_yw_smag'][:,:,:,:])
-unres_tau_zu_smag = np.array(fields['unres_tau_zu_smag'][:,:,:,:])
-unres_tau_zv_smag = np.array(fields['unres_tau_zv_smag'][:,:,:,:])
-unres_tau_zw_smag = np.array(fields['unres_tau_zw_smag'][:,:,:,:])
-#
-unres_tau_xu_smag_horavg = np.array(fields['unres_tau_xu_smag_horavg'][:,:])
-unres_tau_xv_smag_horavg = np.array(fields['unres_tau_xv_smag_horavg'][:,:])
-unres_tau_xw_smag_horavg = np.array(fields['unres_tau_xw_smag_horavg'][:,:])
-unres_tau_yu_smag_horavg = np.array(fields['unres_tau_yu_smag_horavg'][:,:])
-unres_tau_yv_smag_horavg = np.array(fields['unres_tau_yv_smag_horavg'][:,:])
-unres_tau_yw_smag_horavg = np.array(fields['unres_tau_yw_smag_horavg'][:,:])
-unres_tau_zu_smag_horavg = np.array(fields['unres_tau_zu_smag_horavg'][:,:])
-unres_tau_zv_smag_horavg = np.array(fields['unres_tau_zv_smag_horavg'][:,:])
-unres_tau_zw_smag_horavg = np.array(fields['unres_tau_zw_smag_horavg'][:,:])
-
-#Extract training fluxes
-unres_tau_xu_traceless = np.array(fields['unres_tau_xu_traceless'][:,:,:,:])
-unres_tau_yv_traceless = np.array(fields['unres_tau_yv_traceless'][:,:,:,:])
-unres_tau_zw_traceless = np.array(fields['unres_tau_zw_traceless'][:,:,:,:])
-#
-unres_tau_xu = np.array(fields['unres_tau_xu'][:,:,:,:])
-unres_tau_xv = np.array(fields['unres_tau_xv'][:,:,:,:])
-unres_tau_xw = np.array(fields['unres_tau_xw'][:,:,:,:])
-unres_tau_yu = np.array(fields['unres_tau_yu'][:,:,:,:])
-unres_tau_yv = np.array(fields['unres_tau_yv'][:,:,:,:])
-unres_tau_yw = np.array(fields['unres_tau_yw'][:,:,:,:])
-unres_tau_zu = np.array(fields['unres_tau_zu'][:,:,:,:])
-unres_tau_zv = np.array(fields['unres_tau_zv'][:,:,:,:])
-unres_tau_zw = np.array(fields['unres_tau_zw'][:,:,:,:])
-#
-unres_tau_xu_horavg = np.array(fields['unres_tau_xu_horavg'][:,:])
-unres_tau_xv_horavg = np.array(fields['unres_tau_xv_horavg'][:,:])
-unres_tau_xw_horavg = np.array(fields['unres_tau_xw_horavg'][:,:])
-unres_tau_yu_horavg = np.array(fields['unres_tau_yu_horavg'][:,:])
-unres_tau_yv_horavg = np.array(fields['unres_tau_yv_horavg'][:,:])
-unres_tau_yw_horavg = np.array(fields['unres_tau_yw_horavg'][:,:])
-unres_tau_zu_horavg = np.array(fields['unres_tau_zu_horavg'][:,:])
-unres_tau_zv_horavg = np.array(fields['unres_tau_zv_horavg'][:,:])
-unres_tau_zw_horavg = np.array(fields['unres_tau_zw_horavg'][:,:])
-
-#Extract coordinates
-xc = np.array(fields['xloc_unique'][:])
-xhc = np.array(fields['xhloc_unique'][:])
-yc = np.array(fields['yloc_unique'][:])
-yhc = np.array(fields['yhloc_unique'][:])
-zc = np.array(fields['zloc_unique'][:]) #NOTE: Already defined earlier in a different way, but both ways should be identical.
-zhc = np.array(fields['zhloc_unique'][:])
-
-#Close netCDF-file
-fields.close()
+if args.make_plots:
+    print('Start making plots')
+    #Fetch unresolved fluxes from netCDF-file
+    fields = nc.Dataset("reconstructed_fields.nc", "r")
+    
+    #Extract CNN fluxes
+    unres_tau_xu_CNN = np.array(fields['unres_tau_xu_CNN'][:,:,:,:])
+    unres_tau_xv_CNN = np.array(fields['unres_tau_xv_CNN'][:,:,:,:])
+    unres_tau_xw_CNN = np.array(fields['unres_tau_xw_CNN'][:,:,:,:])
+    unres_tau_yu_CNN = np.array(fields['unres_tau_yu_CNN'][:,:,:,:])
+    unres_tau_yv_CNN = np.array(fields['unres_tau_yv_CNN'][:,:,:,:])
+    unres_tau_yw_CNN = np.array(fields['unres_tau_yw_CNN'][:,:,:,:])
+    unres_tau_zu_CNN = np.array(fields['unres_tau_zu_CNN'][:,:,:,:])
+    unres_tau_zv_CNN = np.array(fields['unres_tau_zv_CNN'][:,:,:,:])
+    unres_tau_zw_CNN = np.array(fields['unres_tau_zw_CNN'][:,:,:,:])
+    #
+    unres_tau_xu_CNN_horavg = np.array(fields['unres_tau_xu_CNN_horavg'][:,:])
+    unres_tau_xv_CNN_horavg = np.array(fields['unres_tau_xv_CNN_horavg'][:,:])
+    unres_tau_xw_CNN_horavg = np.array(fields['unres_tau_xw_CNN_horavg'][:,:])
+    unres_tau_yu_CNN_horavg = np.array(fields['unres_tau_yu_CNN_horavg'][:,:])
+    unres_tau_yv_CNN_horavg = np.array(fields['unres_tau_yv_CNN_horavg'][:,:])
+    unres_tau_yw_CNN_horavg = np.array(fields['unres_tau_yw_CNN_horavg'][:,:])
+    unres_tau_zu_CNN_horavg = np.array(fields['unres_tau_zu_CNN_horavg'][:,:])
+    unres_tau_zv_CNN_horavg = np.array(fields['unres_tau_zv_CNN_horavg'][:,:])
+    unres_tau_zw_CNN_horavg = np.array(fields['unres_tau_zw_CNN_horavg'][:,:])
+    
+    #Extract Smagorinsky fluxes
+    unres_tau_xu_smag = np.array(fields['unres_tau_xu_smag'][:,:,:,:])
+    unres_tau_xv_smag = np.array(fields['unres_tau_xv_smag'][:,:,:,:])
+    unres_tau_xw_smag = np.array(fields['unres_tau_xw_smag'][:,:,:,:])
+    unres_tau_yu_smag = np.array(fields['unres_tau_yu_smag'][:,:,:,:])
+    unres_tau_yv_smag = np.array(fields['unres_tau_yv_smag'][:,:,:,:])
+    unres_tau_yw_smag = np.array(fields['unres_tau_yw_smag'][:,:,:,:])
+    unres_tau_zu_smag = np.array(fields['unres_tau_zu_smag'][:,:,:,:])
+    unres_tau_zv_smag = np.array(fields['unres_tau_zv_smag'][:,:,:,:])
+    unres_tau_zw_smag = np.array(fields['unres_tau_zw_smag'][:,:,:,:])
+    #
+    unres_tau_xu_smag_horavg = np.array(fields['unres_tau_xu_smag_horavg'][:,:])
+    unres_tau_xv_smag_horavg = np.array(fields['unres_tau_xv_smag_horavg'][:,:])
+    unres_tau_xw_smag_horavg = np.array(fields['unres_tau_xw_smag_horavg'][:,:])
+    unres_tau_yu_smag_horavg = np.array(fields['unres_tau_yu_smag_horavg'][:,:])
+    unres_tau_yv_smag_horavg = np.array(fields['unres_tau_yv_smag_horavg'][:,:])
+    unres_tau_yw_smag_horavg = np.array(fields['unres_tau_yw_smag_horavg'][:,:])
+    unres_tau_zu_smag_horavg = np.array(fields['unres_tau_zu_smag_horavg'][:,:])
+    unres_tau_zv_smag_horavg = np.array(fields['unres_tau_zv_smag_horavg'][:,:])
+    unres_tau_zw_smag_horavg = np.array(fields['unres_tau_zw_smag_horavg'][:,:])
+    
+    #Extract training fluxes
+    unres_tau_xu_traceless = np.array(fields['unres_tau_xu_traceless'][:,:,:,:])
+    unres_tau_yv_traceless = np.array(fields['unres_tau_yv_traceless'][:,:,:,:])
+    unres_tau_zw_traceless = np.array(fields['unres_tau_zw_traceless'][:,:,:,:])
+    #
+    unres_tau_xu = np.array(fields['unres_tau_xu'][:,:,:,:])
+    unres_tau_xv = np.array(fields['unres_tau_xv'][:,:,:,:])
+    unres_tau_xw = np.array(fields['unres_tau_xw'][:,:,:,:])
+    unres_tau_yu = np.array(fields['unres_tau_yu'][:,:,:,:])
+    unres_tau_yv = np.array(fields['unres_tau_yv'][:,:,:,:])
+    unres_tau_yw = np.array(fields['unres_tau_yw'][:,:,:,:])
+    unres_tau_zu = np.array(fields['unres_tau_zu'][:,:,:,:])
+    unres_tau_zv = np.array(fields['unres_tau_zv'][:,:,:,:])
+    unres_tau_zw = np.array(fields['unres_tau_zw'][:,:,:,:])
+    #
+    unres_tau_xu_horavg = np.array(fields['unres_tau_xu_horavg'][:,:])
+    unres_tau_xv_horavg = np.array(fields['unres_tau_xv_horavg'][:,:])
+    unres_tau_xw_horavg = np.array(fields['unres_tau_xw_horavg'][:,:])
+    unres_tau_yu_horavg = np.array(fields['unres_tau_yu_horavg'][:,:])
+    unres_tau_yv_horavg = np.array(fields['unres_tau_yv_horavg'][:,:])
+    unres_tau_yw_horavg = np.array(fields['unres_tau_yw_horavg'][:,:])
+    unres_tau_zu_horavg = np.array(fields['unres_tau_zu_horavg'][:,:])
+    unres_tau_zv_horavg = np.array(fields['unres_tau_zv_horavg'][:,:])
+    unres_tau_zw_horavg = np.array(fields['unres_tau_zw_horavg'][:,:])
+    
+    #Extract coordinates
+    xc = np.array(fields['xloc_unique'][:])
+    xhc = np.array(fields['xhloc_unique'][:])
+    yc = np.array(fields['yloc_unique'][:])
+    yhc = np.array(fields['yhloc_unique'][:])
+    zc = np.array(fields['zloc_unique'][:]) #NOTE: Already defined earlier in a different way, but both ways should be identical.
+    zhc = np.array(fields['zhloc_unique'][:])
+    
+    #Close netCDF-file
+    fields.close()
 
 #Define function for making horizontal cross-sections
 def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0, delta = 500):

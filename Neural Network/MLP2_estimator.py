@@ -466,7 +466,7 @@ def model_fn(features, labels, mode, params):
             input_u_stand  = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], input_utau_ref)
             input_v_stand  = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], input_utau_ref)
             input_w_stand  = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], input_utau_ref)
-            input_p_stand  = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], input_utau_ref) #ON PURPOSE WRONG STANDARDIZATION P BECAUSE OF AN ERROR IN TRAINING DATA GENERTION!!!!
+            input_p_stand  = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], 1.)
             
             #Visualize non-dimensionless and standardized input values in TensorBoard
             tf.summary.histogram('input_u_stand', input_u_stand)
