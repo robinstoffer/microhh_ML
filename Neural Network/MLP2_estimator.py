@@ -508,22 +508,45 @@ def model_fn(features, labels, mode, params):
         flag_bottomwall_bool = tf.expand_dims(tf.math.not_equal(flag_bottomwall, 1), axis=1) #Select all samples that are not located at the bottom wall, and extend dim to be compatible with other arrays
         #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
     
-        #Select all transport components where vertical boundary condition do not apply.
+        #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply.
+        #NOTE1: zw_upstream is not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. This component is not used during inference, and therefore is out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training.
         components_topwall_bool = tf.constant(
-            [[True,  True,  True,   #xu_upstream, yu_upstream, zu_upstream
-              True,  True,  False,  #xu_downstream, yu_downstream, zu_downstream
-              True,  True,  True,   #xv_upstream, yv_upstream, zv_upstream
-              True,  True,  False,  #xv_downstream, yv_downstream, zv_downstream
-              True,  True,  True,   #xw_upstream, yw_upstream, zw_upstream
-              False, False, True]]) #xw_downstream, yw_downstream, zw_downstream
-    
+                [[True,  True,  #xu_upstream, xu_downstream
+                  True,  True,  #yu_upstream, yu_downstream
+                  True,  False, #zu_upstream, zu_downstream
+                  True,  True,  #xv_upstream, xv_downstream
+                  True,  True,  #yv_upstream, yv_downstream
+                  True,  False, #zv_upstream, zv_downstream
+                  True,  True,  #xw_upstream, xw_downstream
+                  True,  True,  #yw_upstream, yw_downstream
+                  True,  True]])#zw_upstream, zw_downstream
+        
         components_bottomwall_bool = tf.constant(
-            [[True,  True,  False,  #xu_upstream, yu_upstream, zu_upstream
-              True,  True,  True,   #xu_downstream, yu_downstream, zu_downstream
-              True,  True,  False,  #xv_upstream, yv_upstream, zv_upstream
-              True,  True,  True,   #xv_downstream, yv_downstream, zv_downstream
-              False, False, True,   #xw_upstream, yw_upstream, zw_upstream
-              True,  True,  True]]) #xw_downstream, yw_downstream, zw_downstream
+                [[True,  True,  #xu_upstream, xu_downstream
+                  True,  True,  #yu_upstream, yu_downstream
+                  False, True,  #zu_upstream, zu_downstream
+                  True,  True,  #xv_upstream, xv_downstream
+                  True,  True,  #yv_upstream, yv_downstream
+                  False, True,  #zv_upstream, zv_downstream
+                  False, False, #xw_upstream, xw_downstream
+                  False, False, #yw_upstream, yw_downstream
+                  False, True]])#zw_upstream, zw_downstream
+        
+        #components_topwall_bool = tf.constant(
+        #    [[True,  True,  True,   #xu_upstream, yu_upstream, zu_upstream
+        #      True,  True,  False,  #xu_downstream, yu_downstream, zu_downstream
+        #      True,  True,  True,   #xv_upstream, yv_upstream, zv_upstream
+        #      True,  True,  False,  #xv_downstream, yv_downstream, zv_downstream
+        #      True,  True,  True,   #xw_upstream, yw_upstream, zw_upstream
+        #      False, False, True]]) #xw_downstream, yw_downstream, zw_downstream
+    
+        #components_bottomwall_bool = tf.constant(
+        #    [[True,  True,  False,  #xu_upstream, yu_upstream, zu_upstream
+        #      True,  True,  True,   #xu_downstream, yu_downstream, zu_downstream
+        #      True,  True,  False,  #xv_upstream, yv_upstream, zv_upstream
+        #      True,  True,  True,   #xv_downstream, yv_downstream, zv_downstream
+        #      False, False, True,   #xw_upstream, yw_upstream, zw_upstream
+        #      True,  True,  True]]) #xw_downstream, yw_downstream, zw_downstream
         #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
         mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below
         mask_bottom = tf.cast(tf.math.logical_or(flag_bottomwall_bool, components_bottomwall_bool), tf.float32, name = 'mask_bottom') #Cast boolean to float for multiplications below
@@ -537,7 +560,7 @@ def model_fn(features, labels, mode, params):
     #a8 = tf.print("labels_mask: ", labels_mask[0,:], output_stream=tf.logging.info, summarize=-1)
     
     #Call create_MLP three times to construct 3 separate MLPs
-    #NOTE: the sizes of the input are adjusted to train symmetrically. In doing so, it is assumed that the original size of the input was 5*5*5 grid cells!!!
+    #NOTE1: the sizes of the input are adjusted to train symmetrically. In doing so, it is assumed that the original size of the input was 5*5*5 grid cells!!!
     if args.gradients is None:
         
         def _adjust_sizeinput(input_variable, indices):
@@ -607,7 +630,7 @@ def model_fn(features, labels, mode, params):
     tf.summary.histogram('output_layer_mask', output_layer_mask)
 
     ##Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
-    #with tf.control_dependencies([a1,a2,a3,a4,a5]):
+    #with tf.control_dependencies([a3,a4,a5,a8]):
     #    output_layer_mask = tf.identity(output_layer_mask)
     
     #Denormalize the output fluxes for inference
@@ -1238,12 +1261,24 @@ if args.benchmark is None:
                     xhloc_samples       = []
                     xloc_samples        = []
 
-                    for pred_tau_xu_upstream, lbl_tau_xu_upstream, pred_tau_yu_upstream, lbl_tau_yu_upstream, pred_tau_zu_upstream, lbl_tau_zu_upstream, \
-                        pred_tau_xu_downstream, lbl_tau_xu_downstream, pred_tau_yu_downstream, lbl_tau_yu_downstream, pred_tau_zu_downstream, lbl_tau_zu_downstream, \
-                        pred_tau_xv_upstream, lbl_tau_xv_upstream, pred_tau_yv_upstream, lbl_tau_yv_upstream, pred_tau_zv_upstream, lbl_tau_zv_upstream, \
-                        pred_tau_xv_downstream, lbl_tau_xv_downstream, pred_tau_yv_downstream, lbl_tau_yv_downstream, pred_tau_zv_downstream, lbl_tau_zv_downstream, \
-                        pred_tau_xw_upstream, lbl_tau_xw_upstream, pred_tau_yw_upstream, lbl_tau_yw_upstream, pred_tau_zw_upstream, lbl_tau_zw_upstream, \
-                        pred_tau_xw_downstream, lbl_tau_xw_downstream, pred_tau_yw_downstream, lbl_tau_yw_downstream, pred_tau_zw_downstream, lbl_tau_zw_downstream, \
+                    for pred_tau_xu_upstream,   lbl_tau_xu_upstream, \
+                        pred_tau_xu_downstream, lbl_tau_xu_downstream, \
+                        pred_tau_yu_upstream,   lbl_tau_yu_upstream, \
+                        pred_tau_yu_downstream, lbl_tau_yu_downstream, \
+                        pred_tau_zu_upstream,   lbl_tau_zu_upstream, \
+                        pred_tau_zu_downstream, lbl_tau_zu_downstream, \
+                        pred_tau_xv_upstream,   lbl_tau_xv_upstream, \
+                        pred_tau_xv_downstream, lbl_tau_xv_downstream, \
+                        pred_tau_yv_upstream,   lbl_tau_yv_upstream, \
+                        pred_tau_yv_downstream, lbl_tau_yv_downstream, \
+                        pred_tau_zv_upstream,   lbl_tau_zv_upstream, \
+                        pred_tau_zv_downstream, lbl_tau_zv_downstream, \
+                        pred_tau_xw_upstream,   lbl_tau_xw_upstream, \
+                        pred_tau_xw_downstream, lbl_tau_xw_downstream, \
+                        pred_tau_yw_upstream,   lbl_tau_yw_upstream, \
+                        pred_tau_yw_downstream, lbl_tau_yw_downstream, \
+                        pred_tau_zw_upstream,   lbl_tau_zw_upstream, \
+                        pred_tau_zw_downstream, lbl_tau_zw_downstream, \
                         tstep, zhloc, zloc, yhloc, yloc, xhloc, xloc in zip(
                                 preds['pred_tau_xu_upstream'], preds['label_tau_xu_upstream'],
                                 preds['pred_tau_xu_downstream'], preds['label_tau_xu_downstream'],

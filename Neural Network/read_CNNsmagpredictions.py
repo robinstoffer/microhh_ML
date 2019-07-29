@@ -510,6 +510,7 @@ if args.reconstruct_fields:
     var_unres_tau_yw_CNN_upstream[:,:,:,:] = preds_values_yw_upstream[:,:,:,:]
     var_unres_tau_zu_CNN_upstream[:,:,:,:] = preds_values_zu_upstream[:,:,:,:]
     var_unres_tau_zv_CNN_upstream[:,:,:,:] = preds_values_zv_upstream[:,:,:,:]
+    var_unres_tau_zw_CNN_upstream[:,:,:,:] = preds_values_zw_upstream[:,:,:,:]
     #
     var_unres_tau_xu_CNN_downstream[:,:,:,:] = preds_values_xu_downstream[:,:,:,:]
     var_unres_tau_xv_CNN_downstream[:,:,:,:] = preds_values_xv_downstream[:,:,:,:]
