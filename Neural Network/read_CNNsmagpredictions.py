@@ -35,8 +35,8 @@ c = nc.Dataset(args.training_file,'r')
 delta_height = 1250 # in [m]
 #delta_height = 1 #NOTE: uncomment when the height of the channel flow should be used.
 utau_ref_channel = np.array(c['utau_ref'][:]) #NOTE: used friction velocity in [m/s] for the channel flow, needed for rescaling below.
-#utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
-utau_ref = utau_ref_channel #FOR TESTING PURPOSES ONLY!
+utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
+#utau_ref = utau_ref_channel #FOR TESTING PURPOSES ONLY!
 #Specify time steps NOTE: SHOULD BE 27 TO 30 for validation, and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
 tstart = 27
 tend   = 30
@@ -881,9 +881,9 @@ if args.make_plots:
     unres_tau_zw_smag_horavg = np.array(fields['unres_tau_zw_smag_horavg'][:,:])
     
     #Extract training fluxes
-    unres_tau_xu_traceless = np.array(fields['unres_tau_xu_traceless'][:,:,:,:])
-    unres_tau_yv_traceless = np.array(fields['unres_tau_yv_traceless'][:,:,:,:])
-    unres_tau_zw_traceless = np.array(fields['unres_tau_zw_traceless'][:,:,:,:])
+    #unres_tau_xu_traceless = np.array(fields['unres_tau_xu_traceless'][:,:,:,:])
+    #unres_tau_yv_traceless = np.array(fields['unres_tau_yv_traceless'][:,:,:,:])
+    #unres_tau_zw_traceless = np.array(fields['unres_tau_zw_traceless'][:,:,:,:])
     #
     unres_tau_xu = np.array(fields['unres_tau_xu'][:,:,:,:])
     unres_tau_xv = np.array(fields['unres_tau_xv'][:,:,:,:])
@@ -906,12 +906,18 @@ if args.make_plots:
     unres_tau_zw_horavg = np.array(fields['unres_tau_zw_horavg'][:,:])
     
     #Extract coordinates
-    xc = np.array(fields['xloc_unique'][:])
-    xhc = np.array(fields['xhloc_unique'][:])
-    yc = np.array(fields['yloc_unique'][:])
-    yhc = np.array(fields['yhloc_unique'][:])
-    zc = np.array(fields['zloc_unique'][:]) #NOTE: Already defined earlier in a different way, but both ways should be identical.
-    zhc = np.array(fields['zhloc_unique'][:])
+    xc       = np.array(fields['xc'][:])
+    xhc      = np.array(fields['xhc'][:])
+    xhcless  = np.array(fields['xhcless'][:])
+    xgcextra = np.array(fields['xgcextra'][:])
+    yc       = np.array(fields['yc'][:])
+    yhc      = np.array(fields['yhc'][:])
+    yhcless  = np.array(fields['yhcless'][:])
+    ygcextra = np.array(fields['ygcextra'][:])
+    zc       = np.array(fields['zc'][:])
+    zhc      = np.array(fields['zhc'][:])
+    zhcless  = np.array(fields['zhcless'][:])
+    zgcextra = np.array(fields['zgcextra'][:])
     
     #Close netCDF-file
     fields.close()
@@ -942,6 +948,44 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0, del
         else:
             plt.savefig("Horcross_label_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
         plt.close()
+
+#Define function for making pdfs
+def make_pdfs_heights(values, labels, z, component, time_step = 0, delta = 500):
+    #NOTE1: third last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
+    #NOTE3: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 500m). 
+    for k in range(len(z)+1):
+        if k == len(z):
+            values_height = values[time_step,:,:,:].flatten()
+            labels_height = labels[time_step,:,:,:].flatten()
+            #range_bins = (0.6,0.6)
+        else:
+            values_height = values[time_step,k,:,:].flatten()
+            labels_height = labels[time_step,k,:,:].flatten()
+            #range_bins = (-2.0,2.0)
+
+        #Determine bins
+        num_bins = 100
+        min_val = min(values_height.min(), labels_height.min())
+        max_val = max(values_height.max(), labels_height.max())
+        bin_edges = np.linspace(min_val, max_val, num_bins)
+
+        #Make pdfs of the values and labels
+        plt.figure()
+        plt.hist(values_height, bins = bin_edges, density = True, histtype = 'step', label = 'MLP')
+        plt.hist(labels_height, bins = bin_edges, density = True, histtype = 'step', label = 'labels')
+        plt.ylabel(r'$\rm Normalized\ density\ [-]$',fontsize=20)
+        plt.xlabel(r'$\rm Transport\ {[m^{2}\ s^{-2}]}$',fontsize=20)
+        plt.xticks(fontsize=16, rotation=90)
+        plt.yticks(fontsize=16, rotation=0)
+        plt.legend(loc='upper right')
+        plt.tight_layout()
+        if k == len(z):
+            plt.savefig("PDF_tau_" + component + ".png", dpi = 200)
+        else:
+            plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+        plt.close()
+
 
 #Define function for making scatterplots
 def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag):
@@ -980,9 +1024,9 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         #plt.gca().set_aspect('equal',adjustable='box')
         plt.xlabel(r'$\rm labels\ {[m^{2}\ s^{-2}}]$',fontsize = 20)
         if is_smag:
-            plt.ylabel(r'$\rm Smagorinsky\ {[m^{2}\ s^{-2}}]$',fontsize = 20)
+            plt.ylabel(r'$\rm Smagorinsky\ {[m^{2}\ s^{-2}]}$',fontsize = 20)
         else:
-            plt.ylabel(r'$\rm NN\ {[m^{2}\ s^{-2}}]$',fontsize = 20)
+            plt.ylabel(r'$\rm NN\ {[m^{2}\ s^{-2}]}$',fontsize = 20)
         plt.title("Corrcoef = " + str(corrcoef),fontsize = 20)
         plt.axhline(c='black')
         plt.axvline(c='black')
@@ -1002,41 +1046,55 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
-    make_horcross_heights(unres_tau_xu, zc, yc, xc, 'xu',   True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_yu, zc, yhc, xhc, 'yu', True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_zu, zhc, yc, xhc, 'zu', True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_xv, zc, yhc, xhc, 'xv', True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_yv, zc, yc, xc, 'yv',   True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_zv, zhc, yhc, xc, 'zv', True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_xw, zhc, yc, xhc, 'xw', True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_yw, zhc, yhc, xc, 'yw', True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_zw, zhc, yc, xc, 'zw',  True, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_xu_CNN, zc, yc, xc, 'xu',   False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_yu_CNN, zc, yhc, xhc, 'yu', False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_zu_CNN, zhc, yc, xhc, 'zu', False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_xv_CNN, zc, yhc, xhc, 'xv', False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_yv_CNN, zc, yc, xc, 'yv',   False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_zv_CNN, zhc, yhc, xc, 'zv', False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_xw_CNN, zhc, yc, xhc, 'xw', False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_yw_CNN, zhc, yhc, xc, 'yw', False, time_step = 0, delta = delta_height)
-    make_horcross_heights(unres_tau_zw_CNN, zhc, yc, xc, 'zw',  False, time_step = 0, delta = delta_height)
-    #
-    make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu_traceless, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
-    make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True)
-    make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True)
-    make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', True)
-    make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv_traceless, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', True)
-    make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', True)
-    make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhc, 'xw', True)
-    make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhc, 'yw', True)
-    make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw_traceless, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', True)
-    #
-    make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False)
-    make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False)
-    make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False)
-    make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False)
-    make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False)
-    make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False)
-    make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhc, 'xw', False)
-    make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhc, 'yw', False)
-    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False)
+    
+    #Make PDFs of labels and MLP predictions
+    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zgcextra, 'zw', time_step = 0, delta = delta_height)
+    
+    ##Make horizontal cross-sections
+    #make_horcross_heights(unres_tau_xu, zc, yc, xgcextra,     'xu', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_yu, zc, yhc, xhc,         'yu', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_zu, zhc, yc, xhc,         'zu', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_xv, zc, yhc, xhc,         'xv', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_yv, zc, ygcextra, xc,     'yv', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_zv, zhc, yhc, xc,         'zv', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_xw, zhc, yc, xhc,         'xw', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_yw, zhc, yhc, xc,         'yw', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_zw, zgcextra, yc, xc,     'zw', True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_xu_CNN, zc, yc, xgcextra, 'xu', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_yu_CNN, zc, yhc, xhcless, 'yu', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_zu_CNN, zhc, yc, xhcless, 'zu', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_xv_CNN, zc, yhcless, xhc, 'xv', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_yv_CNN, zc, ygcextra, xc, 'yv', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_zv_CNN, zhc, yhcless, xc, 'zv', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_xw_CNN, zhcless, yc, xhc, 'xw', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_yw_CNN, zhcless, yhc, xc, 'yw', False, time_step = 0, delta = delta_height)
+    #make_horcross_heights(unres_tau_zw_CNN, zgcextra, yc, xc, 'zw', False, time_step = 0, delta = delta_height)
+    ##Make scatterplots
+    ##NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
+    #make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu[:,:,:,1:], unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
+    #make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True)
+    #make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True)
+    #make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', True)
+    #make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv[:,:,1:,:], unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', True)
+    #make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', True)
+    #make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhc, 'xw', True)
+    #make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhc, 'yw', True)
+    #make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw[:,1:,:,:], unres_tau_zw_smag_horavg, unres_tau_zw_horavg[:,1:], zc,  'zw', True)
+    ##
+    #make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False)
+    #make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu[:,:,:,:-1], unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False)
+    #make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu[:,:,:,:-1], unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False)
+    #make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv[:,:,:-1,:], unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False)
+    #make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False)
+    #make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv[:,:,:-1,:], unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False)
+    #make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw[:,:-1,:,:], unres_tau_xw_CNN_horavg, unres_tau_xw_horavg[:,:-1], zhcless, 'xw', False)
+    #make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw[:,:-1,:,:], unres_tau_yw_CNN_horavg, unres_tau_yw_horavg[:,:-1], zhcless, 'yw', False)
+    #make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zgcextra,  'zw', False)
