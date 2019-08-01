@@ -75,7 +75,7 @@ def _parse_function(example_proto,means,stdevs):
                 'uc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'vc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'wc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
-                'pc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                #'pc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'unres_tau_xu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
@@ -113,7 +113,7 @@ def _parse_function(example_proto,means,stdevs):
                 'uc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'vc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'wc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
-                'pc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
+                #'pc_sample':tf.FixedLenFeature([5*5*5],tf.float32),
                 'unres_tau_xu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
@@ -156,9 +156,9 @@ def _parse_function(example_proto,means,stdevs):
                 'wgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'wgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'wgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
-                'pgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
-                'pgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
-                'pgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                #'pgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                #'pgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                #'pgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'unres_tau_xu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
@@ -201,9 +201,9 @@ def _parse_function(example_proto,means,stdevs):
                 'wgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'wgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'wgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
-                'pgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
-                'pgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
-                'pgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                #'pgradx_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                #'pgrady_sample':tf.FixedLenFeature([3*3*3],tf.float32),
+                #'pgradz_sample':tf.FixedLenFeature([3*3*3],tf.float32),
                 'unres_tau_xu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_yu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
                 'unres_tau_zu_sample_upstream' :tf.FixedLenFeature([],tf.float32),
@@ -268,7 +268,7 @@ def _parse_function(example_proto,means,stdevs):
 def train_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
-    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
+    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated. 
     dataset = dataset.shuffle(buffer_size=10000)
     dataset = dataset.repeat()
@@ -340,14 +340,14 @@ def model_fn(features, labels, mode, params):
         means_inputs = tf.constant([[
             means_dict_avgt['uc'],
             means_dict_avgt['vc'],
-            means_dict_avgt['wc'],
-            means_dict_avgt['pc']]])
+            means_dict_avgt['wc']]])
+            #means_dict_avgt['pc']]])
         
         stdevs_inputs = tf.constant([[
             stdevs_dict_avgt['uc'],
             stdevs_dict_avgt['vc'],
-            stdevs_dict_avgt['wc'],
-            stdevs_dict_avgt['pc']]])
+            stdevs_dict_avgt['wc']]])
+            #stdevs_dict_avgt['pc']]])
     
     else:
 
@@ -360,10 +360,10 @@ def model_fn(features, labels, mode, params):
             means_dict_avgt['vgradz'],
             means_dict_avgt['wgradx'],
             means_dict_avgt['wgrady'],
-            means_dict_avgt['wgradz'],
-            means_dict_avgt['pgradx'],
-            means_dict_avgt['pgrady'],
-            means_dict_avgt['pgradz']]])
+            means_dict_avgt['wgradz']]])
+            #means_dict_avgt['pgradx'],
+            #means_dict_avgt['pgrady'],
+            #means_dict_avgt['pgradz']]])
         
         stdevs_inputs = tf.constant([[
             stdevs_dict_avgt['ugradx'],
@@ -374,10 +374,10 @@ def model_fn(features, labels, mode, params):
             stdevs_dict_avgt['vgradz'],
             stdevs_dict_avgt['wgradx'],
             stdevs_dict_avgt['wgrady'],
-            stdevs_dict_avgt['wgradz'],
-            stdevs_dict_avgt['pgradx'],
-            stdevs_dict_avgt['pgrady'],
-            stdevs_dict_avgt['pgradz']]])
+            stdevs_dict_avgt['wgradz']]])
+            #stdevs_dict_avgt['pgradx'],
+            #stdevs_dict_avgt['pgrady'],
+            #stdevs_dict_avgt['pgradz']]])
         
     means_labels = tf.constant([[ 
         means_dict_avgt['unres_tau_xu_sample'],
@@ -427,7 +427,7 @@ def model_fn(features, labels, mode, params):
         input_u      = tf.identity(features['uc_sample'], name = 'input_u')
         input_v      = tf.identity(features['vc_sample'], name = 'input_v')
         input_w      = tf.identity(features['wc_sample'], name = 'input_w')
-        input_p      = tf.identity(features['pc_sample'], name = 'input_p')
+        #input_p      = tf.identity(features['pc_sample'], name = 'input_p')
         input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         
     else:   
@@ -440,9 +440,9 @@ def model_fn(features, labels, mode, params):
         input_wgradx = tf.identity(features['wgradx_sample'], name = 'input_wgradx')
         input_wgrady = tf.identity(features['wgrady_sample'], name = 'input_wgrady')
         input_wgradz = tf.identity(features['wgradz_sample'], name = 'input_wgradz')
-        input_pgradx = tf.identity(features['pgradx_sample'], name = 'input_pgradx')
-        input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
-        input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
+        #input_pgradx = tf.identity(features['pgradx_sample'], name = 'input_pgradx')
+        #input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
+        #input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
         input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
 
     #Define function to make input variables non-dimensionless and standardize them
@@ -466,13 +466,13 @@ def model_fn(features, labels, mode, params):
             input_u_stand  = _standardization(input_u, means_inputs[:,0], stdevs_inputs[:,0], input_utau_ref)
             input_v_stand  = _standardization(input_v, means_inputs[:,1], stdevs_inputs[:,1], input_utau_ref)
             input_w_stand  = _standardization(input_w, means_inputs[:,2], stdevs_inputs[:,2], input_utau_ref)
-            input_p_stand  = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], 1.)
+            #input_p_stand  = _standardization(input_p, means_inputs[:,3], stdevs_inputs[:,3], 1.)
             
             #Visualize non-dimensionless and standardized input values in TensorBoard
             tf.summary.histogram('input_u_stand', input_u_stand)
             tf.summary.histogram('input_v_stand', input_v_stand)
             tf.summary.histogram('input_w_stand', input_w_stand)
-            tf.summary.histogram('input_p_stand', input_p_stand)
+            #tf.summary.histogram('input_p_stand', input_p_stand)
 
     else:
 
@@ -486,9 +486,9 @@ def model_fn(features, labels, mode, params):
             input_wgradx_stand = _standardization(input_wgradx, means_inputs[:,6],  stdevs_inputs[:,6],   input_utau_ref)
             input_wgrady_stand = _standardization(input_wgrady, means_inputs[:,7],  stdevs_inputs[:,7],   input_utau_ref)
             input_wgradz_stand = _standardization(input_wgradz, means_inputs[:,8],  stdevs_inputs[:,8],   input_utau_ref)
-            input_pgradx_stand = _standardization(input_pgradx, means_inputs[:,9],  stdevs_inputs[:,9],   1.)
-            input_pgrady_stand = _standardization(input_pgrady, means_inputs[:,10], stdevs_inputs[:,10],  1.)
-            input_pgradz_stand = _standardization(input_pgradz, means_inputs[:,11], stdevs_inputs[:,11],  1.)
+            #input_pgradx_stand = _standardization(input_pgradx, means_inputs[:,9],  stdevs_inputs[:,9],   1.)
+            #input_pgrady_stand = _standardization(input_pgrady, means_inputs[:,10], stdevs_inputs[:,10],  1.)
+            #input_pgradz_stand = _standardization(input_pgradz, means_inputs[:,11], stdevs_inputs[:,11],  1.)
     
     
     #Standardize labels
@@ -508,7 +508,7 @@ def model_fn(features, labels, mode, params):
         flag_bottomwall_bool = tf.expand_dims(tf.math.not_equal(flag_bottomwall, 1), axis=1) #Select all samples that are not located at the bottom wall, and extend dim to be compatible with other arrays
         #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
     
-        #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply.
+        #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply and that are not discarded in inference mode.
         #NOTE1: zw_upstream is not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. This component is not used during inference, and therefore is out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training.
         components_topwall_bool = tf.constant(
                 [[True,  True,  #xu_upstream, xu_downstream
@@ -532,21 +532,6 @@ def model_fn(features, labels, mode, params):
                   False, False, #yw_upstream, yw_downstream
                   False, True]])#zw_upstream, zw_downstream
         
-        #components_topwall_bool = tf.constant(
-        #    [[True,  True,  True,   #xu_upstream, yu_upstream, zu_upstream
-        #      True,  True,  False,  #xu_downstream, yu_downstream, zu_downstream
-        #      True,  True,  True,   #xv_upstream, yv_upstream, zv_upstream
-        #      True,  True,  False,  #xv_downstream, yv_downstream, zv_downstream
-        #      True,  True,  True,   #xw_upstream, yw_upstream, zw_upstream
-        #      False, False, True]]) #xw_downstream, yw_downstream, zw_downstream
-    
-        #components_bottomwall_bool = tf.constant(
-        #    [[True,  True,  False,  #xu_upstream, yu_upstream, zu_upstream
-        #      True,  True,  True,   #xu_downstream, yu_downstream, zu_downstream
-        #      True,  True,  False,  #xv_upstream, yv_upstream, zv_upstream
-        #      True,  True,  True,   #xv_downstream, yv_downstream, zv_downstream
-        #      False, False, True,   #xw_upstream, yw_upstream, zw_upstream
-        #      True,  True,  True]]) #xw_downstream, yw_downstream, zw_downstream
         #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
         mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below
         mask_bottom = tf.cast(tf.math.logical_or(flag_bottomwall_bool, components_bottomwall_bool), tf.float32, name = 'mask_bottom') #Cast boolean to float for multiplications below
@@ -577,22 +562,22 @@ def model_fn(features, labels, mode, params):
            [
                input_u_stand, 
                _adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
-               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1]), 
-               _adjust_sizeinput(input_p_stand, np.s_[:,:,:,:-1])],
+               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1])],
+               #_adjust_sizeinput(input_p_stand, np.s_[:,:,:,:-1])],
            'u', params)
         output_layer_v = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:,:-1,1:]), 
                input_v_stand, 
-               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:]), 
-               _adjust_sizeinput(input_p_stand, np.s_[:,:,:-1,:])],
+               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:])],
+               #_adjust_sizeinput(input_p_stand, np.s_[:,:,:-1,:])],
            'v', params)
         output_layer_w = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:-1,:,1:]), 
                _adjust_sizeinput(input_v_stand, np.s_[:,:-1,1:,:]), 
-               input_w_stand, 
-               _adjust_sizeinput(input_p_stand, np.s_[:,:-1,:,:])],
+               input_w_stand],
+               #_adjust_sizeinput(input_p_stand, np.s_[:,:-1,:,:])],
           'w', params)
 
     else:
@@ -601,22 +586,22 @@ def model_fn(features, labels, mode, params):
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,
-               input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],
+               #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],
           'u', params)
         output_layer_v = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,     
-               input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],    
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],    
+               #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],    
           'v', params)
         output_layer_w = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,     
-               input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],     
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],    
+               #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],     
           'w', params)
 
     #Concatenate output layers for validation and inference (NOT training)
@@ -790,12 +775,12 @@ if args.gradients is None:
     means_dict_t['uc'] = np.array(means_stdevs_file['mean_uc'][:])
     means_dict_t['vc'] = np.array(means_stdevs_file['mean_vc'][:])
     means_dict_t['wc'] = np.array(means_stdevs_file['mean_wc'][:])
-    means_dict_t['pc'] = np.array(means_stdevs_file['mean_pc'][:])
+    #means_dict_t['pc'] = np.array(means_stdevs_file['mean_pc'][:])
     
     stdevs_dict_t['uc'] = np.array(means_stdevs_file['stdev_uc'][:])
     stdevs_dict_t['vc'] = np.array(means_stdevs_file['stdev_vc'][:])
     stdevs_dict_t['wc'] = np.array(means_stdevs_file['stdev_wc'][:])
-    stdevs_dict_t['pc'] = np.array(means_stdevs_file['stdev_pc'][:])
+    #stdevs_dict_t['pc'] = np.array(means_stdevs_file['stdev_pc'][:])
 
 else:
     means_dict_t['ugradx'] = np.array(means_stdevs_file['mean_ugradx'][:])
@@ -810,9 +795,9 @@ else:
     means_dict_t['wgrady'] = np.array(means_stdevs_file['mean_wgrady'][:])
     means_dict_t['wgradz'] = np.array(means_stdevs_file['mean_wgradz'][:])
 
-    means_dict_t['pgradx'] = np.array(means_stdevs_file['mean_pgradx'][:])
-    means_dict_t['pgrady'] = np.array(means_stdevs_file['mean_pgrady'][:])
-    means_dict_t['pgradz'] = np.array(means_stdevs_file['mean_pgradz'][:])
+    #means_dict_t['pgradx'] = np.array(means_stdevs_file['mean_pgradx'][:])
+    #means_dict_t['pgrady'] = np.array(means_stdevs_file['mean_pgrady'][:])
+    #means_dict_t['pgradz'] = np.array(means_stdevs_file['mean_pgradz'][:])
 
     stdevs_dict_t['ugradx'] = np.array(means_stdevs_file['stdev_ugradx'][:])
     stdevs_dict_t['ugrady'] = np.array(means_stdevs_file['stdev_ugrady'][:])
@@ -826,9 +811,9 @@ else:
     stdevs_dict_t['wgrady'] = np.array(means_stdevs_file['stdev_wgrady'][:])
     stdevs_dict_t['wgradz'] = np.array(means_stdevs_file['stdev_wgradz'][:])
 
-    stdevs_dict_t['pgradx'] = np.array(means_stdevs_file['stdev_pgradx'][:])
-    stdevs_dict_t['pgrady'] = np.array(means_stdevs_file['stdev_pgrady'][:])
-    stdevs_dict_t['pgradz'] = np.array(means_stdevs_file['stdev_pgradz'][:])
+    #stdevs_dict_t['pgradx'] = np.array(means_stdevs_file['stdev_pgradx'][:])
+    #stdevs_dict_t['pgrady'] = np.array(means_stdevs_file['stdev_pgrady'][:])
+    #stdevs_dict_t['pgradz'] = np.array(means_stdevs_file['stdev_pgradz'][:])
 
 #Extract mean & standard deviation labels
 means_dict_t['unres_tau_xu_sample']    = np.array(means_stdevs_file['mean_unres_tau_xu_sample'][:])
@@ -857,12 +842,12 @@ if args.gradients is None:
     means_dict_avgt['uc'] = np.mean(means_dict_t['uc'][train_stepnumbers])
     means_dict_avgt['vc'] = np.mean(means_dict_t['vc'][train_stepnumbers])
     means_dict_avgt['wc'] = np.mean(means_dict_t['wc'][train_stepnumbers])
-    means_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
+    #means_dict_avgt['pc'] = np.mean(means_dict_t['pc'][train_stepnumbers])
     
     stdevs_dict_avgt['uc'] = np.mean(stdevs_dict_t['uc'][train_stepnumbers])
     stdevs_dict_avgt['vc'] = np.mean(stdevs_dict_t['vc'][train_stepnumbers])
     stdevs_dict_avgt['wc'] = np.mean(stdevs_dict_t['wc'][train_stepnumbers])
-    stdevs_dict_avgt['pc'] = np.mean(stdevs_dict_t['pc'][train_stepnumbers])
+    #stdevs_dict_avgt['pc'] = np.mean(stdevs_dict_t['pc'][train_stepnumbers])
 
 else:
     means_dict_avgt['ugradx'] = np.mean(means_dict_t['ugradx'][train_stepnumbers])
@@ -877,9 +862,9 @@ else:
     means_dict_avgt['wgrady'] = np.mean(means_dict_t['wgrady'][train_stepnumbers])
     means_dict_avgt['wgradz'] = np.mean(means_dict_t['wgradz'][train_stepnumbers])
 
-    means_dict_avgt['pgradx'] = np.mean(means_dict_t['pgradx'][train_stepnumbers])
-    means_dict_avgt['pgrady'] = np.mean(means_dict_t['pgrady'][train_stepnumbers])
-    means_dict_avgt['pgradz'] = np.mean(means_dict_t['pgradz'][train_stepnumbers])
+    #means_dict_avgt['pgradx'] = np.mean(means_dict_t['pgradx'][train_stepnumbers])
+    #means_dict_avgt['pgrady'] = np.mean(means_dict_t['pgrady'][train_stepnumbers])
+    #means_dict_avgt['pgradz'] = np.mean(means_dict_t['pgradz'][train_stepnumbers])
 
     stdevs_dict_avgt['ugradx'] = np.mean(stdevs_dict_t['ugradx'][train_stepnumbers])
     stdevs_dict_avgt['ugrady'] = np.mean(stdevs_dict_t['ugrady'][train_stepnumbers])
@@ -893,9 +878,9 @@ else:
     stdevs_dict_avgt['wgrady'] = np.mean(stdevs_dict_t['wgrady'][train_stepnumbers])
     stdevs_dict_avgt['wgradz'] = np.mean(stdevs_dict_t['wgradz'][train_stepnumbers])
 
-    stdevs_dict_avgt['pgradx'] = np.mean(stdevs_dict_t['pgradx'][train_stepnumbers])
-    stdevs_dict_avgt['pgrady'] = np.mean(stdevs_dict_t['pgrady'][train_stepnumbers])
-    stdevs_dict_avgt['pgradz'] = np.mean(stdevs_dict_t['pgradz'][train_stepnumbers])
+    #stdevs_dict_avgt['pgradx'] = np.mean(stdevs_dict_t['pgradx'][train_stepnumbers])
+    #stdevs_dict_avgt['pgrady'] = np.mean(stdevs_dict_t['pgrady'][train_stepnumbers])
+    #stdevs_dict_avgt['pgradz'] = np.mean(stdevs_dict_t['pgradz'][train_stepnumbers])
 
 #Extract temporally averaged (over the time steps used for training) mean & standard deviation labels
 means_dict_avgt['unres_tau_xu_sample']    = np.mean(means_dict_t['unres_tau_xu_sample'][train_stepnumbers])
@@ -940,7 +925,7 @@ else:
     kernelsize_conv1 = 3
 
 hyperparams =  {
-'n_dense1':80, #Equivalent to using 80 filters in CNN used before
+'n_dense1':107, #(almost) Equivalent in terms of total parameters to 80 neurons in MLP used before that included pressure
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
 'learning_rate':0.0001
