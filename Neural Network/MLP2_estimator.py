@@ -500,49 +500,51 @@ def model_fn(features, labels, mode, params):
         labels_stand = tf.math.divide(labels_means, stdevs_labels, name = 'labels_stand')
         #a5 = tf.print("labels_stand: ", labels_stand[0,:], output_stream=tf.logging.info, summarize=-1)
     
-    #Create mask to implement vertical boundary conditions (currently only no-slip BC implemented). At the top and bottom wall, several components are by definition 0 in turbulent channel flow. Consequently, the corresponding output values are explicitly set to 0 by masking them. 
-    flag_topwall = tf.identity(features['flag_topwall_sample'], name = 'flag_topwall') 
-    flag_bottomwall = tf.identity(features['flag_bottomwall_sample'], name = 'flag_bottomwall')
-    with tf.name_scope("mask_creation"):
-        flag_topwall_bool = tf.expand_dims(tf.math.not_equal(flag_topwall, 1), axis=1) #Select all samples that are not located at the top wall, and extend dim to be compatible with other arrays
-        flag_bottomwall_bool = tf.expand_dims(tf.math.not_equal(flag_bottomwall, 1), axis=1) #Select all samples that are not located at the bottom wall, and extend dim to be compatible with other arrays
-        #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
-    
-        #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply and that are not discarded in inference mode.
-        #NOTE1: zw_upstream is not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. This component is not used during inference, and therefore is out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training.
-        components_topwall_bool = tf.constant(
-                [[True,  True,  #xu_upstream, xu_downstream
-                  True,  True,  #yu_upstream, yu_downstream
-                  True,  False, #zu_upstream, zu_downstream
-                  True,  True,  #xv_upstream, xv_downstream
-                  True,  True,  #yv_upstream, yv_downstream
-                  True,  False, #zv_upstream, zv_downstream
-                  True,  True,  #xw_upstream, xw_downstream
-                  True,  True,  #yw_upstream, yw_downstream
-                  True,  True]])#zw_upstream, zw_downstream
+    #Create mask to disgard boundary conditions during training (currently tested with no-slip BC in vertical direction and periodic BCs in horizontal directions). At the top and bottom wall, several components are by definition 0 in turbulent channel flow. Consequently, the corresponding output values are explicitly set to 0 by masking them.
+    #NOTE1:make sure this part of the graph is not executed in inference/predict mode, where the boundary conditions are discarded outside the network anyway as they are already predefined in the model.
+    if not mode == tf.estimator.ModeKeys.PREDICT:
+        flag_topwall = tf.identity(features['flag_topwall_sample'], name = 'flag_topwall') 
+        flag_bottomwall = tf.identity(features['flag_bottomwall_sample'], name = 'flag_bottomwall')
+        with tf.name_scope("mask_creation"):
+            flag_topwall_bool = tf.expand_dims(tf.math.not_equal(flag_topwall, 1), axis=1) #Select all samples that are not located at the top wall, and extend dim to be compatible with other arrays
+            flag_bottomwall_bool = tf.expand_dims(tf.math.not_equal(flag_bottomwall, 1), axis=1) #Select all samples that are not located at the bottom wall, and extend dim to be compatible with other arrays
+            #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
         
-        components_bottomwall_bool = tf.constant(
-                [[True,  True,  #xu_upstream, xu_downstream
-                  True,  True,  #yu_upstream, yu_downstream
-                  False, True,  #zu_upstream, zu_downstream
-                  True,  True,  #xv_upstream, xv_downstream
-                  True,  True,  #yv_upstream, yv_downstream
-                  False, True,  #zv_upstream, zv_downstream
-                  False, False, #xw_upstream, xw_downstream
-                  False, False, #yw_upstream, yw_downstream
-                  False, True]])#zw_upstream, zw_downstream
-        
-        #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
-        mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below
-        mask_bottom = tf.cast(tf.math.logical_or(flag_bottomwall_bool, components_bottomwall_bool), tf.float32, name = 'mask_bottom') #Cast boolean to float for multiplications below
-        #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
-        mask = tf.multiply(mask_top, mask_bottom, name = 'mask_noslipBC')
-    #output_layer_mask = tf.math.multiply(output_layer_tot, mask, name = 'output_masked')
-    #a3 = tf.print("flag_bottomwall: ", flag_bottomwall, output_stream=tf.logging.info, summarize=-1)
-    #a4 = tf.print("flag_topwall: ", flag_topwall, output_stream=tf.logging.info, summarize=-1)
-    #a5 = tf.print("mask: ", mask[0,:], output_stream=tf.logging.info, summarize=-1)
-    labels_mask = tf.math.multiply(labels_stand, mask, name = 'labels_masked') #NOTE: the concerning labels should be put to 0 because of the applied normalisation.
-    #a8 = tf.print("labels_mask: ", labels_mask[0,:], output_stream=tf.logging.info, summarize=-1)
+            #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply and that are not discarded in inference mode.
+            #NOTE1: zw_upstream is not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. This component is not used during inference, and therefore is out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training.
+            components_topwall_bool = tf.constant(
+                    [[True,  True,  #xu_upstream, xu_downstream
+                      True,  True,  #yu_upstream, yu_downstream
+                      True,  False, #zu_upstream, zu_downstream
+                      True,  True,  #xv_upstream, xv_downstream
+                      True,  True,  #yv_upstream, yv_downstream
+                      True,  False, #zv_upstream, zv_downstream
+                      True,  True,  #xw_upstream, xw_downstream
+                      True,  True,  #yw_upstream, yw_downstream
+                      True,  True]])#zw_upstream, zw_downstream
+            
+            components_bottomwall_bool = tf.constant(
+                    [[True,  True,  #xu_upstream, xu_downstream
+                      True,  True,  #yu_upstream, yu_downstream
+                      False, True,  #zu_upstream, zu_downstream
+                      True,  True,  #xv_upstream, xv_downstream
+                      True,  True,  #yv_upstream, yv_downstream
+                      False, True,  #zv_upstream, zv_downstream
+                      False, False, #xw_upstream, xw_downstream
+                      False, False, #yw_upstream, yw_downstream
+                      False, True]])#zw_upstream, zw_downstream
+            
+            #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
+            mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below
+            mask_bottom = tf.cast(tf.math.logical_or(flag_bottomwall_bool, components_bottomwall_bool), tf.float32, name = 'mask_bottom') #Cast boolean to float for multiplications below
+            #a3 = tf.print("mask: ", mask, output_stream=tf.logging.info, summarize=-1)
+            mask = tf.multiply(mask_top, mask_bottom, name = 'mask_noslipBC')
+        #output_layer_mask = tf.math.multiply(output_layer_tot, mask, name = 'output_masked')
+        #a3 = tf.print("flag_bottomwall: ", flag_bottomwall, output_stream=tf.logging.info, summarize=-1)
+        #a4 = tf.print("flag_topwall: ", flag_topwall, output_stream=tf.logging.info, summarize=-1)
+        #a5 = tf.print("mask: ", mask[0,:], output_stream=tf.logging.info, summarize=-1)
+        labels_mask = tf.math.multiply(labels_stand, mask, name = 'labels_masked') #NOTE: the concerning labels should be put to 0 because of the applied normalisation.
+        #a8 = tf.print("labels_mask: ", labels_mask[0,:], output_stream=tf.logging.info, summarize=-1)
     
     #Call create_MLP three times to construct 3 separate MLPs
     #NOTE1: the sizes of the input are adjusted to train symmetrically. In doing so, it is assumed that the original size of the input was 5*5*5 grid cells!!!
@@ -604,30 +606,30 @@ def model_fn(features, labels, mode, params):
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],     
           'w', params)
 
-    #Concatenate output layers for validation and inference (NOT training)
+    #Concatenate output layers
     output_layer_tot = tf.concat([output_layer_u, output_layer_v, output_layer_w], axis=1, name = 'output_layer_tot')
 
-    #Mask output layer
-    output_layer_mask = tf.multiply(output_layer_tot, mask, name = 'output_layer_masked')
+    #Mask output layer, used during training/evaluation but NOT during inference/prediction
+    if not mode == tf.estimator.ModeKeys.PREDICT:
+        output_layer_mask = tf.multiply(output_layer_tot, mask, name = 'output_layer_masked')
+        #Visualize in Tensorboard
+        tf.summary.histogram('output_layer_mask', output_layer_mask)
     
-    ###Visualize outputs in TensorBoard
+    #Visualize outputs in TensorBoard
     tf.summary.histogram('output_layer_tot', output_layer_tot)
-    tf.summary.histogram('output_layer_mask', output_layer_mask)
 
     ##Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
     #with tf.control_dependencies([a3,a4,a5,a8]):
     #    output_layer_mask = tf.identity(output_layer_mask)
     
-    #Denormalize the output fluxes for inference
-    #NOTE1: As a last step, because of the denormalisation the mask defined above should again be applied to the output.
-    #NOTE2: These calculations are only needed for inference, but in order to show up in the computation graph (and thus allowing to include it in the frozen graph) this should nonetheless be part of the main model_fn function).
-    #NOTE3: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
-    #if mode == tf.estimator.ModeKeys.PREDICT:
-    with tf.name_scope("denormalisation_output"): #Group nodes in name scope for easier visualisation in TensorBoard
-        output_stdevs      = tf.math.multiply(output_layer_mask, stdevs_labels)
-        output_means       = tf.math.add(output_stdevs, means_labels)
-        output_meansstdevs = tf.math.multiply(output_means, (utau_ref ** 2))
-    output_denorm = tf.math.multiply(output_meansstdevs, mask, name = 'output_layer_denorm')
+    #Denormalize the output fluxes for inference/prediction
+    #NOTE1: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
+    if mode == tf.estimator.ModeKeys.PREDICT:
+        with tf.name_scope("denormalisation_output"): #Group nodes in name scope for easier visualisation in TensorBoard
+            output_stdevs      = tf.math.multiply(output_layer_tot, stdevs_labels) #On purpose the output layer without masks applied is selected, see comment before.
+            output_means       = tf.math.add(output_stdevs, means_labels)
+        output_denorm      = tf.math.multiply(output_means, (utau_ref ** 2), name = 'output_layer_denorm')
+        #output_denorm_masked = tf.math.multiply(output_denorm, mask, name = 'output_layer_denorm_masked') NOT needed in inference/predict mode to apply masks, see comment before.
     
     #Denormalize the labels for inference
     #NOTE1: in contrast to the code above, no mask needs to be applied as the concerning labels should already evaluate to 0 after denormalisation.
@@ -723,8 +725,6 @@ def model_fn(features, labels, mode, params):
 
     #Return tf.estimator.Estimatorspec for training mode
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
-
-
 
 #Define settings
 batch_size = int(args.batch_size)
@@ -952,177 +952,186 @@ tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 
 
 ######
-#'Hacky' solution to compare the predictions of the MLP to the true labels stored in the TFRecords files. 
+#'Hacky' solution to: 
+# 1) Compare the predictions of the MLP to the true labels stored in the TFRecords files (NOT in benchmark mode).
+# 2) Set-up and store the inference/prediction graph.
 #NOTE1: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
 #NOTE2: the resulting predictions and labels are automatically stored in a netCDF-file called MLP_predictions.nc, which is placed in the specified checkpoint_dir.
 #NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file and other scripts. Fast inference is currently being implemented by generating a frozen graph from the trained MLP.
-if args.benchmark is None:
+print('Inference mode started.')
 
-    print('Start making predictions for validation files.')
-   
-    #Loop over val files to prevent memory overflow issues
+create_file = True #Flag to make sure netCDF file is initialized
+
+#Initialize variables for keeping track of iterations
+tot_sample_end = 0
+tot_sample_begin = tot_sample_end
+
+#Intialize flag to store inference graph only once
+store_graph = True
+
+#Loop over val files to prevent memory overflow issues
+for val_filename in val_filenames:
+
+    tf.reset_default_graph() #Reset the graph for each tfrecord (i.e. each flow 'snapshot')
+
+    #Generate iterator to extract features and labels from tfrecords
+    iterator = eval_input_fn([val_filename], batch_size, means_dict_avgt, stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
+
+    #Define operation to extract features and labels from iterator
+    fes, lbls = iterator.get_next()
+
+    #Define operation to generate predictions for extracted features and labels
+    preds_op = model_fn(fes, lbls, \
+                    tf.estimator.ModeKeys.PREDICT, hyperparams).predictions
+
+    #Create saver MLP_model such that it can be restored in the tf.Session() below
+    saver = tf.train.Saver()
     
-    create_file = True #Flag to make sure netCDF file is initialized
- 
-    #Initialize variables for keeping track of iterations
-    tot_sample_end = 0
-    tot_sample_begin = tot_sample_end
+    with tf.Session(config=config) as sess:
 
-    for val_filename in val_filenames:
+        #Restore MLP_model within tf.Session()
+        #tf.reset_default_graph() #Make graph empty before restoring
+        ckpt  = tf.train.get_checkpoint_state(args.checkpoint_dir)
+        saver.restore(sess, ckpt.model_checkpoint_path)
 
-        tf.reset_default_graph() #Reset the graph for each tfrecord (i.e. each flow 'snapshot')
- 
-        #Generate iterator to extract features and labels from tfrecords
-        iterator = eval_input_fn([val_filename], batch_size, means_dict_avgt, stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
- 
-        #Define operation to extract features and labels from iterator
-        fes, lbls = iterator.get_next()
-
-        #Define operation to generate predictions for extracted features and labels
-        preds_op = model_fn(fes, lbls, \
-                        tf.estimator.ModeKeys.PREDICT, hyperparams).predictions
-
-        #Save CNN_model such that it can be restored in the tf.Session() below
-        saver = tf.train.Saver()
-
-        #Create/open netCDF-file to store predictions and labels
-        if create_file:
-            filepath = args.checkpoint_dir + '/MLP_predictions.nc'
-            predictions_file = nc.Dataset(filepath, 'w')
-            dim_ns = predictions_file.createDimension("ns",None)
-
-            #Create variables for storage
-            var_pred_tau_xu_upstream        = predictions_file.createVariable("preds_values_tau_xu_upstream","f8",("ns",))
-            var_pred_random_tau_xu_upstream = predictions_file.createVariable("preds_values_random_tau_xu_upstream","f8",("ns",))
-            var_lbl_tau_xu_upstream         = predictions_file.createVariable("lbls_values_tau_xu_upstream","f8",("ns",))
-            var_res_tau_xu_upstream         = predictions_file.createVariable("residuals_tau_xu_upstream","f8",("ns",))
-            var_res_random_tau_xu_upstream  = predictions_file.createVariable("residuals_random_tau_xu_upstream","f8",("ns",))
-            #
-            var_pred_tau_xu_downstream        = predictions_file.createVariable("preds_values_tau_xu_downstream","f8",("ns",))
-            var_pred_random_tau_xu_downstream = predictions_file.createVariable("preds_values_random_tau_xu_downstream","f8",("ns",))
-            var_lbl_tau_xu_downstream         = predictions_file.createVariable("lbls_values_tau_xu_downstream","f8",("ns",))
-            var_res_tau_xu_downstream         = predictions_file.createVariable("residuals_tau_xu_downstream","f8",("ns",))
-            var_res_random_tau_xu_downstream  = predictions_file.createVariable("residuals_random_tau_xu_downstream","f8",("ns",))
-            #
-            var_pred_tau_yu_upstream        = predictions_file.createVariable("preds_values_tau_yu_upstream","f8",("ns",))
-            var_pred_random_tau_yu_upstream = predictions_file.createVariable("preds_values_random_tau_yu_upstream","f8",("ns",))
-            var_lbl_tau_yu_upstream         = predictions_file.createVariable("lbls_values_tau_yu_upstream","f8",("ns",))
-            var_res_tau_yu_upstream         = predictions_file.createVariable("residuals_tau_yu_upstream","f8",("ns",))
-            var_res_random_tau_yu_upstream  = predictions_file.createVariable("residuals_random_tau_yu_upstream","f8",("ns",))
-            #
-            var_pred_tau_yu_downstream        = predictions_file.createVariable("preds_values_tau_yu_downstream","f8",("ns",))
-            var_pred_random_tau_yu_downstream = predictions_file.createVariable("preds_values_random_tau_yu_downstream","f8",("ns",))
-            var_lbl_tau_yu_downstream         = predictions_file.createVariable("lbls_values_tau_yu_downstream","f8",("ns",))
-            var_res_tau_yu_downstream         = predictions_file.createVariable("residuals_tau_yu_downstream","f8",("ns",))
-            var_res_random_tau_yu_downstream  = predictions_file.createVariable("residuals_random_tau_yu_downstream","f8",("ns",))
-            #
-            var_pred_tau_zu_upstream        = predictions_file.createVariable("preds_values_tau_zu_upstream","f8",("ns",))
-            var_pred_random_tau_zu_upstream = predictions_file.createVariable("preds_values_random_tau_zu_upstream","f8",("ns",))
-            var_lbl_tau_zu_upstream         = predictions_file.createVariable("lbls_values_tau_zu_upstream","f8",("ns",))
-            var_res_tau_zu_upstream         = predictions_file.createVariable("residuals_tau_zu_upstream","f8",("ns",))
-            var_res_random_tau_zu_upstream  = predictions_file.createVariable("residuals_random_tau_zu_upstream","f8",("ns",))
-            #
-            var_pred_tau_zu_downstream        = predictions_file.createVariable("preds_values_tau_zu_downstream","f8",("ns",))
-            var_pred_random_tau_zu_downstream = predictions_file.createVariable("preds_values_random_tau_zu_downstream","f8",("ns",))
-            var_lbl_tau_zu_downstream         = predictions_file.createVariable("lbls_values_tau_zu_downstream","f8",("ns",))
-            var_res_tau_zu_downstream         = predictions_file.createVariable("residuals_tau_zu_downstream","f8",("ns",))
-            var_res_random_tau_zu_downstream  = predictions_file.createVariable("residuals_random_tau_zu_downstream","f8",("ns",))
-            #
-            var_pred_tau_xv_upstream        = predictions_file.createVariable("preds_values_tau_xv_upstream","f8",("ns",))
-            var_pred_random_tau_xv_upstream = predictions_file.createVariable("preds_values_random_tau_xv_upstream","f8",("ns",))
-            var_lbl_tau_xv_upstream         = predictions_file.createVariable("lbls_values_tau_xv_upstream","f8",("ns",))
-            var_res_tau_xv_upstream         = predictions_file.createVariable("residuals_tau_xv_upstream","f8",("ns",))
-            var_res_random_tau_xv_upstream  = predictions_file.createVariable("residuals_random_tau_xv_upstream","f8",("ns",))
-            #
-            var_pred_tau_xv_downstream        = predictions_file.createVariable("preds_values_tau_xv_downstream","f8",("ns",))
-            var_pred_random_tau_xv_downstream = predictions_file.createVariable("preds_values_random_tau_xv_downstream","f8",("ns",))
-            var_lbl_tau_xv_downstream         = predictions_file.createVariable("lbls_values_tau_xv_downstream","f8",("ns",))
-            var_res_tau_xv_downstream         = predictions_file.createVariable("residuals_tau_xv_downstream","f8",("ns",))
-            var_res_random_tau_xv_downstream  = predictions_file.createVariable("residuals_random_tau_xv_downstream","f8",("ns",))
-            #
-            var_pred_tau_yv_upstream        = predictions_file.createVariable("preds_values_tau_yv_upstream","f8",("ns",))
-            var_pred_random_tau_yv_upstream = predictions_file.createVariable("preds_values_random_tau_yv_upstream","f8",("ns",))
-            var_lbl_tau_yv_upstream         = predictions_file.createVariable("lbls_values_tau_yv_upstream","f8",("ns",))
-            var_res_tau_yv_upstream         = predictions_file.createVariable("residuals_tau_yv_upstream","f8",("ns",))
-            var_res_random_tau_yv_upstream  = predictions_file.createVariable("residuals_random_tau_yv_upstream","f8",("ns",))
-            #
-            var_pred_tau_yv_downstream        = predictions_file.createVariable("preds_values_tau_yv_downstream","f8",("ns",))
-            var_pred_random_tau_yv_downstream = predictions_file.createVariable("preds_values_random_tau_yv_downstream","f8",("ns",))
-            var_lbl_tau_yv_downstream         = predictions_file.createVariable("lbls_values_tau_yv_downstream","f8",("ns",))
-            var_res_tau_yv_downstream         = predictions_file.createVariable("residuals_tau_yv_downstream","f8",("ns",))
-            var_res_random_tau_yv_downstream  = predictions_file.createVariable("residuals_random_tau_yv_downstream","f8",("ns",))
-            #
-            var_pred_tau_zv_upstream        = predictions_file.createVariable("preds_values_tau_zv_upstream","f8",("ns",))
-            var_pred_random_tau_zv_upstream = predictions_file.createVariable("preds_values_random_tau_zv_upstream","f8",("ns",))
-            var_lbl_tau_zv_upstream         = predictions_file.createVariable("lbls_values_tau_zv_upstream","f8",("ns",))
-            var_res_tau_zv_upstream         = predictions_file.createVariable("residuals_tau_zv_upstream","f8",("ns",))
-            var_res_random_tau_zv_upstream  = predictions_file.createVariable("residuals_random_tau_zv_upstream","f8",("ns",))
-            #
-            var_pred_tau_zv_downstream        = predictions_file.createVariable("preds_values_tau_zv_downstream","f8",("ns",))
-            var_pred_random_tau_zv_downstream = predictions_file.createVariable("preds_values_random_tau_zv_downstream","f8",("ns",))
-            var_lbl_tau_zv_downstream         = predictions_file.createVariable("lbls_values_tau_zv_downstream","f8",("ns",))
-            var_res_tau_zv_downstream         = predictions_file.createVariable("residuals_tau_zv_downstream","f8",("ns",))
-            var_res_random_tau_zv_downstream  = predictions_file.createVariable("residuals_random_tau_zv_downstream","f8",("ns",))
-            #
-            var_pred_tau_xw_upstream        = predictions_file.createVariable("preds_values_tau_xw_upstream","f8",("ns",))
-            var_pred_random_tau_xw_upstream = predictions_file.createVariable("preds_values_random_tau_xw_upstream","f8",("ns",))
-            var_lbl_tau_xw_upstream         = predictions_file.createVariable("lbls_values_tau_xw_upstream","f8",("ns",))
-            var_res_tau_xw_upstream         = predictions_file.createVariable("residuals_tau_xw_upstream","f8",("ns",))
-            var_res_random_tau_xw_upstream  = predictions_file.createVariable("residuals_random_tau_xw_upstream","f8",("ns",))
-            #
-            var_pred_tau_xw_downstream        = predictions_file.createVariable("preds_values_tau_xw_downstream","f8",("ns",))
-            var_pred_random_tau_xw_downstream = predictions_file.createVariable("preds_values_random_tau_xw_downstream","f8",("ns",))
-            var_lbl_tau_xw_downstream         = predictions_file.createVariable("lbls_values_tau_xw_downstream","f8",("ns",))
-            var_res_tau_xw_downstream         = predictions_file.createVariable("residuals_tau_xw_downstream","f8",("ns",))
-            var_res_random_tau_xw_downstream  = predictions_file.createVariable("residuals_random_tau_xw_downstream","f8",("ns",))
-            #
-            var_pred_tau_yw_upstream        = predictions_file.createVariable("preds_values_tau_yw_upstream","f8",("ns",))
-            var_pred_random_tau_yw_upstream = predictions_file.createVariable("preds_values_random_tau_yw_upstream","f8",("ns",))
-            var_lbl_tau_yw_upstream         = predictions_file.createVariable("lbls_values_tau_yw_upstream","f8",("ns",))
-            var_res_tau_yw_upstream         = predictions_file.createVariable("residuals_tau_yw_upstream","f8",("ns",))
-            var_res_random_tau_yw_upstream  = predictions_file.createVariable("residuals_random_tau_yw_upstream","f8",("ns",))
-            #
-            var_pred_tau_yw_downstream        = predictions_file.createVariable("preds_values_tau_yw_downstream","f8",("ns",))
-            var_pred_random_tau_yw_downstream = predictions_file.createVariable("preds_values_random_tau_yw_downstream","f8",("ns",))
-            var_lbl_tau_yw_downstream         = predictions_file.createVariable("lbls_values_tau_yw_downstream","f8",("ns",))
-            var_res_tau_yw_downstream         = predictions_file.createVariable("residuals_tau_yw_downstream","f8",("ns",))
-            var_res_random_tau_yw_downstream  = predictions_file.createVariable("residuals_random_tau_yw_downstream","f8",("ns",))
-            #
-            var_pred_tau_zw_upstream        = predictions_file.createVariable("preds_values_tau_zw_upstream","f8",("ns",))
-            var_pred_random_tau_zw_upstream = predictions_file.createVariable("preds_values_random_tau_zw_upstream","f8",("ns",))
-            var_lbl_tau_zw_upstream         = predictions_file.createVariable("lbls_values_tau_zw_upstream","f8",("ns",))
-            var_res_tau_zw_upstream         = predictions_file.createVariable("residuals_tau_zw_upstream","f8",("ns",))
-            var_res_random_tau_zw_upstream  = predictions_file.createVariable("residuals_random_tau_zw_upstream","f8",("ns",))
-            #
-            var_pred_tau_zw_downstream        = predictions_file.createVariable("preds_values_tau_zw_downstream","f8",("ns",))
-            var_pred_random_tau_zw_downstream = predictions_file.createVariable("preds_values_random_tau_zw_downstream","f8",("ns",))
-            var_lbl_tau_zw_downstream         = predictions_file.createVariable("lbls_values_tau_zw_downstream","f8",("ns",))
-            var_res_tau_zw_downstream         = predictions_file.createVariable("residuals_tau_zw_downstream","f8",("ns",))
-            var_res_random_tau_zw_downstream  = predictions_file.createVariable("residuals_random_tau_zw_downstream","f8",("ns",))
-            #
-            vartstep               = predictions_file.createVariable("tstep_samples","f8",("ns",))
-            varzhloc               = predictions_file.createVariable("zhloc_samples","f8",("ns",))
-            varzloc                = predictions_file.createVariable("zloc_samples","f8",("ns",))
-            varyhloc               = predictions_file.createVariable("yhloc_samples","f8",("ns",))
-            varyloc                = predictions_file.createVariable("yloc_samples","f8",("ns",))
-            varxhloc               = predictions_file.createVariable("xhloc_samples","f8",("ns",))
-            varxloc                = predictions_file.createVariable("xloc_samples","f8",("ns",))
-
-            create_file=False #Make sure file is only created once
+        #Store inference graph
+        tf.io.write_graph(sess.graph, args.checkpoint_dir, 'inference_graph.pbtxt', as_text = True)
+        
+        #Execute code below NOT in benchmark mode, otherwhise break out of for-loop
+        if args.benchmark is not None:
+            break
 
         else:
-            predictions_file = nc.Dataset(filepath, 'r+')
-
-
-        with tf.Session(config=config) as sess:
-
-            #Restore CNN_model within tf.Session()
-            #tf.reset_default_graph() #Make graph empty before restoring
-            ckpt  = tf.train.get_checkpoint_state(args.checkpoint_dir)
-            saver.restore(sess, ckpt.model_checkpoint_path)
-
             #Initialize iterator
             sess.run(iterator.initializer)
+
+            #Create/open netCDF-file to store predictions and labels
+            if create_file:
+                filepath = args.checkpoint_dir + '/MLP_predictions.nc'
+                predictions_file = nc.Dataset(filepath, 'w')
+                dim_ns = predictions_file.createDimension("ns",None)
+
+                #Create variables for storage
+                var_pred_tau_xu_upstream        = predictions_file.createVariable("preds_values_tau_xu_upstream","f8",("ns",))
+                var_pred_random_tau_xu_upstream = predictions_file.createVariable("preds_values_random_tau_xu_upstream","f8",("ns",))
+                var_lbl_tau_xu_upstream         = predictions_file.createVariable("lbls_values_tau_xu_upstream","f8",("ns",))
+                var_res_tau_xu_upstream         = predictions_file.createVariable("residuals_tau_xu_upstream","f8",("ns",))
+                var_res_random_tau_xu_upstream  = predictions_file.createVariable("residuals_random_tau_xu_upstream","f8",("ns",))
+                #
+                var_pred_tau_xu_downstream        = predictions_file.createVariable("preds_values_tau_xu_downstream","f8",("ns",))
+                var_pred_random_tau_xu_downstream = predictions_file.createVariable("preds_values_random_tau_xu_downstream","f8",("ns",))
+                var_lbl_tau_xu_downstream         = predictions_file.createVariable("lbls_values_tau_xu_downstream","f8",("ns",))
+                var_res_tau_xu_downstream         = predictions_file.createVariable("residuals_tau_xu_downstream","f8",("ns",))
+                var_res_random_tau_xu_downstream  = predictions_file.createVariable("residuals_random_tau_xu_downstream","f8",("ns",))
+                #
+                var_pred_tau_yu_upstream        = predictions_file.createVariable("preds_values_tau_yu_upstream","f8",("ns",))
+                var_pred_random_tau_yu_upstream = predictions_file.createVariable("preds_values_random_tau_yu_upstream","f8",("ns",))
+                var_lbl_tau_yu_upstream         = predictions_file.createVariable("lbls_values_tau_yu_upstream","f8",("ns",))
+                var_res_tau_yu_upstream         = predictions_file.createVariable("residuals_tau_yu_upstream","f8",("ns",))
+                var_res_random_tau_yu_upstream  = predictions_file.createVariable("residuals_random_tau_yu_upstream","f8",("ns",))
+                #
+                var_pred_tau_yu_downstream        = predictions_file.createVariable("preds_values_tau_yu_downstream","f8",("ns",))
+                var_pred_random_tau_yu_downstream = predictions_file.createVariable("preds_values_random_tau_yu_downstream","f8",("ns",))
+                var_lbl_tau_yu_downstream         = predictions_file.createVariable("lbls_values_tau_yu_downstream","f8",("ns",))
+                var_res_tau_yu_downstream         = predictions_file.createVariable("residuals_tau_yu_downstream","f8",("ns",))
+                var_res_random_tau_yu_downstream  = predictions_file.createVariable("residuals_random_tau_yu_downstream","f8",("ns",))
+                #
+                var_pred_tau_zu_upstream        = predictions_file.createVariable("preds_values_tau_zu_upstream","f8",("ns",))
+                var_pred_random_tau_zu_upstream = predictions_file.createVariable("preds_values_random_tau_zu_upstream","f8",("ns",))
+                var_lbl_tau_zu_upstream         = predictions_file.createVariable("lbls_values_tau_zu_upstream","f8",("ns",))
+                var_res_tau_zu_upstream         = predictions_file.createVariable("residuals_tau_zu_upstream","f8",("ns",))
+                var_res_random_tau_zu_upstream  = predictions_file.createVariable("residuals_random_tau_zu_upstream","f8",("ns",))
+                #
+                var_pred_tau_zu_downstream        = predictions_file.createVariable("preds_values_tau_zu_downstream","f8",("ns",))
+                var_pred_random_tau_zu_downstream = predictions_file.createVariable("preds_values_random_tau_zu_downstream","f8",("ns",))
+                var_lbl_tau_zu_downstream         = predictions_file.createVariable("lbls_values_tau_zu_downstream","f8",("ns",))
+                var_res_tau_zu_downstream         = predictions_file.createVariable("residuals_tau_zu_downstream","f8",("ns",))
+                var_res_random_tau_zu_downstream  = predictions_file.createVariable("residuals_random_tau_zu_downstream","f8",("ns",))
+                #
+                var_pred_tau_xv_upstream        = predictions_file.createVariable("preds_values_tau_xv_upstream","f8",("ns",))
+                var_pred_random_tau_xv_upstream = predictions_file.createVariable("preds_values_random_tau_xv_upstream","f8",("ns",))
+                var_lbl_tau_xv_upstream         = predictions_file.createVariable("lbls_values_tau_xv_upstream","f8",("ns",))
+                var_res_tau_xv_upstream         = predictions_file.createVariable("residuals_tau_xv_upstream","f8",("ns",))
+                var_res_random_tau_xv_upstream  = predictions_file.createVariable("residuals_random_tau_xv_upstream","f8",("ns",))
+                #
+                var_pred_tau_xv_downstream        = predictions_file.createVariable("preds_values_tau_xv_downstream","f8",("ns",))
+                var_pred_random_tau_xv_downstream = predictions_file.createVariable("preds_values_random_tau_xv_downstream","f8",("ns",))
+                var_lbl_tau_xv_downstream         = predictions_file.createVariable("lbls_values_tau_xv_downstream","f8",("ns",))
+                var_res_tau_xv_downstream         = predictions_file.createVariable("residuals_tau_xv_downstream","f8",("ns",))
+                var_res_random_tau_xv_downstream  = predictions_file.createVariable("residuals_random_tau_xv_downstream","f8",("ns",))
+                #
+                var_pred_tau_yv_upstream        = predictions_file.createVariable("preds_values_tau_yv_upstream","f8",("ns",))
+                var_pred_random_tau_yv_upstream = predictions_file.createVariable("preds_values_random_tau_yv_upstream","f8",("ns",))
+                var_lbl_tau_yv_upstream         = predictions_file.createVariable("lbls_values_tau_yv_upstream","f8",("ns",))
+                var_res_tau_yv_upstream         = predictions_file.createVariable("residuals_tau_yv_upstream","f8",("ns",))
+                var_res_random_tau_yv_upstream  = predictions_file.createVariable("residuals_random_tau_yv_upstream","f8",("ns",))
+                #
+                var_pred_tau_yv_downstream        = predictions_file.createVariable("preds_values_tau_yv_downstream","f8",("ns",))
+                var_pred_random_tau_yv_downstream = predictions_file.createVariable("preds_values_random_tau_yv_downstream","f8",("ns",))
+                var_lbl_tau_yv_downstream         = predictions_file.createVariable("lbls_values_tau_yv_downstream","f8",("ns",))
+                var_res_tau_yv_downstream         = predictions_file.createVariable("residuals_tau_yv_downstream","f8",("ns",))
+                var_res_random_tau_yv_downstream  = predictions_file.createVariable("residuals_random_tau_yv_downstream","f8",("ns",))
+                #
+                var_pred_tau_zv_upstream        = predictions_file.createVariable("preds_values_tau_zv_upstream","f8",("ns",))
+                var_pred_random_tau_zv_upstream = predictions_file.createVariable("preds_values_random_tau_zv_upstream","f8",("ns",))
+                var_lbl_tau_zv_upstream         = predictions_file.createVariable("lbls_values_tau_zv_upstream","f8",("ns",))
+                var_res_tau_zv_upstream         = predictions_file.createVariable("residuals_tau_zv_upstream","f8",("ns",))
+                var_res_random_tau_zv_upstream  = predictions_file.createVariable("residuals_random_tau_zv_upstream","f8",("ns",))
+                #
+                var_pred_tau_zv_downstream        = predictions_file.createVariable("preds_values_tau_zv_downstream","f8",("ns",))
+                var_pred_random_tau_zv_downstream = predictions_file.createVariable("preds_values_random_tau_zv_downstream","f8",("ns",))
+                var_lbl_tau_zv_downstream         = predictions_file.createVariable("lbls_values_tau_zv_downstream","f8",("ns",))
+                var_res_tau_zv_downstream         = predictions_file.createVariable("residuals_tau_zv_downstream","f8",("ns",))
+                var_res_random_tau_zv_downstream  = predictions_file.createVariable("residuals_random_tau_zv_downstream","f8",("ns",))
+                #
+                var_pred_tau_xw_upstream        = predictions_file.createVariable("preds_values_tau_xw_upstream","f8",("ns",))
+                var_pred_random_tau_xw_upstream = predictions_file.createVariable("preds_values_random_tau_xw_upstream","f8",("ns",))
+                var_lbl_tau_xw_upstream         = predictions_file.createVariable("lbls_values_tau_xw_upstream","f8",("ns",))
+                var_res_tau_xw_upstream         = predictions_file.createVariable("residuals_tau_xw_upstream","f8",("ns",))
+                var_res_random_tau_xw_upstream  = predictions_file.createVariable("residuals_random_tau_xw_upstream","f8",("ns",))
+                #
+                var_pred_tau_xw_downstream        = predictions_file.createVariable("preds_values_tau_xw_downstream","f8",("ns",))
+                var_pred_random_tau_xw_downstream = predictions_file.createVariable("preds_values_random_tau_xw_downstream","f8",("ns",))
+                var_lbl_tau_xw_downstream         = predictions_file.createVariable("lbls_values_tau_xw_downstream","f8",("ns",))
+                var_res_tau_xw_downstream         = predictions_file.createVariable("residuals_tau_xw_downstream","f8",("ns",))
+                var_res_random_tau_xw_downstream  = predictions_file.createVariable("residuals_random_tau_xw_downstream","f8",("ns",))
+                #
+                var_pred_tau_yw_upstream        = predictions_file.createVariable("preds_values_tau_yw_upstream","f8",("ns",))
+                var_pred_random_tau_yw_upstream = predictions_file.createVariable("preds_values_random_tau_yw_upstream","f8",("ns",))
+                var_lbl_tau_yw_upstream         = predictions_file.createVariable("lbls_values_tau_yw_upstream","f8",("ns",))
+                var_res_tau_yw_upstream         = predictions_file.createVariable("residuals_tau_yw_upstream","f8",("ns",))
+                var_res_random_tau_yw_upstream  = predictions_file.createVariable("residuals_random_tau_yw_upstream","f8",("ns",))
+                #
+                var_pred_tau_yw_downstream        = predictions_file.createVariable("preds_values_tau_yw_downstream","f8",("ns",))
+                var_pred_random_tau_yw_downstream = predictions_file.createVariable("preds_values_random_tau_yw_downstream","f8",("ns",))
+                var_lbl_tau_yw_downstream         = predictions_file.createVariable("lbls_values_tau_yw_downstream","f8",("ns",))
+                var_res_tau_yw_downstream         = predictions_file.createVariable("residuals_tau_yw_downstream","f8",("ns",))
+                var_res_random_tau_yw_downstream  = predictions_file.createVariable("residuals_random_tau_yw_downstream","f8",("ns",))
+                #
+                var_pred_tau_zw_upstream        = predictions_file.createVariable("preds_values_tau_zw_upstream","f8",("ns",))
+                var_pred_random_tau_zw_upstream = predictions_file.createVariable("preds_values_random_tau_zw_upstream","f8",("ns",))
+                var_lbl_tau_zw_upstream         = predictions_file.createVariable("lbls_values_tau_zw_upstream","f8",("ns",))
+                var_res_tau_zw_upstream         = predictions_file.createVariable("residuals_tau_zw_upstream","f8",("ns",))
+                var_res_random_tau_zw_upstream  = predictions_file.createVariable("residuals_random_tau_zw_upstream","f8",("ns",))
+                #
+                var_pred_tau_zw_downstream        = predictions_file.createVariable("preds_values_tau_zw_downstream","f8",("ns",))
+                var_pred_random_tau_zw_downstream = predictions_file.createVariable("preds_values_random_tau_zw_downstream","f8",("ns",))
+                var_lbl_tau_zw_downstream         = predictions_file.createVariable("lbls_values_tau_zw_downstream","f8",("ns",))
+                var_res_tau_zw_downstream         = predictions_file.createVariable("residuals_tau_zw_downstream","f8",("ns",))
+                var_res_random_tau_zw_downstream  = predictions_file.createVariable("residuals_random_tau_zw_downstream","f8",("ns",))
+                #
+                vartstep               = predictions_file.createVariable("tstep_samples","f8",("ns",))
+                varzhloc               = predictions_file.createVariable("zhloc_samples","f8",("ns",))
+                varzloc                = predictions_file.createVariable("zloc_samples","f8",("ns",))
+                varyhloc               = predictions_file.createVariable("yhloc_samples","f8",("ns",))
+                varyloc                = predictions_file.createVariable("yloc_samples","f8",("ns",))
+                varxhloc               = predictions_file.createVariable("xhloc_samples","f8",("ns",))
+                varxloc                = predictions_file.createVariable("xloc_samples","f8",("ns",))
+
+                create_file=False #Make sure file is only created once
+
+            else:
+                predictions_file = nc.Dataset(filepath, 'r+')
 
             while True:
                 try:
@@ -1546,7 +1555,8 @@ if args.benchmark is None:
 
                 except tf.errors.OutOfRangeError:
                     break #Break out of while-loop after one validation file (i.e. one flow 'snapshot'). NOTE: for this part of the code it is important that the eval_input_fn do not implement the .repeat() method on the created tf.Dataset.
-    
+
+if args.benchmark is None:
     predictions_file.close() #Close netCDF-file after each validation file
     print("Finished making predictions for each validation file.")
 ###

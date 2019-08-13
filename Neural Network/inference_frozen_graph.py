@@ -178,13 +178,13 @@ if __name__ == '__main__':
     
     #Calculate grid dimensions and start indices
     icells  = iend + igc
-    ihcells = ihend + igc
+    #ihcells = ihend + igc
     jcells  = jend + jgc
-    jhcells = jhend + jgc
+    #jhcells = jhend + jgc
     ijcells = icells * jcells
     kcells  = kend + kgc
     khcells = khend + kgc
-    ncells  = ijcells * kcells
+    #ncells  = ijcells * kcells
     istart  = igc
     jstart  = jgc
     kstart  = kgc
@@ -205,19 +205,19 @@ if __name__ == '__main__':
             unres_tau_zv_CNN = np.full((len(zhc),len(yhcless),len(xc)), np.nan, dtype=np.float32)
             unres_tau_zw_CNN = np.full((len(zgcextra),len(yc),len(xc)), np.nan, dtype=np.float32)
             #
-            unres_tau_xu_lbls = np.full((len(zc),len(yc),len(xgcextra)), np.nan, dtype=np.float32)
-            unres_tau_xv_lbls = np.full((len(zc),len(yhcless),len(xhc)), np.nan, dtype=np.float32)
-            unres_tau_xw_lbls = np.full((len(zhcless),len(yc),len(xhc)), np.nan, dtype=np.float32)
-            unres_tau_yu_lbls = np.full((len(zc),len(yhc),len(xhcless)), np.nan, dtype=np.float32)
-            unres_tau_yv_lbls = np.full((len(zc),len(ygcextra),len(xc)), np.nan, dtype=np.float32)
-            unres_tau_yw_lbls = np.full((len(zhcless),len(yhc),len(xc)), np.nan, dtype=np.float32)
-            unres_tau_zu_lbls = np.full((len(zhc),len(yc),len(xhcless)), np.nan, dtype=np.float32)
-            unres_tau_zv_lbls = np.full((len(zhc),len(yhcless),len(xc)), np.nan, dtype=np.float32)
-            unres_tau_zw_lbls = np.full((len(zgcextra),len(yc),len(xc)), np.nan, dtype=np.float32)
+            #unres_tau_xu_lbls = np.full((len(zc),len(yc),len(xgcextra)), np.nan, dtype=np.float32)
+            #unres_tau_xv_lbls = np.full((len(zc),len(yhcless),len(xhc)), np.nan, dtype=np.float32)
+            #unres_tau_xw_lbls = np.full((len(zhcless),len(yc),len(xhc)), np.nan, dtype=np.float32)
+            #unres_tau_yu_lbls = np.full((len(zc),len(yhc),len(xhcless)), np.nan, dtype=np.float32)
+            #unres_tau_yv_lbls = np.full((len(zc),len(ygcextra),len(xc)), np.nan, dtype=np.float32)
+            #unres_tau_yw_lbls = np.full((len(zhcless),len(yhc),len(xc)), np.nan, dtype=np.float32)
+            #unres_tau_zu_lbls = np.full((len(zhc),len(yc),len(xhcless)), np.nan, dtype=np.float32)
+            #unres_tau_zv_lbls = np.full((len(zhc),len(yhcless),len(xc)), np.nan, dtype=np.float32)
+            #unres_tau_zw_lbls = np.full((len(zgcextra),len(yc),len(xc)), np.nan, dtype=np.float32)
 
             #Select flow fields of time step
-            u_singletimestep = u[t,:,:,:].flatten()#Flatten to make shape consistent to arrays in MicroHH
-            v_singletimestep = v[t,:,:,:].flatten()
+            u_singletimestep = u[t,:,:,:-1].flatten()#Flatten and remove ghost cells in horizontal staggered dimensions to make shape consistent to arrays in MicroHH
+            v_singletimestep = v[t,:,:-1,:].flatten()
             w_singletimestep = w[t,:,:,:].flatten()
             unres_tau_xu_singletimestep = unres_tau_xu[t,:,:,:]
             unres_tau_yu_singletimestep = unres_tau_yu[t,:,:,:]
@@ -239,8 +239,8 @@ if __name__ == '__main__':
             ###The code block starting below  is roughly the only part that has to be executed when doing inference in MicroHH###
             #NOTE: several expand_dims included to account for batch dimension
             #Reshape 1d arrays to 3d, which is much more convenient for the slicing below.
-            u_singletimestep = np.reshape(u_singletimestep, (kcells,jcells,ihcells))
-            v_singletimestep = np.reshape(v_singletimestep, (kcells,jhcells,icells))
+            u_singletimestep = np.reshape(u_singletimestep, (kcells,jcells,icells))
+            v_singletimestep = np.reshape(v_singletimestep, (kcells,jcells,icells))
             w_singletimestep = np.reshape(w_singletimestep, (khcells,jcells,icells))
 
             #Extract friction velocity
@@ -321,24 +321,24 @@ if __name__ == '__main__':
                         unres_tau_yw_CNN[k_nogc,  j_nogc+1,i_nogc]   = result[15] #yw_downstream
                         unres_tau_zw_CNN[k_nogc,  j_nogc  ,i_nogc]   = result[16] #zw_upstream
                         unres_tau_zw_CNN[k_nogc+1,j_nogc  ,i_nogc]   = result[17] #zw_downstream
-                        unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc+1]
-                        unres_tau_yu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yu_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_yu_lbls[k_nogc ,j_nogc+1, i_nogc] = unres_tau_yu_singletimestep[k_nogc ,j_nogc+1, i_nogc]
-                        unres_tau_zu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_zu_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_zu_lbls[k_nogc+1 ,j_nogc, i_nogc] = unres_tau_zu_singletimestep[k_nogc+1 ,j_nogc, i_nogc]
-                        unres_tau_xv_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xv_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_xv_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xv_singletimestep[k_nogc ,j_nogc, i_nogc+1]
-                        unres_tau_yv_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yv_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_yv_lbls[k_nogc ,j_nogc+1, i_nogc] = unres_tau_yv_singletimestep[k_nogc ,j_nogc+1, i_nogc]
-                        unres_tau_zv_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_zv_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_zv_lbls[k_nogc+1 ,j_nogc, i_nogc] = unres_tau_zv_singletimestep[k_nogc+1 ,j_nogc, i_nogc]
-                        unres_tau_xw_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xw_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_xw_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xw_singletimestep[k_nogc ,j_nogc, i_nogc+1]
-                        unres_tau_yw_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yw_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_yw_lbls[k_nogc ,j_nogc+1, i_nogc] = unres_tau_yw_singletimestep[k_nogc ,j_nogc+1, i_nogc]
-                        unres_tau_zw_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_zw_singletimestep[k_nogc ,j_nogc, i_nogc]
-                        unres_tau_zw_lbls[k_nogc+1 ,j_nogc, i_nogc] = unres_tau_zw_singletimestep[k_nogc+1 ,j_nogc, i_nogc]
+                        #unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc+1]
+                        #unres_tau_yu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yu_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_yu_lbls[k_nogc ,j_nogc+1, i_nogc] = unres_tau_yu_singletimestep[k_nogc ,j_nogc+1, i_nogc]
+                        #unres_tau_zu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_zu_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_zu_lbls[k_nogc+1 ,j_nogc, i_nogc] = unres_tau_zu_singletimestep[k_nogc+1 ,j_nogc, i_nogc]
+                        #unres_tau_xv_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xv_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_xv_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xv_singletimestep[k_nogc ,j_nogc, i_nogc+1]
+                        #unres_tau_yv_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yv_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_yv_lbls[k_nogc ,j_nogc+1, i_nogc] = unres_tau_yv_singletimestep[k_nogc ,j_nogc+1, i_nogc]
+                        #unres_tau_zv_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_zv_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_zv_lbls[k_nogc+1 ,j_nogc, i_nogc] = unres_tau_zv_singletimestep[k_nogc+1 ,j_nogc, i_nogc]
+                        #unres_tau_xw_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xw_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_xw_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xw_singletimestep[k_nogc ,j_nogc, i_nogc+1]
+                        #unres_tau_yw_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yw_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_yw_lbls[k_nogc ,j_nogc+1, i_nogc] = unres_tau_yw_singletimestep[k_nogc ,j_nogc+1, i_nogc]
+                        #unres_tau_zw_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_zw_singletimestep[k_nogc ,j_nogc, i_nogc]
+                        #unres_tau_zw_lbls[k_nogc+1 ,j_nogc, i_nogc] = unres_tau_zw_singletimestep[k_nogc+1 ,j_nogc, i_nogc]
 
             ###End code block which has to be executed in MicroHH###
 
