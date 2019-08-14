@@ -511,7 +511,7 @@ def model_fn(features, labels, mode, params):
             #a1 = tf.print("channel_bool: ", channel_bool, output_stream=tf.logging.info, summarize=-1)
         
             #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply and that are not discarded in inference mode.
-            #NOTE1: zw_upstream is not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. This component is not used during inference, and therefore is out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training.
+            #NOTE1: zw_upstream and zw_downstream are not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. These components are not used during inference to keep the application of the MLP symmetric, and therefore these components are out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training and does not introduce asymmetry in the predictions of the MLP.
             components_topwall_bool = tf.constant(
                     [[True,  True,  #xu_upstream, xu_downstream
                       True,  True,  #yu_upstream, yu_downstream
@@ -532,7 +532,7 @@ def model_fn(features, labels, mode, params):
                       False, True,  #zv_upstream, zv_downstream
                       False, False, #xw_upstream, xw_downstream
                       False, False, #yw_upstream, yw_downstream
-                      False, True]])#zw_upstream, zw_downstream
+                      False, False]])#zw_upstream, zw_downstream
             
             #a2 = tf.print("nonstaggered_components_bool: ", nonstaggered_components_bool, output_stream=tf.logging.info, summarize=-1)
             mask_top    = tf.cast(tf.math.logical_or(flag_topwall_bool, components_topwall_bool), tf.float32, name = 'mask_top') #Cast boolean to float for multiplications below

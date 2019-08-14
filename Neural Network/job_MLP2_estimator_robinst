@@ -1,7 +1,7 @@
 #!/bin/bash
 ####SBATCH -t 5:00
-#SBATCH -t 1:00:00
-####SBATCH -t 1-00:00:00
+####SBATCH -t 1:00:00
+#SBATCH -t 1-00:00:00
 ####SBATCH -t 10:00:00
 #SBATCH -N 1
 ####SBATCH -N 3 --ntasks-per-node=1 -c 24
@@ -36,7 +36,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 #Enable Horovod timeline
 #export HOROVOD_TIMELINE='/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN14/horovod.json'
 
-python3 -u /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/MLP2_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP9' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --training_filepath '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000 --benchmark
+python3 -u /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/MLP2_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP10' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --training_filepath '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
 #use python3 -u to flush output from e.g. print statements directly to the output file
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""

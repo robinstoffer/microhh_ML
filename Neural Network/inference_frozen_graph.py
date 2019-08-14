@@ -21,7 +21,7 @@ def load_graph(frozen_graph_filename):
 if __name__ == '__main__':
     # Pass filenames and batch size as an argument
     parser = argparse.ArgumentParser()
-    parser.add_argument("--frozen_graph_filename", default="frozen_graph.pb")
+    parser.add_argument("--frozen_graph_filename", default="frozen_inference_graph.pb")
     parser.add_argument("--training_filename", default="training_data.nc")
     parser.add_argument("--inference_filename", default="inference_reconstructed_fields.nc")
     #parser.add_argument("--batch_size", default=1000)
@@ -63,6 +63,7 @@ if __name__ == '__main__':
     #
     #Extract coordinates, shape fields, and ghost cells
     zc       = np.array(flowfields['zc'][:])
+    zgc      = np.array(flowfields['zgc'][:])
     nz       = len(zc)
     zhc      = np.array(flowfields['zhc'][:])
     zgcextra = np.array(flowfields['zgcextra'][:])
@@ -87,6 +88,30 @@ if __name__ == '__main__':
     kend     = int(flowfields['kend'][:])
     khend    = int(flowfields['khend'][:])
     #
+
+    #Calculate grid distances, ASSUMING a second-order numerical scheme for calculation of the heights
+    xsize   = xhc[-1]
+    itot    = len(xc)
+    dx      = xsize / itot
+    dxi     = 1. / dx
+    #
+    ysize   = yhc[-1]
+    jtot    = len(yc)
+    dy      = ysize / jtot
+    dyi     = 1. / dy
+    #
+    ktot    = len(zc)
+    zgc1    = zgc[kgc-1:kend+1] #Include one ghost cell at each side
+    dzh     = np.zeros(ktot + 2) #Include two ghost cells for heights
+    dzh[1:] = zgc1[1:] - zgc1[:-1]
+    dzh[0]  = dzh[2]
+    dzhi    = 1. / dzh
+    #
+    dz      = np.zeros(ktot + 2)
+    dz[1:-1]  = zhc[1:]  - zhc[:-1]
+    dz[0]   = dz[1]
+    dz[-1]  = dz[-2]
+    dzi     = 1. / dz
     
     ###Create file for inference results###
     inference = nc.Dataset(args.inference_filename, 'w')
@@ -146,15 +171,19 @@ if __name__ == '__main__':
     var_unres_tau_zv_CNN = inference.createVariable("unres_tau_zv_CNN","f8",("tstep_unique","zhc","yhcless","xc"))
     var_unres_tau_zw_CNN = inference.createVariable("unres_tau_zw_CNN","f8",("tstep_unique","zgcextra","yc","xc"))
     #
-    var_unres_tau_xu_lbls = inference.createVariable("unres_tau_xu_lbls","f8",("tstep_unique","zc","yc","xgcextra"))
-    var_unres_tau_xv_lbls = inference.createVariable("unres_tau_xv_lbls","f8",("tstep_unique","zc","yhcless","xhc"))
-    var_unres_tau_xw_lbls = inference.createVariable("unres_tau_xw_lbls","f8",("tstep_unique","zhcless","yc","xhc"))
-    var_unres_tau_yu_lbls = inference.createVariable("unres_tau_yu_lbls","f8",("tstep_unique","zc","yhc","xhcless"))
-    var_unres_tau_yv_lbls = inference.createVariable("unres_tau_yv_lbls","f8",("tstep_unique","zc","ygcextra","xc"))
-    var_unres_tau_yw_lbls = inference.createVariable("unres_tau_yw_lbls","f8",("tstep_unique","zhcless","yhc","xc"))
-    var_unres_tau_zu_lbls = inference.createVariable("unres_tau_zu_lbls","f8",("tstep_unique","zhc","yc","xhcless"))
-    var_unres_tau_zv_lbls = inference.createVariable("unres_tau_zv_lbls","f8",("tstep_unique","zhc","yhcless","xc"))
-    var_unres_tau_zw_lbls = inference.createVariable("unres_tau_zw_lbls","f8",("tstep_unique","zgcextra","yc","xc"))
+    var_ut = inference.createVariable("u_tendency","f8",("tstep_unique","zc","yc","xhcless"))
+    var_vt = inference.createVariable("v_tendency","f8",("tstep_unique","zc","yhcless","xc"))
+    var_wt = inference.createVariable("w_tendency","f8",("tstep_unique","zhcless","yc","xc"))
+    #
+    #var_unres_tau_xu_lbls = inference.createVariable("unres_tau_xu_lbls","f8",("tstep_unique","zc","yc","xgcextra"))
+    #var_unres_tau_xv_lbls = inference.createVariable("unres_tau_xv_lbls","f8",("tstep_unique","zc","yhcless","xhc"))
+    #var_unres_tau_xw_lbls = inference.createVariable("unres_tau_xw_lbls","f8",("tstep_unique","zhcless","yc","xhc"))
+    #var_unres_tau_yu_lbls = inference.createVariable("unres_tau_yu_lbls","f8",("tstep_unique","zc","yhc","xhcless"))
+    #var_unres_tau_yv_lbls = inference.createVariable("unres_tau_yv_lbls","f8",("tstep_unique","zc","ygcextra","xc"))
+    #var_unres_tau_yw_lbls = inference.createVariable("unres_tau_yw_lbls","f8",("tstep_unique","zhcless","yhc","xc"))
+    #var_unres_tau_zu_lbls = inference.createVariable("unres_tau_zu_lbls","f8",("tstep_unique","zhc","yc","xhcless"))
+    #var_unres_tau_zv_lbls = inference.createVariable("unres_tau_zv_lbls","f8",("tstep_unique","zhc","yhcless","xc"))
+    #var_unres_tau_zw_lbls = inference.createVariable("unres_tau_zw_lbls","f8",("tstep_unique","zgcextra","yc","xc"))
 
     ##Generate random input matrices
     #input_u_val               = np.ones((batch_size, 125))
@@ -171,8 +200,8 @@ if __name__ == '__main__':
     input_u               = graph.get_tensor_by_name('input_u:0')
     input_v               = graph.get_tensor_by_name('input_v:0')
     input_w               = graph.get_tensor_by_name('input_w:0')
-    input_flag_topwall    = graph.get_tensor_by_name('flag_topwall:0')
-    input_flag_bottomwall = graph.get_tensor_by_name('flag_bottomwall:0')
+    #input_flag_topwall    = graph.get_tensor_by_name('flag_topwall:0')
+    #input_flag_bottomwall = graph.get_tensor_by_name('flag_bottomwall:0')
     input_utau_ref        = graph.get_tensor_by_name('input_utau_ref:0')
     output                = graph.get_tensor_by_name('output_layer_denorm:0')
     
@@ -237,6 +266,12 @@ if __name__ == '__main__':
             b = blocksize // 2 
 
             ###The code block starting below  is roughly the only part that has to be executed when doing inference in MicroHH###
+            
+            #Initialize zeros arrays for tendencies
+            ut = np.zeros((len(zc),len(yc),len(xc)))
+            vt = np.zeros((len(zc),len(yc),len(xc)))
+            wt = np.zeros((len(zc),len(yc),len(xc)))
+            
             #NOTE: several expand_dims included to account for batch dimension
             #Reshape 1d arrays to 3d, which is much more convenient for the slicing below.
             u_singletimestep = np.reshape(u_singletimestep, (kcells,jcells,icells))
@@ -249,19 +284,19 @@ if __name__ == '__main__':
             #NOTE: offset factors are defined to ensure alternate sampling
             for k in range(kstart,kend,1):
                 
-                #Test whether grid cells are located at the bottom or top wall
-                if k == kstart:
-                    input_flag_bottomwall_val = 1
-                    input_flag_topwall_val    = 0
-                elif k == kend - 1:
-                    input_flag_bottomwall_val = 0
-                    input_flag_topwall_val    = 1
-                else:
-                    input_flag_bottomwall_val = 0
-                    input_flag_topwall_val    = 0
-                #
-                input_flag_bottomwall_val = np.expand_dims(input_flag_bottomwall_val, axis=0)
-                input_flag_topwall_val    = np.expand_dims(input_flag_topwall_val, axis=0)
+                ##Test whether grid cells are located at the bottom or top wall
+                #if k == kstart:
+                #    input_flag_bottomwall_val = 1
+                #    input_flag_topwall_val    = 0
+                #elif k == kend - 1:
+                #    input_flag_bottomwall_val = 0
+                #    input_flag_topwall_val    = 1
+                #else:
+                #    input_flag_bottomwall_val = 0
+                #    input_flag_topwall_val    = 0
+                ##
+                #input_flag_bottomwall_val = np.expand_dims(input_flag_bottomwall_val, axis=0)
+                #input_flag_topwall_val    = np.expand_dims(input_flag_topwall_val, axis=0)
                 #
                 k_offset = k % 2
                 for j in range(jstart,jend,1):
@@ -291,8 +326,8 @@ if __name__ == '__main__':
                             input_u:               input_u_val,
                             input_v:               input_v_val,
                             input_w:               input_w_val,
-                            input_flag_topwall:    input_flag_topwall_val,
-                            input_flag_bottomwall: input_flag_bottomwall_val,
+                            #input_flag_topwall:    input_flag_topwall_val,
+                            #input_flag_bottomwall: input_flag_bottomwall_val,
                             input_utau_ref:        input_utau_ref_val
                             })
 
@@ -303,6 +338,7 @@ if __name__ == '__main__':
                         i_nogc = i - istart
                         j_nogc = j - jstart
                         k_nogc = k - kstart
+                        k_1gc  = k_nogc + 1
                         unres_tau_xu_CNN[k_nogc  ,j_nogc  ,i_nogc]   = result[0] #xu_upstream
                         unres_tau_xu_CNN[k_nogc  ,j_nogc  ,i_nogc+1] = result[1] #xu_downstream
                         unres_tau_yu_CNN[k_nogc  ,j_nogc  ,i_nogc]   = result[2] #yu_upstream
@@ -321,6 +357,74 @@ if __name__ == '__main__':
                         unres_tau_yw_CNN[k_nogc,  j_nogc+1,i_nogc]   = result[15] #yw_downstream
                         unres_tau_zw_CNN[k_nogc,  j_nogc  ,i_nogc]   = result[16] #zw_upstream
                         unres_tau_zw_CNN[k_nogc+1,j_nogc  ,i_nogc]   = result[17] #zw_downstream
+                        #
+                        #Account for all tendencies affected by calculated transport components (two tendencies for each of the predicted 18 components)
+                        #Check whether a horizontal boundary is reached, and if so make use of horizontal periodic BCs. This adjustment is only needed at the downstream side of the domain, since at the upstream side the index is already automatically converted to -1.
+                        if i == (iend - 1):
+                            i_nogc_bound = 0
+                        else:
+                            i_nogc_bound = i_nogc + 1
+
+                        if j == (jend - 1):
+                            j_nogc_bound = 0
+                        else:
+                            j_nogc_bound = j_nogc + 1
+                        #xu_upstream
+                        ut[k_nogc  ,j_nogc  ,i_nogc  ] += -result[0] * dxi
+                        ut[k_nogc  ,j_nogc  ,i_nogc-1] +=  result[0] * dxi
+                        #xu_downstream
+                        ut[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[1] * dxi
+                        ut[k_nogc  ,j_nogc  ,i_nogc_bound] += -result[1] * dxi
+                        #yu_upstream
+                        ut[k_nogc  ,j_nogc  ,i_nogc  ] += -result[2] * dyi
+                        ut[k_nogc  ,j_nogc-1,i_nogc  ] +=  result[2] * dyi
+                        #yu_downstream
+                        ut[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[3] * dyi
+                        ut[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[3] * dyi
+                        #zu_upstream
+                        ut[k_nogc  ,j_nogc  ,i_nogc  ] += -result[4] * dzi[k_nogc]
+                        ut[k_nogc-1,j_nogc  ,i_nogc  ] +=  result[4] * dzi[k_nogc-1]
+                        #zu_downstream
+                        ut[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[5] * dzi[k_nogc]
+                        ut[k_nogc+1,j_nogc  ,i_nogc  ] += -result[5] * dzi[k_nogc+1]
+                        #xv_upstream
+                        vt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[6] * dxi
+                        vt[k_nogc  ,j_nogc  ,i_nogc-1] +=  result[6] * dxi
+                        #xv_downstream
+                        vt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[7] * dxi
+                        vt[k_nogc  ,j_nogc  ,i_nogc_bound] += -result[7] * dxi
+                        #yv_upstream
+                        vt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[8] * dyi
+                        vt[k_nogc  ,j_nogc-1,i_nogc  ] +=  result[8] * dyi
+                        #yv_downstream
+                        vt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[9] * dyi
+                        vt[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[9] * dyi
+                        #zv_upstream
+                        vt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[10] * dzi[k_1gc]
+                        vt[k_nogc-1,j_nogc  ,i_nogc  ] +=  result[10] * dzi[k_1gc-1]
+                        #zv_downstream
+                        vt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[11] * dzi[k_1gc]
+                        vt[k_nogc+1,j_nogc  ,i_nogc  ] += -result[11] * dzi[k_1gc+1]
+                        #xw_upstream
+                        wt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[12] * dxi
+                        wt[k_nogc  ,j_nogc  ,i_nogc-1] +=  result[12] * dxi
+                        #xw_downstream
+                        wt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[13] * dxi
+                        wt[k_nogc  ,j_nogc  ,i_nogc_bound] += -result[13] * dxi
+                        #yw_upstream
+                        wt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[14] * dyi
+                        wt[k_nogc  ,j_nogc-1,i_nogc  ] +=  result[14] * dyi
+                        #yw_downstream
+                        wt[k_nogc  ,j_nogc      ,i_nogc  ] +=  result[15] * dyi
+                        wt[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[15] * dyi
+                        #zw_upstream
+                        wt[k_nogc  ,j_nogc      ,i_nogc  ] += -result[16] * dzhi[k_1gc]
+                        wt[k_nogc-1,j_nogc      ,i_nogc  ] +=  result[16] * dzhi[k_1gc-1]
+                        #zw_downstream
+                        wt[k_nogc  ,j_nogc      ,i_nogc  ] +=  result[17] * dzhi[k_1gc]
+                        wt[k_nogc+1,j_nogc      ,i_nogc  ] += -result[17] * dzhi[k_1gc-1]
+
+
                         #unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc]
                         #unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc+1] = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc+1]
                         #unres_tau_yu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_yu_singletimestep[k_nogc ,j_nogc, i_nogc]
@@ -353,15 +457,19 @@ if __name__ == '__main__':
             var_unres_tau_yw_CNN[t,:,:,:] =  unres_tau_yw_CNN[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
             var_unres_tau_zw_CNN[t,:,:,:] =  unres_tau_zw_CNN[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
             #
-            var_unres_tau_xu_lbls[t,:,:,:] =  unres_tau_xu_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_yu_lbls[t,:,:,:] =  unres_tau_yu_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_zu_lbls[t,:,:,:] =  unres_tau_zu_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_xv_lbls[t,:,:,:] =  unres_tau_xv_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_yv_lbls[t,:,:,:] =  unres_tau_yv_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_zv_lbls[t,:,:,:] =  unres_tau_zv_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_xw_lbls[t,:,:,:] =  unres_tau_xw_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_yw_lbls[t,:,:,:] =  unres_tau_yw_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
-            var_unres_tau_zw_lbls[t,:,:,:] =  unres_tau_zw_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            var_ut[t,:,:,:] = ut[:,:,:]
+            var_vt[t,:,:,:] = vt[:,:,:]
+            var_wt[t,:,:,:] = wt[:,:,:]
+            #
+            #var_unres_tau_xu_lbls[t,:,:,:] =  unres_tau_xu_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_yu_lbls[t,:,:,:] =  unres_tau_yu_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_zu_lbls[t,:,:,:] =  unres_tau_zu_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_xv_lbls[t,:,:,:] =  unres_tau_xv_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_yv_lbls[t,:,:,:] =  unres_tau_yv_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_zv_lbls[t,:,:,:] =  unres_tau_zv_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_xw_lbls[t,:,:,:] =  unres_tau_xw_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_yw_lbls[t,:,:,:] =  unres_tau_yw_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
+            #var_unres_tau_zw_lbls[t,:,:,:] =  unres_tau_zw_lbls[:,:,:] * ((utau_ref ** 2)/(utau_ref_channel ** 2))
 
 
     #Close inference file
