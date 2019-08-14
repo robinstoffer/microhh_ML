@@ -304,7 +304,7 @@ if args.reconstruct_fields:
     unres_tau_yv_lbls_upstream = reconstruct_field(lbls_values_yv_upstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     unres_tau_yv_lbls_downstream = reconstruct_field(lbls_values_yv_downstream, xloc_values, xloc_unique, yloc_values, yloc_unique, zloc_values, zloc_unique, tstep_values, tstep_unique) 
     print('fifth component done')
-    unres_tau_yw_lbls_upstream = reconstruct_field(lbls_values_yw_up2stream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
+    unres_tau_yw_lbls_upstream = reconstruct_field(lbls_values_yw_upstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     unres_tau_yw_lbls_downstream = reconstruct_field(lbls_values_yw_downstream, xloc_values, xloc_unique, yhloc_values, yhloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
     print('sixth component done')
     unres_tau_zu_lbls_upstream = reconstruct_field(lbls_values_zu_upstream, xhloc_values, xhloc_unique, yloc_values, yloc_unique, zhloc_values, zhloc_unique, tstep_values, tstep_unique) 
@@ -1060,16 +1060,16 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
     
-    ##Make PDFs of labels and MLP predictions
-    #make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc, 'zw', time_step = 0, delta = delta_height)
+    #Make PDFs of labels and MLP predictions
+    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta_height)
     
     #Make horizontal cross-sections
     make_horcross_heights(unres_tau_xu, zc, yc, xgcextra,     'xu', True, time_step = 0, delta = delta_height)
@@ -1110,4 +1110,4 @@ if args.make_plots:
     make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv[:,:,:-1,:], unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False)
     make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw[:,:-1,:,:], unres_tau_xw_CNN_horavg, unres_tau_xw_horavg[:,:-1], zhcless, 'xw', False)
     make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw[:,:-1,:,:], unres_tau_yw_CNN_horavg, unres_tau_yw_horavg[:,:-1], zhcless, 'yw', False)
-    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zgcextra,  'zw', False)
+    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False)

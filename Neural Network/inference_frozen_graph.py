@@ -1,5 +1,5 @@
 #Script to load frozen model and do inference. Parts of the code are adopted from: 'https://blog.metaflow.fr/tensorflow-how-to-freeze-a-model-and-serve-it-with-a-python-api-d4f3596b3adc' (11 July 2019).
-#Author: Robin Stoffer (robin.stoffer@wur.nl
+#Author: Robin Stoffer (robin.stoffer@wur.nl)
 import argparse
 import tensorflow as tf
 import numpy as np
@@ -169,7 +169,7 @@ if __name__ == '__main__':
     var_unres_tau_yw_CNN = inference.createVariable("unres_tau_yw_CNN","f8",("tstep_unique","zhcless","yhc","xc"))
     var_unres_tau_zu_CNN = inference.createVariable("unres_tau_zu_CNN","f8",("tstep_unique","zhc","yc","xhcless"))
     var_unres_tau_zv_CNN = inference.createVariable("unres_tau_zv_CNN","f8",("tstep_unique","zhc","yhcless","xc"))
-    var_unres_tau_zw_CNN = inference.createVariable("unres_tau_zw_CNN","f8",("tstep_unique","zgcextra","yc","xc"))
+    var_unres_tau_zw_CNN = inference.createVariable("unres_tau_zw_CNN","f8",("tstep_unique","zc","yc","xc"))
     #
     var_ut = inference.createVariable("u_tendency","f8",("tstep_unique","zc","yc","xhcless"))
     var_vt = inference.createVariable("v_tendency","f8",("tstep_unique","zc","yhcless","xc"))
@@ -232,7 +232,7 @@ if __name__ == '__main__':
             unres_tau_yw_CNN = np.full((len(zhcless),len(yhc),len(xc)), np.nan, dtype=np.float32)
             unres_tau_zu_CNN = np.full((len(zhc),len(yc),len(xhcless)), np.nan, dtype=np.float32)
             unres_tau_zv_CNN = np.full((len(zhc),len(yhcless),len(xc)), np.nan, dtype=np.float32)
-            unres_tau_zw_CNN = np.full((len(zgcextra),len(yc),len(xc)), np.nan, dtype=np.float32)
+            unres_tau_zw_CNN = np.full((len(zc),len(yc),len(xc)),       np.nan, dtype=np.float32)
             #
             #unres_tau_xu_lbls = np.full((len(zc),len(yc),len(xgcextra)), np.nan, dtype=np.float32)
             #unres_tau_xv_lbls = np.full((len(zc),len(yhcless),len(xhc)), np.nan, dtype=np.float32)
@@ -242,7 +242,7 @@ if __name__ == '__main__':
             #unres_tau_yw_lbls = np.full((len(zhcless),len(yhc),len(xc)), np.nan, dtype=np.float32)
             #unres_tau_zu_lbls = np.full((len(zhc),len(yc),len(xhcless)), np.nan, dtype=np.float32)
             #unres_tau_zv_lbls = np.full((len(zhc),len(yhcless),len(xc)), np.nan, dtype=np.float32)
-            #unres_tau_zw_lbls = np.full((len(zgcextra),len(yc),len(xc)), np.nan, dtype=np.float32)
+            #unres_tau_zw_lbls = np.full((len(zc),len(yc),len(xc)),       np.nan, dtype=np.float32)
 
             #Select flow fields of time step
             u_singletimestep = u[t,:,:,:-1].flatten()#Flatten and remove ghost cells in horizontal staggered dimensions to make shape consistent to arrays in MicroHH
@@ -382,11 +382,13 @@ if __name__ == '__main__':
                         ut[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[3] * dyi
                         ut[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[3] * dyi
                         #zu_upstream
-                        ut[k_nogc  ,j_nogc  ,i_nogc  ] += -result[4] * dzi[k_nogc]
-                        ut[k_nogc-1,j_nogc  ,i_nogc  ] +=  result[4] * dzi[k_nogc-1]
+                        if not (k_nogc == 0): #1) zu_upstream is in this way implicitly set to 0 at bottom layer (no-slip BC), and 2) ghost cell is not assigned.
+                            ut[k_nogc-1,j_nogc  ,i_nogc  ] +=  result[4] * dzi[k_nogc-1]
+                            ut[k_nogc  ,j_nogc  ,i_nogc  ] += -result[4] * dzi[k_nogc]
                         #zu_downstream
-                        ut[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[5] * dzi[k_nogc]
-                        ut[k_nogc+1,j_nogc  ,i_nogc  ] += -result[5] * dzi[k_nogc+1]
+                        if not (k_nogc == (kend - 1)): #1) zu_downstream is in this way implicitly set to 0 at top layer, and 2) ghost cell is not assigned.
+                            ut[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[5] * dzi[k_nogc]
+                            ut[k_nogc+1,j_nogc  ,i_nogc  ] += -result[5] * dzi[k_nogc+1]
                         #xv_upstream
                         vt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[6] * dxi
                         vt[k_nogc  ,j_nogc  ,i_nogc-1] +=  result[6] * dxi
@@ -400,29 +402,33 @@ if __name__ == '__main__':
                         vt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[9] * dyi
                         vt[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[9] * dyi
                         #zv_upstream
-                        vt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[10] * dzi[k_1gc]
-                        vt[k_nogc-1,j_nogc  ,i_nogc  ] +=  result[10] * dzi[k_1gc-1]
+                        if not (k_nogc == 0): #1) zu_upstream is in this way implicitly set to 0 at bottom layer (no-slip BC), and 2) ghost cell is not assigned.
+                            vt[k_nogc-1,j_nogc  ,i_nogc  ] +=  result[10] * dzi[k_1gc-1]
+                            vt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[10] * dzi[k_1gc]
                         #zv_downstream
-                        vt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[11] * dzi[k_1gc]
-                        vt[k_nogc+1,j_nogc  ,i_nogc  ] += -result[11] * dzi[k_1gc+1]
+                        if not (k_nogc == (kend - 1)): #1) zu_downstream is in this way implicitly set to 0 at top layer (no-slip BC), and 2) ghost cell is not assigned.
+                            vt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[11] * dzi[k_1gc]
+                            vt[k_nogc+1,j_nogc  ,i_nogc  ] += -result[11] * dzi[k_1gc+1]
                         #xw_upstream
-                        wt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[12] * dxi
-                        wt[k_nogc  ,j_nogc  ,i_nogc-1] +=  result[12] * dxi
-                        #xw_downstream
-                        wt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[13] * dxi
-                        wt[k_nogc  ,j_nogc  ,i_nogc_bound] += -result[13] * dxi
-                        #yw_upstream
-                        wt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[14] * dyi
-                        wt[k_nogc  ,j_nogc-1,i_nogc  ] +=  result[14] * dyi
-                        #yw_downstream
-                        wt[k_nogc  ,j_nogc      ,i_nogc  ] +=  result[15] * dyi
-                        wt[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[15] * dyi
-                        #zw_upstream
-                        wt[k_nogc  ,j_nogc      ,i_nogc  ] += -result[16] * dzhi[k_1gc]
-                        wt[k_nogc-1,j_nogc      ,i_nogc  ] +=  result[16] * dzhi[k_1gc-1]
-                        #zw_downstream
-                        wt[k_nogc  ,j_nogc      ,i_nogc  ] +=  result[17] * dzhi[k_1gc]
-                        wt[k_nogc+1,j_nogc      ,i_nogc  ] += -result[17] * dzhi[k_1gc-1]
+                        if not (k_nogc == 0): #Don't adjust wt for bottom layer, should stay 0
+                            wt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[12] * dxi
+                            wt[k_nogc  ,j_nogc  ,i_nogc-1] +=  result[12] * dxi
+                            #xw_downstream
+                            wt[k_nogc  ,j_nogc  ,i_nogc  ] +=  result[13] * dxi
+                            wt[k_nogc  ,j_nogc  ,i_nogc_bound] += -result[13] * dxi
+                            #yw_upstream
+                            wt[k_nogc  ,j_nogc  ,i_nogc  ] += -result[14] * dyi
+                            wt[k_nogc  ,j_nogc-1,i_nogc  ] +=  result[14] * dyi
+                            #yw_downstream
+                            wt[k_nogc  ,j_nogc      ,i_nogc  ] +=  result[15] * dyi
+                            wt[k_nogc  ,j_nogc_bound,i_nogc  ] += -result[15] * dyi
+                            #zw_upstream
+                            if not (k_nogc == 1): #Don't adjust wt for bottom layer, should stay 0
+                                wt[k_nogc-1,j_nogc      ,i_nogc  ] +=  result[16] * dzhi[k_1gc-1]
+                            wt[k_nogc  ,j_nogc      ,i_nogc  ] += -result[16] * dzhi[k_1gc] 
+                            #zw_downstream
+                            wt[k_nogc  ,j_nogc      ,i_nogc  ] +=  result[17] * dzhi[k_1gc]
+                            wt[k_nogc+1,j_nogc      ,i_nogc  ] += -result[17] * dzhi[k_1gc-1] #NOTE: although this does not change wt at the bottom layer, it is still not included for k=0 to keep consistency between the top and bottom of the domain.
 
 
                         #unres_tau_xu_lbls[k_nogc ,j_nogc, i_nogc]   = unres_tau_xu_singletimestep[k_nogc ,j_nogc, i_nogc]
