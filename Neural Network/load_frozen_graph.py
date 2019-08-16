@@ -60,9 +60,10 @@ def extract_weights_graph(frozen_graph_filename):
     #Loop over all nodes/layers specified above to change them into numpy arrays and subsequently store them in text files.
     for i in nodes_idx_name.keys():
         values = tensor_util.MakeNdarray(const_nodes[nodes_idx_name[i]].attr['value'].tensor)
-        if len(values.shape) == 2:
-            #Flatten weight arrays to ease the manual implementation of the MLP
-            values = values.flatten()
+        #if len(values.shape) == 2:
+        #    print(values.shape)
+        #    #Flatten weight arrays to ease the manual implementation of the MLP
+        #    values = values.flatten()
         #Make sure all arrays are at least 1D (needed for np.savetxt below)
         values = np.atleast_1d(values)
         np.savetxt(i+'.txt', values)

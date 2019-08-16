@@ -1,11 +1,81 @@
 #Script to load frozen model and do inference on flow snapshots stored in training file.
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
 import argparse
-import tensorflow as tf
+#import tensorflow as tf
 import numpy as np
 import netCDF4 as nc
 import time
-from diff_naieve_python import diff_U
+from diff_manual_python import diff_U
+
+class MLP:
+    '''Class to manually build MLP and subsequently do inference. NOTE: should be completely equivalent to MLP defined in MLP2_estimator.py!!!'''
+
+    def __init__(self,ndense): #Specify number of neurons in dense layer when instantiating the MLP
+        
+        self.ndense             = ndense
+        
+        #Load all weights and other variables from text files created with extract_variables_graph function located in load_frozen_graph.py
+        self.means_inputs       = np.loadtxt('means_inputs.txt')
+        self.stdevs_inputs      = np.loadtxt('stdevs_inputs.txt')
+        self.means_labels       = np.loadtxt('means_labels.txt')
+        self.stdevs_labels      = np.loadtxt('stdevs_labels.txt')
+        self.MLPu_hidden_kernel = np.loadtxt('MLPu_hidden_kernel.txt').transpose()
+        self.MLPu_hidden_bias   = np.loadtxt('MLPu_hidden_bias.txt')
+        self.MLPu_hidden_alpha  = np.loadtxt('MLPu_hidden_alpha.txt')
+        self.MLPu_output_kernel = np.loadtxt('MLPu_output_kernel.txt').transpose()
+        self.MLPu_output_bias   = np.loadtxt('MLPu_output_bias.txt')
+        self.MLPv_hidden_kernel = np.loadtxt('MLPv_hidden_kernel.txt').transpose()
+        self.MLPv_hidden_bias   = np.loadtxt('MLPv_hidden_bias.txt')
+        self.MLPv_hidden_alpha  = np.loadtxt('MLPv_hidden_alpha.txt')
+        self.MLPv_output_kernel = np.loadtxt('MLPv_output_kernel.txt').transpose()
+        self.MLPv_output_bias   = np.loadtxt('MLPv_output_bias.txt')
+        self.MLPw_hidden_kernel = np.loadtxt('MLPw_hidden_kernel.txt').transpose()
+        self.MLPw_hidden_bias   = np.loadtxt('MLPw_hidden_bias.txt')
+        self.MLPw_hidden_alpha  = np.loadtxt('MLPw_hidden_alpha.txt')
+        self.MLPw_output_kernel = np.loadtxt('MLPw_output_kernel.txt').transpose()
+        self.MLPw_output_bias   = np.loadtxt('MLPw_output_bias.txt')
+        self.output_denorm_utau2= np.loadtxt('output_denorm_utau2.txt')
+
+#        self.iteration=0
+
+    #Define private function to make input variables non-dimensionless and standardize them
+    def _standardization(self, input_variable, mean_variable, stdev_variable, scaling_factor):
+        input_variable = np.divide(input_variable, scaling_factor)
+        input_variable = np.subtract(input_variable, mean_variable)
+        input_variable = np.divide(input_variable, stdev_variable)
+        return input_variable
+
+    
+     #Define private function that executes a separate MLP.
+     def _single_MLP(self, inputs, name_MLP, params):
+         '''Function to execute a MLP with specified input. Inputs should be a list of numpy arrays containing the individual variables.'''
+     
+         #Make input layer
+         input_layer = np.concatenate(inputs, axis=1).flatten()
+     
+         #Execute hidden layer with Leaky Relu activation function
+         hidden_neurons = np.dot(self.MLPu_hidden_kernel, input_layer) + self.MLPu_hidden_bias
+         y1 = (hidden_neurons > 0) * hidden_neurons
+         y2 = (hidden_neurons <= 0) * hidden_neurons * self.MLPu_hidden_alpha
+         hidden_activations = y1 + y2
+         #CONTINUE HERE!!!!!!!!!!!!!!!!!
+         #Execute output layer with no activation function
+         output_activations = np.dot(self.MLPu_hidden_kernel, input_layer) + self.MLPu_hidden_bias
+         return output_layer
+
+    def predict(self, input_u, input_v, input_w, input_utau_ref):
+        
+        #Standardize input variables
+        input_u_stand  = self._standardization(input_u, self.means_inputs[0], self.stdevs_inputs[0], input_utau_ref)
+        input_v_stand  = self._standardization(input_v, self.means_inputs[1], self.stdevs_inputs[1], input_utau_ref)
+        input_w_stand  = self._standardization(input_w, self.means_inputs[2], self.stdevs_inputs[2], input_utau_ref)
+        
+#        self.iteration += 1
+#        print(self.iteration)
+
+        #Specify for now some dummy values
+        output_denorm = np.ones((1,18))
+        return output_denorm
 
 class Grid:
     '''Class to store information about grid.'''
@@ -174,9 +244,13 @@ if __name__ == '__main__':
         var_vt = inference.createVariable("v_tendency","f8",("tstep_unique","zc","yhcless","xc"))
         var_wt = inference.createVariable("w_tendency","f8",("tstep_unique","zhcless","yc","xc"))
     
+    #Instantiate manual MLP class for making predictions
+    MLP = MLP(ndense = 107)
+    
     #Loop over flow fields, for each time step in tstep_unique (giving 4 loops in total).
     #For each alternating grid cell, store transport components by calling the 'frozen' MLP within a tf.Session().
-    for t in range(nt):
+    #for t in range(nt):
+    for t in range(1): #NOTE:FOR TESTING PURPOSES ONLY!
         
         #Select flow fields of time step
         u_singletimestep = u[t,:,:,:-1].flatten()#Flatten and remove ghost cells in horizontal staggered dimensions to make shape consistent to arrays in MicroHH
@@ -205,8 +279,8 @@ if __name__ == '__main__':
         #unres_tau_zw_CNN = np.full((len(zc),len(yc),len(xc)),       np.nan, dtype=np.float32)
 
         #NOTE: assignment of unresolved transports happens as a side-effect within the function below!
-        ut, vt, wt = diff_U(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, utau_ref = utau_ref_channel, frozen_graph_filename = args.frozen_graph_filename, dzi = dzi, dzhi = dzhi, grid = grid, b = b)
-        
+        ut, vt, wt = diff_U(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, utau_ref = utau_ref_channel, frozen_graph_filename = args.frozen_graph_filename, dzi = dzi, dzhi = dzhi, grid = grid, MLP = MLP, b = b) #Call for scripts based on manual implementation MLP
+        #ut, vt, wt = diff_U(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, utau_ref = utau_ref_channel, frozen_graph_filename = args.frozen_graph_filename, dzi = dzi, dzhi = dzhi, grid = grid, b = b) #Call for script based on frozen graph
         t1_end = time.perf_counter()
 
         print("Elapsed time during one iteration through a single flow field: ", t1_end - t1_start, " seconds.")
