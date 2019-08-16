@@ -429,10 +429,14 @@ if args.reconstruct_fields:
                 indices_up   = np.s_[:,i,:,:]
                 indices_down = np.s_[:,i-1,:,:]
 
-            #Determine index slice for combined field (depends only on zw_flag)
+            #Determine index slice for combined field (depends only on zw_flag), and compensate for shifted indices in the alternate sampling
             if zw_flag:
                 indices_combined = indices_down
+                twodimcor_odd2   = twodimcor_even
+                twodimcor_even2  = twodimcor_odd
             else:
+                twodimcor_odd2   = twodimcor_odd
+                twodimcor_even2  = twodimcor_even
                 indices_combined = indices_up
             
             #Assign upstream and downstream values to combined field
@@ -443,11 +447,11 @@ if args.reconstruct_fields:
             
             #Make distinction between i=even and i=odd to alternate storage
             elif i % 2 == 0: #i is even
-                combined_field[indices_combined][twodimcor_odd]  = upstream_field[indices_up][twodimcor_odd]
-                combined_field[indices_combined][twodimcor_even] = downstream_field[indices_down][twodimcor_even]
+                combined_field[indices_combined][twodimcor_odd2]  = upstream_field[indices_up][twodimcor_odd2]
+                combined_field[indices_combined][twodimcor_even2] = downstream_field[indices_down][twodimcor_even2]
             elif i % 2 != 0: #i is odd
-                combined_field[indices_combined][twodimcor_even] = upstream_field[indices_up][twodimcor_even]
-                combined_field[indices_combined][twodimcor_odd]  = downstream_field[indices_down][twodimcor_odd]
+                combined_field[indices_combined][twodimcor_even2] = upstream_field[indices_up][twodimcor_even2]
+                combined_field[indices_combined][twodimcor_odd2]  = downstream_field[indices_down][twodimcor_odd2]
             else:
                 raise RuntimeError("Error occured in script as this line should not have been reached. Check carefully for bugs.")
         return combined_field

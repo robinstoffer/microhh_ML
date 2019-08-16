@@ -28,7 +28,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 #Get remark of new intialized thread pool with default settings for inter_op_parallelism_threads
 
 #Do inference
-python3 -u inference_frozen_graph.py --frozen_graph_filename /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP9/frozen_inference_graph.pb --training_filename /projects/1/flowsim/simulation1/lesscoarse/training_data.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP9/inference_reconstructed_field.nc
+python3 -u inference_frozen_graph.py --frozen_graph_filename /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP10/frozen_inference_graph.pb --training_filename /projects/1/flowsim/simulation1/lesscoarse/training_data.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP10/inference_reconstructed_field.nc #--store_variables
 
 #GO TO LISA WHEN USING TENSORRT FOR INFERENCE ON GPU, and execute commands below
 #convert-to-uff convert-to-uff ~/inference_firstMLP/frozen_graph/MLP1.pb -o uff/MLP1.uff -O outputs/BiasAdd
