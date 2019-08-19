@@ -1,36 +1,16 @@
 #Function to calculate tendencies for unresolved momentum flux
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
-import tensorflow as tf
 import numpy as np
 import netCDF4 as nc
-from load_frozen_graph import load_graph
 
 def diff_U(u, v, w, utau_ref, frozen_graph_filename, dzi, dzhi, grid, MLP, b):
          
-    #Load frozen graph
-    graph = load_graph(frozen_graph_filename)
- 
-    ##List ops in graph
-    #for op in graph.get_operations():
-    #    print(op.name)
- 
-    #Access input and output nodes
-    #NOTE: specify ':0' to select the correct output of the ops and get the tensors themselves
-    input_u               = graph.get_tensor_by_name('input_u:0')
-    input_v               = graph.get_tensor_by_name('input_v:0')
-    input_w               = graph.get_tensor_by_name('input_w:0')
-    #input_flag_topwall    = graph.get_tensor_by_name('flag_topwall:0')
-    #input_flag_bottomwall = graph.get_tensor_by_name('flag_bottomwall:0')
-    input_utau_ref        = graph.get_tensor_by_name('input_utau_ref:0')
-    output                = graph.get_tensor_by_name('output_layer_denorm:0')
-    
     #Initialize zeros arrays for tendencies
     #NOTE: for wt, the initial zero value of the bottom layer is on purpose not changed. This is ONLY valid for a no-slip BC.
     ut = np.zeros((grid.ktot,grid.jtot,grid.itot))
     vt = np.zeros((grid.ktot,grid.jtot,grid.itot))
     wt = np.zeros((grid.ktot,grid.jtot,grid.itot))
     
-    #NOTE: several expand_dims included to account for batch dimension
     #Reshape 1d arrays to 3d, which is much more convenient for the slicing below.
     u = np.reshape(u, (grid.kcells,  grid.jcells, grid.icells))
     v = np.reshape(v, (grid.kcells,  grid.jcells, grid.icells))
@@ -191,7 +171,7 @@ def diff_U(u, v, w, utau_ref, frozen_graph_filename, dzi, dzhi, grid, MLP, b):
                     input_w_val2 = np.expand_dims(w[k-b:k+b+1,j-b:j+b+1,i_2grid-b:i_2grid+b+1].flatten(),axis=0)
 
                     #Execute MLP for selected second grid cell
-                    result2 = MLP.predict(input_u_val2, input_v_val2, input_w_val2, input_utau_ref_val)
+                    result2 = MLP.predict(input_u_val2, input_v_val2, input_w_val2, input_utau_ref_val, zw_flag=True)
 
                     #Store results in initialized arrays in nc-file
                     #NOTE1: compensate indices for lack of ghost cells
@@ -203,9 +183,9 @@ def diff_U(u, v, w, utau_ref, frozen_graph_filename, dzi, dzhi, grid, MLP, b):
                     k_1gc2  = k_nogc2 + 1
 
                     if k == (grid.kstart+1):
-                    #    unres_tau_zw_CNN[k_nogc2-1 ,j_nogc2 ,i_nogc2] =  result2[16] #zw_upstream
-                        wt[k_nogc2,j_nogc2,i_nogc2]                  += -result2[16] * dzhi[k_1gc2]
+                    #    unres_tau_zw_CNN[k_nogc2-1 ,j_nogc2 ,i_nogc2] =  result2[0] #zw_upstream
+                        wt[k_nogc2,j_nogc2,i_nogc2]                  += -result2[0] * dzhi[k_1gc2]
                     else:
-                    #    unres_tau_zw_CNN[k_nogc2   ,j_nogc2 ,i_nogc2] =  result2[17] #zw_downstream
-                        wt[k_nogc2,j_nogc2,i_nogc2]                  +=  result2[17] * dzhi[k_1gc2]
+                    #    unres_tau_zw_CNN[k_nogc2   ,j_nogc2 ,i_nogc2] =  result2[1] #zw_downstream
+                        wt[k_nogc2,j_nogc2,i_nogc2]                  +=  result2[1] * dzhi[k_1gc2]
     return ut, vt, wt

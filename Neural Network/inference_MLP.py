@@ -10,31 +10,32 @@ from diff_manual_python import diff_U
 class MLP:
     '''Class to manually build MLP and subsequently do inference. NOTE: should be completely equivalent to MLP defined in MLP2_estimator.py!!!'''
 
-    def __init__(self,ndense): #Specify number of neurons in dense layer when instantiating the MLP
+    def __init__(self,ndense, variables_filepath): #Specify number of neurons in dense layer when instantiating the MLP
         
         self.ndense             = ndense
         
         #Load all weights and other variables from text files created with extract_variables_graph function located in load_frozen_graph.py
-        self.means_inputs       = np.loadtxt('means_inputs.txt')
-        self.stdevs_inputs      = np.loadtxt('stdevs_inputs.txt')
-        self.means_labels       = np.loadtxt('means_labels.txt')
-        self.stdevs_labels      = np.loadtxt('stdevs_labels.txt')
-        self.MLPu_hidden_kernel = np.loadtxt('MLPu_hidden_kernel.txt').transpose()
-        self.MLPu_hidden_bias   = np.loadtxt('MLPu_hidden_bias.txt')
-        self.MLPu_hidden_alpha  = np.loadtxt('MLPu_hidden_alpha.txt')
-        self.MLPu_output_kernel = np.loadtxt('MLPu_output_kernel.txt').transpose()
-        self.MLPu_output_bias   = np.loadtxt('MLPu_output_bias.txt')
-        self.MLPv_hidden_kernel = np.loadtxt('MLPv_hidden_kernel.txt').transpose()
-        self.MLPv_hidden_bias   = np.loadtxt('MLPv_hidden_bias.txt')
-        self.MLPv_hidden_alpha  = np.loadtxt('MLPv_hidden_alpha.txt')
-        self.MLPv_output_kernel = np.loadtxt('MLPv_output_kernel.txt').transpose()
-        self.MLPv_output_bias   = np.loadtxt('MLPv_output_bias.txt')
-        self.MLPw_hidden_kernel = np.loadtxt('MLPw_hidden_kernel.txt').transpose()
-        self.MLPw_hidden_bias   = np.loadtxt('MLPw_hidden_bias.txt')
-        self.MLPw_hidden_alpha  = np.loadtxt('MLPw_hidden_alpha.txt')
-        self.MLPw_output_kernel = np.loadtxt('MLPw_output_kernel.txt').transpose()
-        self.MLPw_output_bias   = np.loadtxt('MLPw_output_bias.txt')
-        self.output_denorm_utau2= np.loadtxt('output_denorm_utau2.txt')
+        #NOTE: take transpose of weights to get the shapes required for manual implementation of the MLP
+        self.means_inputs       = np.loadtxt(variables_filepath+'means_inputs.txt')
+        self.stdevs_inputs      = np.loadtxt(variables_filepath+'stdevs_inputs.txt')
+        self.means_labels       = np.loadtxt(variables_filepath+'means_labels.txt')
+        self.stdevs_labels      = np.loadtxt(variables_filepath+'stdevs_labels.txt')
+        self.MLPu_hidden_kernel = np.loadtxt(variables_filepath+'MLPu_hidden_kernel.txt').transpose()
+        self.MLPu_hidden_bias   = np.loadtxt(variables_filepath+'MLPu_hidden_bias.txt')
+        self.MLPu_hidden_alpha  = np.loadtxt(variables_filepath+'MLPu_hidden_alpha.txt')
+        self.MLPu_output_kernel = np.loadtxt(variables_filepath+'MLPu_output_kernel.txt').transpose()
+        self.MLPu_output_bias   = np.loadtxt(variables_filepath+'MLPu_output_bias.txt')
+        self.MLPv_hidden_kernel = np.loadtxt(variables_filepath+'MLPv_hidden_kernel.txt').transpose()
+        self.MLPv_hidden_bias   = np.loadtxt(variables_filepath+'MLPv_hidden_bias.txt')
+        self.MLPv_hidden_alpha  = np.loadtxt(variables_filepath+'MLPv_hidden_alpha.txt')
+        self.MLPv_output_kernel = np.loadtxt(variables_filepath+'MLPv_output_kernel.txt').transpose()
+        self.MLPv_output_bias   = np.loadtxt(variables_filepath+'MLPv_output_bias.txt')
+        self.MLPw_hidden_kernel = np.loadtxt(variables_filepath+'MLPw_hidden_kernel.txt').transpose()
+        self.MLPw_hidden_bias   = np.loadtxt(variables_filepath+'MLPw_hidden_bias.txt')
+        self.MLPw_hidden_alpha  = np.loadtxt(variables_filepath+'MLPw_hidden_alpha.txt')
+        self.MLPw_output_kernel = np.loadtxt(variables_filepath+'MLPw_output_kernel.txt').transpose()
+        self.MLPw_output_bias   = np.loadtxt(variables_filepath+'MLPw_output_bias.txt')
+        self.output_denorm_utau2= np.loadtxt(variables_filepath+'output_denorm_utau2.txt')
 
 #        self.iteration=0
 
@@ -57,7 +58,7 @@ class MLP:
         return final_variable
     
     #Define private function that executes a separate MLP.
-    def _single_MLP(self, inputs, hidden_kernel, hidden_bias, output_kernel, output_bias, alpha):
+    def _single_MLP(self, inputs, hidden_kernel, hidden_bias, output_kernel, output_bias, alpha, zw_flag):
          '''Private function to execute a MLP with specified input. Inputs should be a list of numpy arrays containing the individual variables.'''
      
          #Make input layer
@@ -73,11 +74,14 @@ class MLP:
          #print(hidden_activations.shape)
          
          #Execute output layer with no activation function
-         output_activations = np.expand_dims(np.dot(output_kernel, hidden_activations) + output_bias, axis=0)
+         if zw_flag:
+             output_activations = np.expand_dims(np.dot(output_kernel[-2:], hidden_activations) + output_bias[-2:], axis=0)
+         else:
+             output_activations = np.expand_dims(np.dot(output_kernel, hidden_activations) + output_bias, axis=0)
          #print(output_activations.shape)
          return output_activations
 
-    def predict(self, input_u, input_v, input_w, input_utau_ref):
+    def predict(self, input_u, input_v, input_w, input_utau_ref, zw_flag = False): #if zw_flag is True, only determine zw-components
         
         #Standardize input variables
         input_u_stand  = self._standardization(input_u, self.means_inputs[0], self.stdevs_inputs[0], input_utau_ref)
@@ -85,21 +89,22 @@ class MLP:
         input_w_stand  = self._standardization(input_w, self.means_inputs[2], self.stdevs_inputs[2], input_utau_ref)
 
         #Execute three single MLPs
-        output_layer_u = self._single_MLP([
-            input_u_stand, 
-            self._adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
-            self._adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1])], 
-            self.MLPu_hidden_kernel, self.MLPu_hidden_bias, 
-            self.MLPu_output_kernel, self.MLPu_output_bias, 
-            self.MLPu_hidden_alpha)
-        
-        output_layer_v = self._single_MLP([
-            self._adjust_sizeinput(input_u_stand, np.s_[:,:,:-1,1:]), 
-            input_v_stand,
-            self._adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:])], 
-            self.MLPv_hidden_kernel, self.MLPv_hidden_bias, 
-            self.MLPv_output_kernel, self.MLPv_output_bias, 
-            self.MLPv_hidden_alpha)
+        if not zw_flag:
+            output_layer_u = self._single_MLP([
+                input_u_stand, 
+                self._adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
+                self._adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1])], 
+                self.MLPu_hidden_kernel, self.MLPu_hidden_bias, 
+                self.MLPu_output_kernel, self.MLPu_output_bias, 
+                self.MLPu_hidden_alpha, zw_flag)
+            
+            output_layer_v = self._single_MLP([
+                self._adjust_sizeinput(input_u_stand, np.s_[:,:,:-1,1:]), 
+                input_v_stand,
+                self._adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:])], 
+                self.MLPv_hidden_kernel, self.MLPv_hidden_bias, 
+                self.MLPv_output_kernel, self.MLPv_output_bias, 
+                self.MLPv_hidden_alpha, zw_flag)
         
         output_layer_w = self._single_MLP([
             self._adjust_sizeinput(input_u_stand, np.s_[:,:-1,:,1:]), 
@@ -107,15 +112,21 @@ class MLP:
             input_w_stand], 
             self.MLPw_hidden_kernel, self.MLPw_hidden_bias, 
             self.MLPw_output_kernel, self.MLPw_output_bias, 
-            self.MLPw_hidden_alpha)
+            self.MLPw_hidden_alpha, zw_flag)
         
         #Concatenate output layers
-        output_layer_tot = np.concatenate([output_layer_u, output_layer_v, output_layer_w], axis=1)
+        if not zw_flag:
+            output_layer_tot = np.concatenate([output_layer_u, output_layer_v, output_layer_w], axis=1)
 
         #Denormalize output layer
-        output_stdevs = np.multiply(output_layer_tot, self.stdevs_labels)
-        output_means  = np.add(output_stdevs, self.means_labels)
-        output_denorm = np.multiply(output_means, self.output_denorm_utau2)
+        if not zw_flag:
+            output_stdevs = np.multiply(output_layer_tot, self.stdevs_labels)
+            output_means  = np.add(output_stdevs, self.means_labels)
+            output_denorm = np.multiply(output_means, self.output_denorm_utau2)
+        else:
+            output_stdevs = np.multiply(output_layer_w, self.stdevs_labels[-2:])
+            output_means  = np.add(output_stdevs, self.means_labels[-2:])
+            output_denorm = np.multiply(output_means, self.output_denorm_utau2)
         
         return output_denorm
 
@@ -154,11 +165,12 @@ class Grid:
 
 
 if __name__ == '__main__':
-    # Pass filenames and batch size as an argument
+    # Parse input
     parser = argparse.ArgumentParser()
     parser.add_argument("--frozen_graph_filename", default="frozen_inference_graph.pb")
     parser.add_argument("--training_filename", default="training_data.nc")
     parser.add_argument("--inference_filename", default="inference_reconstructed_fields.nc")
+    parser.add_argument("--variables_filepath", default="", help="filepath where extracted variables from the frozen graph are located.")
     parser.add_argument("--store_variables", default=None, action="store_true", help="Store all tendencies in a netCDF-file when specified.")
     #parser.add_argument("--batch_size", default=1000)
     args = parser.parse_args()
@@ -210,7 +222,7 @@ if __name__ == '__main__':
     #Store grid information in a class object called grid.
     grid = Grid(coord_center = (zc,yc,xc), coord_edge = (zhc,yhc,xhc), gc = (kgc,jgc,igc), end_ind_center = (kend,jend,iend), end_ind_edge = (khend,jhend,ihend))
     
-    #Calculate height differences, ASSUMING a second-order numerical scheme for calculation of the heights
+    #Calculate height differences, ASSUMING a second-order numerical scheme
     zgc1     = zgc[grid.kstart-1:grid.kend+1] #Include one ghost cell at each side
     dzh      = np.zeros(grid.ktot + 2) #Include two ghost cells for heights
     dzh[1:]  = zgc1[1:] - zgc1[:-1]
@@ -287,7 +299,7 @@ if __name__ == '__main__':
         var_wt = inference.createVariable("w_tendency","f8",("tstep_unique","zhcless","yc","xc"))
     
     #Instantiate manual MLP class for making predictions
-    MLP = MLP(ndense = 107)
+    MLP = MLP(ndense = 107, variables_filepath = args.variables_filepath)
     
     #Loop over flow fields, for each time step in tstep_unique (giving 4 loops in total).
     #For each alternating grid cell, store transport components by calling the 'frozen' MLP within a tf.Session().
