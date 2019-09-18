@@ -428,8 +428,9 @@ def model_fn(features, labels, mode, params):
         input_v      = tf.identity(features['vc_sample'], name = 'input_v')
         input_w      = tf.identity(features['wc_sample'], name = 'input_w')
         #input_p      = tf.identity(features['pc_sample'], name = 'input_p')
-        input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
-        
+        #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
+        input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
+
     else:   
         input_ugradx = tf.identity(features['ugradx_sample'], name = 'input_ugradx')
         input_ugrady = tf.identity(features['ugrady_sample'], name = 'input_ugrady')
@@ -443,7 +444,8 @@ def model_fn(features, labels, mode, params):
         #input_pgradx = tf.identity(features['pgradx_sample'], name = 'input_pgradx')
         #input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
         #input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
-        input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
+        #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
+        input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
 
     #Define function to make input variables non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
