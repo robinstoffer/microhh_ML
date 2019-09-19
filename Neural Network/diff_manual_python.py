@@ -47,7 +47,7 @@ def diff_U(u, v, w, utau_ref, frozen_graph_filename, dzi, dzhi, grid, MLP, b):
                 #raise RuntimeError("Stop run")
 
                 #Execute MLP once for selected grid box
-                result = MLP.predict(input_u_val, input_v_val, input_w_val, input_utau_ref_val)
+                result = MLP.predict(input_u_val, input_v_val, input_w_val)
 
                 #Store results in initialized arrays in nc-file
                 #NOTE1: compensate indices for lack of ghost cells

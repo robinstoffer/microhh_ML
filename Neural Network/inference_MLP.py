@@ -35,6 +35,7 @@ class MLP:
         self.MLPw_hidden_alpha  = np.loadtxt(variables_filepath+'MLPw_hidden_alpha.txt')
         self.MLPw_output_kernel = np.loadtxt(variables_filepath+'MLPw_output_kernel.txt').transpose()
         self.MLPw_output_bias   = np.loadtxt(variables_filepath+'MLPw_output_bias.txt')
+        self.utau_ref           = np.loadtxt(variables_filepath+'utau_ref.txt')
         self.output_denorm_utau2= np.loadtxt(variables_filepath+'output_denorm_utau2.txt')
 
 #        self.iteration=0
@@ -81,12 +82,12 @@ class MLP:
          #print(output_activations.shape)
          return output_activations
 
-    def predict(self, input_u, input_v, input_w, input_utau_ref, zw_flag = False): #if zw_flag is True, only determine zw-components
+    def predict(self, input_u, input_v, input_w, zw_flag = False): #if zw_flag is True, only determine zw-components
         
         #Standardize input variables
-        input_u_stand  = self._standardization(input_u, self.means_inputs[0], self.stdevs_inputs[0], input_utau_ref)
-        input_v_stand  = self._standardization(input_v, self.means_inputs[1], self.stdevs_inputs[1], input_utau_ref)
-        input_w_stand  = self._standardization(input_w, self.means_inputs[2], self.stdevs_inputs[2], input_utau_ref)
+        input_u_stand  = self._standardization(input_u, self.means_inputs[0], self.stdevs_inputs[0], self.utau_ref)
+        input_v_stand  = self._standardization(input_v, self.means_inputs[1], self.stdevs_inputs[1], self.utau_ref)
+        input_w_stand  = self._standardization(input_w, self.means_inputs[2], self.stdevs_inputs[2], self.utau_ref)
 
         #Execute three single MLPs
         if not zw_flag:
