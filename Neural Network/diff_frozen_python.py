@@ -206,7 +206,7 @@ def diff_U(u, v, w, utau_ref, frozen_graph_filename, dzi, dzhi, grid, b):
                             input_w:               input_w_val2,
                             #input_flag_topwall:    input_flag_topwall_val,
                             #input_flag_bottomwall: input_flag_bottomwall_val,
-                            input_utau_ref:        input_utau_ref_val
+                            #input_utau_ref:        input_utau_ref_val
                             })
 
                         #Store results in initialized arrays in nc-file

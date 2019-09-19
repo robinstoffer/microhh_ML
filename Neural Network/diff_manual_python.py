@@ -171,7 +171,7 @@ def diff_U(u, v, w, utau_ref, frozen_graph_filename, dzi, dzhi, grid, MLP, b):
                     input_w_val2 = np.expand_dims(w[k-b:k+b+1,j-b:j+b+1,i_2grid-b:i_2grid+b+1].flatten(),axis=0)
 
                     #Execute MLP for selected second grid cell
-                    result2 = MLP.predict(input_u_val2, input_v_val2, input_w_val2, input_utau_ref_val, zw_flag=True)
+                    result2 = MLP.predict(input_u_val2, input_v_val2, input_w_val2, zw_flag=True)
 
                     #Store results in initialized arrays in nc-file
                     #NOTE1: compensate indices for lack of ghost cells

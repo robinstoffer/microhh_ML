@@ -6,6 +6,7 @@ import numpy as np
 import netCDF4 as nc
 import time
 from diff_manual_python import diff_U
+#from diff_frozen_python import diff_U
 
 class MLP:
     '''Class to manually build MLP and subsequently do inference. NOTE: should be completely equivalent to MLP defined in MLP2_estimator.py!!!'''
