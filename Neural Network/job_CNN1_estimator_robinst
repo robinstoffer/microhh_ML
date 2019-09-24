@@ -17,8 +17,22 @@ cd
 #cd microhh/cases/moser600/simulation2
 cd /projects/1/flowsim/simulation1/lesscoarse
 
+
+#Load modules new environment
 module purge
-module load eb
+module load surf-devel
+module load 2019
+module load intel/2018b
+module load netCDF/4.6.1-intel-2018b
+module load netCDF-C++4/4.3.0-intel-2018b
+module load CMake/3.12.1-GCCcore-7.3.0
+module load cuDNN/7.6.3-CUDA-10.0.130
+module load FFTW/3.3.8-intel-2018b
+module load Doxygen/1.8.14-GCCcore-7.3.0
+
+#Load modules old environment
+module purge
+#module load eb
 module load surfsara
 module load CMake/3.7.2-intel-2016b
 #module load cuDNN/7.0.5-CUDA-9.0.176
