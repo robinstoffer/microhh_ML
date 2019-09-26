@@ -8,7 +8,8 @@
 #include <iostream>
 extern "C"
 {
-	#include <cblas.h>
+	//#include <cblas.h>
+	#include <mkl.h>
 }
 #include "Network.h"
 #define restrict __restrict

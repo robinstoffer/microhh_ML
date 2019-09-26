@@ -927,7 +927,7 @@ else:
     kernelsize_conv1 = 3
 
 hyperparams =  {
-'n_dense1':6, #Neurons in hidden layer for each control volume
+'n_dense1':64, #Neurons in hidden layer for each control volume
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
 'learning_rate':0.0001

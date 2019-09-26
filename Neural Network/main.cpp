@@ -65,10 +65,10 @@ inline static int nc_error_print(int e)
 int main()
 {
     // For now, hard-code command-line inputs user (Windows)
-	// std::string grid_filenc = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
-	// std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP11\\";
-	// std::string training_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
-	// std::string inference_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP11\\inference_reconstructed_field_manual_cpp.nc";
+	//std::string grid_filenc = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
+	//std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP11\\";
+	//std::string training_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Training data\\training_data.nc";
+	//std::string inference_file = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP11\\inference_reconstructed_field_manual_cpp.nc";
 	
 	// For now, hard-code command-line inputs user (Linux)
 	std::string grid_filenc = "/projects/1/flowsim/simulation1/lesscoarse/training_data.nc";

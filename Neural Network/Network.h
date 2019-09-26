@@ -9,12 +9,6 @@
 #define NETWORK_H
 #define restrict __restrict
 
-/*namespace Network_layers
-{
-	// Layer fixed arrays
-	std::array<float, Network::N_hidden> ;
-}*/
-
 void hidden_layer1(
 	const float* restrict const weights,
 	const float* restrict const bias,

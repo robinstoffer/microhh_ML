@@ -15,8 +15,12 @@ int main()
 	// Directory where the parameters of the MLP are stored.
 	// NOTE: Set this to explicitly to the path where the variables of the MLP are stored!
 	
-	std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP12\\";
+	//Windows
+	//std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP12\\";
+	//Linux
+	std::string var_filepath = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP11/";
 	//std::string var_filepath = "PATH/TO/DIR/";
+
 
 	std::string grid_filenc = "dummy_notused.nc"; // This file is not used when the grid object is instantiated with testing = true (second argument) as done in main_test.cpp.
 

@@ -24,7 +24,6 @@ void select_box(
 	// Calculate number of grid cells that the grid box extends from the center for looping
 	int b = boxsize / 2; // NOTE: on purpose fractional part dropped
 	//Loop over all three indices to extract grid box
-	//NOTE1: offset factors included to ensure alternate sampling
 	int ji_box  = (boxsize - skip_firsty - skip_lasty) * (boxsize - skip_firstx - skip_lastx);
 	int k_box = 0;
 	for (int k_field = k_center - b + skip_firstz; k_field < (k_center + b + 1 - skip_lastz); ++k_field)
@@ -45,7 +44,7 @@ void select_box(
 	}
 }
 
-// pass MLP and grid class by reference!
+// Function that loops over the whole flow field, and calculates for each grid cell the tendencies
 void diff_U(
 	const float* restrict const u,
 	const float* restrict const v,
@@ -257,7 +256,7 @@ void diff_U(
 					}
 				}
 
-				//Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
+				// Execute for each iteration in the first layer above the bottom layer, and for each iteration in the top layer, 
 				// the MLP for a second grid cell to calculate 'missing' zw-values.
 				if ((k == (grid.m_kend - 1)) || (k == (grid.m_kstart + 1)))
 				{
