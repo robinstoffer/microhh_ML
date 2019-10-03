@@ -18,14 +18,12 @@ int main()
 	//Windows
 	//std::string var_filepath = "M:\\My Documents\\Machine learning projects\\SURFsara project\\Scripts\\Neural network\\Variables_MLP12\\";
 	//Linux
-	std::string var_filepath = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP11/";
+	std::string var_filepath = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13/";
 	//std::string var_filepath = "PATH/TO/DIR/";
 
 
-	std::string grid_filenc = "dummy_notused.nc"; // This file is not used when the grid object is instantiated with testing = true (second argument) as done in main_test.cpp.
-
-	//Instantiate grid object, which in this test script just contains hard-coded variables (because testing is set to true).
-	Grid grid(grid_filenc, true);
+	//Instantiate grid object, which in this test script just contains hard-coded variables
+	Grid grid;
 
 	//For simplicitly, also hard-code height differences
 	int dz_length = grid.m_ktot + 2;

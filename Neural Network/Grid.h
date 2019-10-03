@@ -35,13 +35,12 @@ class Grid
 		int m_ijtot;
 		float m_dx;
 		float m_dy;
-
-		Grid(std::string grid_filenc, bool testing=false); // constructor
+		Grid(); // constructor testing
+		//Grid(std::string grid_filenc, bool testing=false); // constructor actual inference
 
 		~Grid(); // destructor
 
 	private:
-		bool m_testing;
 		int m_ncid_grid;
 };
 #endif
