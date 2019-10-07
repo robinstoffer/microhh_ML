@@ -68,13 +68,13 @@ void diff_U(
 
 	//Loop over field
 	//NOTE1: offset factors included to ensure alternate sampling
-	for (int k = grid.m_kstart; k < grid.m_kend; ++k)
+    for (int k = grid.m_kstart; k < grid.m_kend; ++k)
 	{
 		int k_offset = k % 2;
 		for (int j = grid.m_jstart; j < grid.m_jend; ++j)
 		{
 			int offset = static_cast<int>((j % 2) == k_offset); //Calculate offset in such a way that the alternation swaps for each vertical level.
-			for (int i = grid.m_istart+offset; i < grid.m_iend; i+=2)
+            for (int i = grid.m_istart+offset; i < grid.m_iend; i+=2)
 			{
 				//Extract grid box flow fields
 				select_box(u, MLP.m_input_ctrlu_u.data(), k, j, i, Network::boxsize, 0, 0, 0, 0, 0, 0, grid);

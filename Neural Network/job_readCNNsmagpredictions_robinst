@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 2:00:00
+#SBATCH -t 1:00:00
 ####SBATCH -t 3-00:00:00
 ####SBATCH -t 10:00:00
 ####SBATCH -N 1
@@ -12,11 +12,10 @@
 umask g+w
 cd
 #cd microhh/cases/moser600/simulation2
-cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP10
+cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP13
 
 #Load modules new environment
 module purge
-module load surf-devel
 module load 2019
 module load intel/2018b
 module load netCDF/4.6.1-intel-2018b
@@ -57,7 +56,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 
 #Make CNN/Smag predictions and reconstruct fields
-python3 -u ../read_CNNsmagpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP10/MLP_predictions.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --reconstruct_fields --make_plots
+python3 -u ../read_CNNsmagpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13/MLP_predictions.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --make_plots
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
