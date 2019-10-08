@@ -32,9 +32,9 @@ module load Valgrind/3.14.0-intel-2018b
 #g++ -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid_test.cpp main_test.cpp Network.h Network.cpp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl -std=c++14 -Ofast -march=native
 
 #Intel compiler (Intel MKL)
-icpc -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid.cpp main.cpp Network.h Network.cpp -lnetcdf -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -std=c++14 -Ofast -xAVX -axCORE-AVX-I,CORE-AVX2,CORE-AVX512 -ipo
+#icpc -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid.cpp main.cpp Network.h Network.cpp -lnetcdf -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -std=c++14 -Ofast -xAVX -axCORE-AVX-I,CORE-AVX2,CORE-AVX512 -ipo
 
-#icpc -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid_test.cpp main_test.cpp Network.h Network.cpp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl -std=c++14 -Ofast -xAVX -axCORE-AVX-I,CORE-AVX2,CORE-AVX512 -g
+icpc -Wall -o MLP diff_U.h diff_U.cpp Grid.h Grid_test.cpp main_test.cpp Network.h Network.cpp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl -std=c++14 -Ofast -xAVX -axCORE-AVX-I,CORE-AVX2,CORE-AVX512 -g
 
 #cblas_sgemm_test
 #icpc -Wall -o cblas_sgemm_test cblas_sgemm_test.cpp -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lpthread -lm -ldl -std=c++14 -Ofast -xAVX -axCORE-AVX-I,CORE-AVX2,CORE-AVX512
