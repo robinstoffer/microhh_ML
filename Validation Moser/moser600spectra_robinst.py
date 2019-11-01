@@ -14,6 +14,10 @@ nx = 768
 ny = 384
 nz = 256
 
+#nx = 96
+#ny = 48
+#nz = 64
+
 #iter = 60000
 #iterstep = 500
 #nt   = 7
