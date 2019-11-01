@@ -68,11 +68,12 @@ def plot_tensorflow_log(log_file_training, log_file_validation, save_path):
 
     #Make plot for training/validation loss
     plt.figure()
-    plt.plot(x_train, y_train, 'r-', label='Training',   linewidth=0.2)
-    plt.plot(x_validation, y_validation_loss, 'b-', label='Validation', linewidth=2.)
-    plt.xlabel("Training iterations [-]", fontsize=20)
-    plt.ylabel("Log(loss) [-]", fontsize=20)
-    plt.xticks(fontsize = 16, rotation = 90)
+    plt.plot(x_train*(10**(-5)), y_train, 'r-', label='Training',   linewidth=0.2)
+    plt.plot(x_validation*(10**(-5)), y_validation_loss, 'b-', label='Validation', linewidth=2.)
+    
+    plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
+    plt.ylabel(r'$\rm log(loss)\ [-]$', fontsize=20)
+    plt.xticks(fontsize = 16, rotation = 0)
     plt.yticks(fontsize = 16, rotation = 0)
     leg = plt.legend(loc='upper right', fontsize=20, frameon=True)
     #Set linewidth in legend (different than in plot)
@@ -84,10 +85,10 @@ def plot_tensorflow_log(log_file_training, log_file_validation, save_path):
 
     #Make plot for RMSE
     plt.figure()
-    plt.plot(x_validation, y_validation_rmse, 'b-', label='Validation', linewidth=2.)
-    plt.xlabel("Training iterations [-]", fontsize=20)
-    plt.ylabel("RMSE [-]", fontsize=20)
-    plt.xticks(fontsize = 16, rotation = 90)
+    plt.plot(x_validation*(10**(-5)), y_validation_rmse, 'b-', label='Validation', linewidth=2.)
+    plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
+    plt.ylabel(r'$RMSE [-]$', fontsize=20)
+    plt.xticks(fontsize = 16, rotation = 0)
     plt.yticks(fontsize = 16, rotation = 0)
     leg = plt.legend(loc='upper right', fontsize=20, frameon=True)
     leg.get_frame().set_linewidth(1.0)
@@ -98,7 +99,7 @@ def plot_tensorflow_log(log_file_training, log_file_validation, save_path):
     plt.close()
 
 if __name__ == '__main__':
-    log_file_training  = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP3/events.out.tfevents.1560251382.tcn1342.bullx"
-    log_file_validation = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP3/eval_CNN1/events.out.tfevents.1560252474.tcn1342.bullx"
-    save_path = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP3"
+    log_file_training  = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13/events.out.tfevents.1569488124.tcn91.bullx"
+    log_file_validation = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13/eval_MLP1/events.out.tfevents.1569489322.tcn91.bullx"
+    save_path = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13"
     plot_tensorflow_log(log_file_training, log_file_validation, save_path)
