@@ -121,8 +121,8 @@ for idx_var in range(num_var):
         spectra_y_les[index_spectra,k,:]    = numpy.nanmean(Ey_les,axis=1)
         pdf_fields_les[index_spectra,k,:,:] = s_les[:,:]
         #DNS
-        fftx_dns = numpy.fft.rfft(s_dns,axis=1)*(1/nxc)
-        ffty_dns = numpy.fft.rfft(s_dns,axis=0)*(1/nyc)
+        fftx_dns = numpy.fft.rfft(s_dns,axis=1)*(1/nx)
+        ffty_dns = numpy.fft.rfft(s_dns,axis=0)*(1/ny)
         Px_dns = fftx_dns[:,1:] * numpy.conjugate(fftx_dns[:,1:])
         Py_dns = ffty_dns[1:,:] * numpy.conjugate(ffty_dns[1:,:])
         if int(nxc % 2) == 0:
@@ -243,7 +243,7 @@ for k in range(num_idx):
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 1250, 0.000001, 300])
+    axis([1, 250, 0.000001, 3])
     tight_layout()
     savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/dns_spectrax_z_" + str(indexes_local_dnsuv[k]) + "_training.png")
     close()
@@ -259,7 +259,7 @@ for k in range(num_idx):
     xticks(fontsize = 16, rotation = 90)
     yticks(fontsize = 16, rotation = 0)
     grid()
-    axis([1, 1250, 0.000001, 300])
+    axis([1, 250, 0.000001, 3])
     tight_layout()
     savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/dns_spectray_z_" + str(indexes_local_dnsuv[k]) + "_training.png")
     close()
