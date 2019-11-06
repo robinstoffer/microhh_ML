@@ -8,8 +8,12 @@ import matplotlib as mpl
 mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
 from matplotlib.pyplot import *
 
-#Define height indices to consider the xy-crosssection. When comparing the plots from this script to the plots of the equivalent script for the horizontal crosssections produced by MicroHH, ensure that these height indices are consistent!!!
-indexes_local = [0,1,2,3,16,32,47,60,61,62,63]
+#Define height indices to consider the xy-crosssection for the training data. When comparing the plots from this script to the plots of the equivalent script for the horizontal crosssections produced by MicroHH, ensure that these height indices are consistent!!!
+indexes_local_les = [0,1,2,3,16,32,47,60,61,62,63]
+
+#Define height indices to consider the xy-crosssection for the DNS data. Ensure that the chosen indices are as close as possible to the indices for the training data (and the corresponding LES run in MicroHH), such that the resulting plots can be compared to each other. This also implies that the lengths of the arrays should be the same as the one defined above! Finally, note that different height indices are used for the u,v-components compared to the w-component to take into account the staggered grid orientation, such that for all components the DNS fields closest to the LES fields are selected.
+indexes_local_dns_uv = [12,27,38,46,96,128,159,209,217,228,243]
+indexes_local_dns_w  = [0,21,34,43,95,128,159,206,213,222,235]
 
 
 #Fetch training data
@@ -34,9 +38,9 @@ yc         = np.array(a['yc'][:])
 xhc        = np.array(a['xhc'][:])
 xc         = np.array(a['xc'][:])
 
-nz = zc.shape[0]
-ny = yc.shape[0]
-nx = xc.shape[0]
+nzc = zc.shape[0]
+nyc = yc.shape[0]
+nxc = xc.shape[0]
 
 #Read variables from netCDF-file for an arbitrarty time step t=0
 #NOTE: undo normalisation with friction velocity!
@@ -47,58 +51,59 @@ wc_singlefield = np.array(a['wc'][t,kgc_center:kend,jgc:jend,igc:iend]) * ustar
 
 #Loop over heights to calculate spectra
 num_var = 3
-nwave_modes_x = int(nx * 0.5)
-nwave_modes_y = int(ny * 0.5)
-spectra_x  = numpy.zeros((3,nz,nwave_modes_x))
-spectra_y  = numpy.zeros((3,nz,nwave_modes_y))
-pdf_fields = numpy.zeros((3,nz,ny,nx))
+nwave_modes_x_les = int(nxc * 0.5)
+nwave_modes_y_les = int(nyc * 0.5)
+num_idx = np.size(indexes_local_les) #Assume that all arrays with the indices have the same length, which should be the case.
+spectra_x_les  = numpy.zeros((3,num_idx,nwave_modes_x_les))
+spectra_y_les  = numpy.zeros((3,num_idx,nwave_modes_y_les))
+pdf_fields_les = numpy.zeros((3,num_idx,nyc,nxc))
 index_spectra = 0
 for idx_var in range(num_var):
     stop = False
-    for k in range(np.size(indexes_local)):
-        index = indexes_local[k]
+    for k in range(num_idx):
+        index_les = indexes_local_les[k]
         if idx_var == 0:
-            s = uc_singlefield[index,:,:]
+            s_les = uc_singlefield[index_les,:,:]
 
         elif idx_var == 1:
-            s = vc_singlefield[index,:,:]  
+            s_les = vc_singlefield[index_les,:,:]  
         else:
-            s = wc_singlefield[index,:,:]
-        fftx = numpy.fft.rfft(s,axis=1)*(1/nx)
-        ffty = numpy.fft.rfft(s,axis=0)*(1/ny)
-        Px = fftx[:,1:] * numpy.conjugate(fftx[:,1:])
-        Py = ffty[1:,:] * numpy.conjugate(ffty[1:,:])
-        if int(nx % 2) == 0:
-            Ex = np.append(2*Px[:,:-1],np.reshape(Px[:,-1],(ny,1)),axis=1)
+            s_les = wc_singlefield[index_les,:,:]
+        fftx_les = numpy.fft.rfft(s_les,axis=1)*(1/nxc)
+        ffty_les = numpy.fft.rfft(s_les,axis=0)*(1/nyc)
+        Px_les = fftx_les[:,1:] * numpy.conjugate(fftx_les[:,1:])
+        Py_les = ffty_les[1:,:] * numpy.conjugate(ffty_les[1:,:])
+        if int(nxc % 2) == 0:
+            Ex_les = np.append(2*Px_les[:,:-1],np.reshape(Px_les[:,-1],(nyc,1)),axis=1)
         else:
-            Ex = 2*Px[:,:]
+            Ex_les = 2*Px_les[:,:]
         
-        if int(ny % 2) == 0:
-            Ey = np.append(2*Py[:-1,:],np.reshape(Py[-1,:],(1,nx)),axis=0)
+        if int(nyc % 2) == 0:
+            Ey_les = np.append(2*Py_les[:-1,:],np.reshape(Py_les[-1,:],(1,nxc)),axis=0)
         else:
-            Ey = 2*Py[:,:]
+            Ey_les = 2*Py_les[:,:]
             
-        spectra_x[index_spectra,k,:]    = numpy.nanmean(Ex,axis=0) #Average Fourier transform over the direction where it was not calculated
-        spectra_y[index_spectra,k,:]    = numpy.nanmean(Ey,axis=1)
-        pdf_fields[index_spectra,k,:,:] = s[:,:]
+        spectra_x_les[index_spectra,k,:]    = numpy.nanmean(Ex_les,axis=0) #Average Fourier transform over the direction where it was not calculated
+        spectra_y_les[index_spectra,k,:]    = numpy.nanmean(Ey_les,axis=1)
+        pdf_fields_les[index_spectra,k,:,:] = s_les[:,:]
 
     index_spectra +=1
 
-k_streamwise = np.arange(1,nwave_modes_x+1)
-k_spanwise = np.arange(1,nwave_modes_y+1)
+k_streamwise_les = np.arange(1,nwave_modes_x_les+1)
+k_spanwise_les = np.arange(1,nwave_modes_y_les+1)
 
 #Determine bins for pdfs
 num_bins = 100
-bin_edges_u = np.linspace(np.nanmin(pdf_fields[0,:,:]),np.nanmax(pdf_fields[0,:,:]), num_bins)
-bin_edges_v = np.linspace(np.nanmin(pdf_fields[1,:,:]),np.nanmax(pdf_fields[1,:,:]), num_bins)
-bin_edges_w = np.linspace(np.nanmin(pdf_fields[2,:,:]),np.nanmax(pdf_fields[2,:,:]), num_bins)
+bin_edges_u_les = np.linspace(np.nanmin(pdf_fields_les[0,:,:]),np.nanmax(pdf_fields_les[0,:,:]), num_bins)
+bin_edges_v_les = np.linspace(np.nanmin(pdf_fields_les[1,:,:]),np.nanmax(pdf_fields_les[1,:,:]), num_bins)
+bin_edges_w_les = np.linspace(np.nanmin(pdf_fields_les[2,:,:]),np.nanmax(pdf_fields_les[2,:,:]), num_bins)
 
 #Plot balances
-for k in range(np.size(indexes_local)):
+for k in range(num_idx):
     figure()
-    loglog(k_streamwise[:], (spectra_x[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
-    loglog(k_streamwise[:], (spectra_x[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
-    loglog(k_streamwise[:], (spectra_x[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
+    loglog(k_streamwise_les[:], (spectra_x_les[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
+    loglog(k_streamwise_les[:], (spectra_x_les[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
+    loglog(k_streamwise_les[:], (spectra_x_les[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
@@ -108,13 +113,13 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.000001, 3])
     tight_layout()
-    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/spectrax_z_" + str(indexes_local[k]) + "_training.png")
+    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/les_spectrax_z_" + str(indexes_local_les[k]) + "_training.png")
     close()
     #
     figure()
-    loglog(k_spanwise[:], (spectra_y[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
-    loglog(k_spanwise[:], (spectra_y[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
-    loglog(k_spanwise[:], (spectra_y[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
+    loglog(k_spanwise_les[:], (spectra_y_les[0,k,:] / ustar**2.), 'k-',linewidth=2.0, label='u')
+    loglog(k_spanwise_les[:], (spectra_y_les[1,k,:] / ustar**2.), 'r-',linewidth=2.0, label='v')
+    loglog(k_spanwise_les[:], (spectra_y_les[2,k,:] / ustar**2.), 'b-',linewidth=2.0, label='w')
     
     xlabel(r'$\kappa \ [-]$',fontsize = 20)
     ylabel(r'$E \ [-]$',fontsize = 20)
@@ -124,12 +129,12 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([1, 250, 0.000001, 3])
     tight_layout()
-    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/spectray_z_" + str(indexes_local[k]) + "_training.png")
+    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/les_spectray_z_" + str(indexes_local_les[k]) + "_training.png")
     close()
     #
     figure()
     grid()
-    hist(pdf_fields[0,k,:,:].flatten(), bins = bin_edges_u, density = True, histtype = 'step', label = 'u')
+    hist(pdf_fields_les[0,k,:,:].flatten(), bins = bin_edges_u_les, density = True, histtype = 'step', label = 'u')
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
     legend(loc=0, frameon=False,fontsize=16)
@@ -138,12 +143,12 @@ for k in range(np.size(indexes_local)):
     grid()
     axis([0, 0.16, 0, 140])
     tight_layout()
-    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/pdfu_z_" + str(indexes_local[k]) + "_training.png")
+    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/les_pdfu_z_" + str(indexes_local_les[k]) + "_training.png")
     close()
     #
     figure()
     grid()
-    hist(pdf_fields[1,k,:,:].flatten(), bins = bin_edges_v, density = True, histtype = 'step', label = 'v')
+    hist(pdf_fields_les[1,k,:,:].flatten(), bins = bin_edges_v_les, density = True, histtype = 'step', label = 'v')
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
     legend(loc=0, frameon=False,fontsize=16)
@@ -151,12 +156,12 @@ for k in range(np.size(indexes_local)):
     yticks(fontsize = 16, rotation = 0)
     axis([-0.04, 0.04, 0, 140])
     tight_layout()
-    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/pdfv_z_" + str(indexes_local[k]) + "_training.png")
+    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/les_pdfv_z_" + str(indexes_local_les[k]) + "_training.png")
     close()
     #
     figure()
     grid()
-    hist(pdf_fields[2,k,:,:].flatten(), bins = bin_edges_w, density = True, histtype = 'step', label = 'w')
+    hist(pdf_fields_les[2,k,:,:].flatten(), bins = bin_edges_w_les, density = True, histtype = 'step', label = 'w')
     ylabel(r'$\rm Normalized\ Density\ [-]$', fontsize=20)
     xlabel(r'$\rm Wind\ velocity\ {[m\ s^{-1}]}$', fontsize=20)
     legend(loc=0, frameon=False,fontsize=16)
@@ -164,7 +169,7 @@ for k in range(np.size(indexes_local)):
     yticks(fontsize = 16, rotation = 0)
     axis([-0.03, 0.03, 0, 140])
     tight_layout()
-    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/pdfw_z_" + str(indexes_local[k]) + "_training.png")
+    savefig("/home/robinst/microhh/cases/moser600/git_repository/Training data/les_pdfw_z_" + str(indexes_local_les[k]) + "_training.png")
     close()
     #
 
