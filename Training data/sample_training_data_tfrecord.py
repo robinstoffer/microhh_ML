@@ -1120,22 +1120,22 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             
             print('Finished writing file: %s' % output_file)
 
-            #Create training data based on gradients
-            output_file_gradients = os.path.join(output_directory, '{}_time_step_{}_of_{}_gradients.tfrecords'.format('training', t+1,nt)) 
-            _process_image_files_batch_gradient(output_file_gradients, ugradx_samples, ugrady_samples, ugradz_samples,
-                    vgradx_samples, vgrady_samples, vgradz_samples, 
-                    wgradx_samples, wgrady_samples, wgradz_samples, 
-                    pgradx_samples, pgrady_samples, pgradz_samples, 
-                    unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
-                    unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
-                    unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
-                    unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
-                    unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
-                    unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
-                    size_samples_gradients, size_samples_gradients, size_samples_gradients, 
-                    tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
-                    flag_topwall_samples, flag_bottomwall_samples)
+            ##Create training data based on gradients
+            #output_file_gradients = os.path.join(output_directory, '{}_time_step_{}_of_{}_gradients.tfrecords'.format('training', t+1,nt)) 
+            #_process_image_files_batch_gradient(output_file_gradients, ugradx_samples, ugrady_samples, ugradz_samples,
+            #        vgradx_samples, vgrady_samples, vgradz_samples, 
+            #        wgradx_samples, wgrady_samples, wgradz_samples, 
+            #        pgradx_samples, pgrady_samples, pgradz_samples, 
+            #        unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
+            #        unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
+            #        unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
+            #        unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
+            #        unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
+            #        unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+            #        size_samples_gradients, size_samples_gradients, size_samples_gradients, 
+            #        tstep_samples, xloc_samples, xhloc_samples, 
+            #        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+            #        flag_topwall_samples, flag_bottomwall_samples)
 
     #Close data file
     a.close()

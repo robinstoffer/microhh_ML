@@ -17,21 +17,19 @@ a = nc.Dataset(training_filepath, 'r')
 #Read friction velocity
 ustar   = np.array(a['utau_ref'][:], dtype = 'f8')
 
-#Read ghost cells, indices, and coordinates from the training file
-igc        = int(a['igc'][:])
-jgc        = int(a['jgc'][:])
-kgc_center = int(a['kgc_center'][:])
-kgc_edge   = int(a['kgc_edge'][:])
-iend       = int(a['iend'][:])
-jend       = int(a['jend'][:])
-kend       = int(a['kend'][:])
-khend      = int(a['khend'][:])
+#Read coordinates from the training file
 zhc        = np.array(a['zhc'][:])
 zc         = np.array(a['zc'][:])
 yhc        = np.array(a['yhc'][:])
 yc         = np.array(a['yc'][:])
 xhc        = np.array(a['xhc'][:])
 xc         = np.array(a['xc'][:])
+zhgc        = np.array(a['zhgc'][:])
+zgc         = np.array(a['zgc'][:])
+yhgc        = np.array(a['yhgc'][:])
+ygc         = np.array(a['ygc'][:])
+xhgc        = np.array(a['xhgc'][:])
+xgc         = np.array(a['xgc'][:])
 
 nzc = zc.shape[0]
 nyc = yc.shape[0]
@@ -42,12 +40,12 @@ nxc = xc.shape[0]
 tstart=0
 tend=27
 tsteps=np.arange(tstart,tend,step=1)
-uc_tavgfields = np.mean(np.array(a['uc'][tstart:tend,kgc_center:kend,jgc:jend,igc:iend]) * ustar, axis=(0,2,3))
-vc_tavgfields = np.mean(np.array(a['vc'][tstart:tend,kgc_center:kend,jgc:jend,igc:iend]) * ustar, axis=(0,2,3))
-wc_tavgfields = np.mean(np.array(a['wc'][tstart:tend,kgc_center:khend,jgc:jend,igc:iend]) * ustar, axis=(0,2,3))
-uc_tstdfields = np.std(np.array(a['uc'][tstart:tend,kgc_center:kend,jgc:jend,igc:iend]) * ustar, axis=(0,2,3))
-vc_tstdfields = np.std(np.array(a['vc'][tstart:tend,kgc_center:kend,jgc:jend,igc:iend]) * ustar, axis=(0,2,3))
-wc_tstdfields = np.std(np.array(a['wc'][tstart:tend,kgc_center:khend,jgc:jend,igc:iend]) * ustar, axis=(0,2,3))
+uc_tavgfields = np.mean(np.array(a['uc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
+vc_tavgfields = np.mean(np.array(a['vc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
+wc_tavgfields = np.mean(np.array(a['wc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
+uc_tstdfields = np.std(np.array(a['uc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
+vc_tstdfields = np.std(np.array(a['vc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
+wc_tstdfields = np.std(np.array(a['wc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
 #
 unres_tau_xu_tavgfields = np.mean(np.array(a['unres_tau_xu_turb'][tstart:tend,:,:,:-1]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data
 unres_tau_yu_tavgfields = np.mean(np.array(a['unres_tau_yu_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
@@ -77,23 +75,29 @@ b = nc.Dataset(tavg_vert_prof_filepath,'w')
 #b.createDimension("nt",len(tsteps))
 b.createDimension("zhc",len(zhc))
 b.createDimension("zc",len(zc))
+b.createDimension("zhgc",len(zhgc))
+b.createDimension("zgc",len(zgc))
 
 #Create variables for dimensions and store them
 #var_nt      = b.createVariable("nt","f8",("nt",))
-var_zhc = b.createVariable("zhc","f8",("zhc",))
-var_zc  = b.createVariable("zc","f8",("zc",))
+var_zhc  = b.createVariable("zhc","f8",("zhc",))
+var_zc   = b.createVariable("zc","f8",("zc",))
+var_zhgc = b.createVariable("zhgc","f8",("zhgc",))
+var_zgc  = b.createVariable("zgc","f8",("zgc",))
 #
 #var_nt[:]      = tsteps
-var_zhc[:] = zhc
-var_zc[:]  = zc
+var_zhc[:]  = zhc
+var_zc[:]   = zc
+var_zhgc[:] = zhgc
+var_zgc[:]  = zgc
 
 #Create variables for storage, and store them in nc-file
-var_ucavgfields = b.createVariable("ucavgfields","f8",("zc",))
-var_vcavgfields = b.createVariable("vcavgfields","f8",("zc",))
-var_wcavgfields = b.createVariable("wcavgfields","f8",("zhc",))
-var_ucstdfields = b.createVariable("ucstdfields","f8",("zc",))
-var_vcstdfields = b.createVariable("vcstdfields","f8",("zc",))
-var_wcstdfields = b.createVariable("wcstdfields","f8",("zhc",))
+var_ucavgfields = b.createVariable("ucavgfields","f8",("zgc",))
+var_vcavgfields = b.createVariable("vcavgfields","f8",("zgc",))
+var_wcavgfields = b.createVariable("wcavgfields","f8",("zhgc",))
+var_ucstdfields = b.createVariable("ucstdfields","f8",("zgc",))
+var_vcstdfields = b.createVariable("vcstdfields","f8",("zgc",))
+var_wcstdfields = b.createVariable("wcstdfields","f8",("zhgc",))
 #
 var_ucavgfields[:] = uc_tavgfields
 var_vcavgfields[:] = vc_tavgfields
