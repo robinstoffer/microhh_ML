@@ -13,8 +13,10 @@ import numpy as np
 #import scipy.interpolate
 
 #Load scripts to be tested
-from grid_objects_training import Finegrid, Coarsegrid
+#from grid_objects_training import Finegrid, Coarsegrid
+from grid_objects_training_hor import Finegrid, Coarsegrid
 from func_generate_training import generate_training_data
+from func_generate_training_hor import generate_training_data_hor
 from sample_training_data_tfrecord import generate_samples
 
 ##Do testing
@@ -56,13 +58,13 @@ from sample_training_data_tfrecord import generate_samples
 #zsize5 = 14.0
 #
 #
-#coordx = coordx5
-#xsize  =  xsize5
-#coordy = coordy5
-#ysize  =  ysize5
-#coordz = coordz5
-#zsize  =  zsize5
-#
+#coordx = coordx3
+#xsize  =  xsize3
+#coordy = coordy3
+#ysize  =  ysize3
+#coordz = coordz3
+#zsize  =  zsize3
+##
 #finegrid = Finegrid(read_grid_flag = False, fourth_order = False, coordx = coordx, xsize = xsize, coordy = coordy, ysize = ysize, coordz = coordz, zsize = zsize, periodic_bc = (False, True, True), zero_w_topbottom = True)
 ##finegrid = Finegrid()
 ##finegrid = Finegrid(read_grid_flag = False, fourth_order = False, coordx = np.array([0.25, 0.75]), xsize = 1.0, coordy = np.array([0.25,0.75]), ysize = 1.0, coordz = np.array([0.5,0.75]), zsize = 1.0, periodic_bc = (False, True, True), no_slip = True)
@@ -81,13 +83,14 @@ from sample_training_data_tfrecord import generate_samples
 #finegrid.create_variables('v', output_array, bool_edge_gridcell = (False, True, False))
 #finegrid.create_variables('w', output_array, bool_edge_gridcell = (True, False, False))
 #finegrid.create_variables('p', output_array, bool_edge_gridcell = (False, False, False))
-#
-#coarsegrid = Coarsegrid((28,19,19), finegrid, igc = 2, jgc = 2, kgc = 2)
+##
+##coarsegrid = Coarsegrid((28,19,19), finegrid, igc = 2, jgc = 2, kgc = 2)
+#coarsegrid = Coarsegrid((3,3), finegrid, igc = 2, jgc = 2, kgc = 2)
 #coarsegrid.downsample('u')
 #coarsegrid.downsample('v')
 #coarsegrid.downsample('w')
 #coarsegrid.downsample('p')
-#
+##
 #volume_finegrid_u = finegrid.volume_integral('u')
 #volume_coarsegrid_u = coarsegrid.volume_integral('u')
 #print('Volume integral u finegrid: ' + str(volume_finegrid_u))
@@ -102,7 +105,7 @@ from sample_training_data_tfrecord import generate_samples
 #volume_coarsegrid_w = coarsegrid.volume_integral('w')
 #print('Volume integral w finegrid: ' + str(volume_finegrid_w))
 #print('Volume integral w coarsegrid: ' + str(volume_coarsegrid_w))
-#print('NOTE: volume integral w is for coarsegrid not correct anymore because of implemented BC at the top/bottom (i.e. that w = 0).')
+#print('NOTE: volume integral w is for coarsegrid not correct anymore because of implemented BC at the top/bottom (i.e. that w = 0). It does however add up when no downsampling is applied in the vertical direction.')
 #
 #volume_finegrid_p = finegrid.volume_integral('p')
 #volume_coarsegrid_p = coarsegrid.volume_integral('p')
@@ -125,5 +128,6 @@ means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
 
 #NOTE1:Original downsampling (to downsample from 100m to 4m in horizontal directions): (64,16,32)
 #NOTE2: Resolution of high-resolution simulations is (256,384,768)
-generate_training_data((256,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+#generate_training_data((64,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+generate_training_data_hor((48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
 generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_binary = True, create_netcdf = False, store_means_stdevs = True)

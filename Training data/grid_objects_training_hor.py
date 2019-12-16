@@ -1,9 +1,10 @@
-#Script containing Finegrid and Coarsegrid classes for generation training data NN
+#Script containing Finegrid and Coarsegrid classes for generation training data NN, keeping the same vertical resolution in both the coarsegrid and finegrid.
 #Author: Robin Stoffer (robin.stoffer@wur.nl)
 
 #Developed for Python 3!
 import numpy as np
-import downsampling_training
+#import downsampling_training
+import downsampling_training_hor
 import microhh_tools_robinst as tools
 import os
 
@@ -581,10 +582,10 @@ class Finegrid:
 
 class Coarsegrid:
     """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. \\
-        These dimensions of the coarse grid should be specified as a tuple (z,y,x) (dim_new_grid). Optionally, the number of ghost cells in all directions (igc,jgc, kgc) can be specified as integers. \\ 
+        These dimensions of the coarse grid should be specified as a tuple (y,x) (dim_new_grid). Optionally, the number of ghost cells in all directions (igc,jgc) can be specified as integers. \\ 
         By default, the corresponding amount of ghostcells in the finegrid_object are used. Besides that, a method is provided to downsample variables already present in the finegrid_ojbect. \\ 
         NOTE1: if the finegrid does not contain the variable to be downsampled at the time when the coarsegrid object is initialized, no downsampling is possible. \\
-        NOTE2: in the vertical staggered dimensions (zh, yh, xh) of the grid, similar to the finegrid_object one more ghost cell is added than specified by (igc,jgc, kgc). This is always a copy of the first value, which makes sure that the top value satisfies the BCs (i.e. U = 0 or periodic BC)."""
+        NOTE2: in the horizontal staggered dimensions (yh, xh) of the grid, similar to the finegrid_object one more ghost cell is added than specified by (igc,jgc). This is always a copy of the first value, which makes sure that the top value satisfies the BCs (i.e. periodic BCs)."""
 
     def __init__(self, dim_new_grid, finegrid_object, **kwargs):
         
@@ -592,13 +593,13 @@ class Coarsegrid:
         if not isinstance(dim_new_grid, tuple):
             raise TypeError("Dim_new_grid should be a tuple with length 3 (z, y, x), and consist only of positive integers.")
         
-        if not len(dim_new_grid) == 3:
-            raise ValueError("Dim_new_grid should be a tuple with length 3 (z, y, x), and consist only of positive integers.")
+        if not len(dim_new_grid) == 2:
+            raise ValueError("Dim_new_grid should be a tuple with length 2 (y, x), and consist only of positive integers.")
             
         if not any( (dim > 0 and isinstance(dim, int)) for dim in dim_new_grid):
-            raise ValueError("Dim_new_grid should be a tuple with length 3 (z, y, x), and consist only of positive integers.")
+            raise ValueError("Dim_new_grid should be a tuple with length 2 (y, x), and consist only of positive integers.")
         
-        nz,ny,nx = dim_new_grid
+        ny,nx = dim_new_grid
 
         #Store finegrid_object in Coarsegrid object
         self.finegrid = finegrid_object
@@ -630,8 +631,9 @@ class Coarsegrid:
         self.periodic_bc = self.finegrid.periodic_bc
         self.zero_w_topbottom = self.finegrid.zero_w_topbottom
         self.sgn_digits = self.finegrid.sgn_digits
+        nz = self.finegrid['grid']['ktot']
 
-        #Boundary condition: the resolution of the coarse grid should be coarser than the fine resolution
+        #Boundary condition: the resolution of the coarse grid should not be finer than the fine resolution
         if not (nz <= finegrid_object['grid']['ktot'] and ny <= finegrid_object['grid']['jtot'] and nx <= finegrid_object['grid']['itot']):
             raise ValueError("The resolution of the coarse grid should not be finer than the fine resolution contained in the Finegrid object.")        
 
@@ -651,8 +653,12 @@ class Coarsegrid:
         self.var['grid']['xh'], self.var['grid']['xhdist'] = self.__define_coarsegrid(self.var['grid']['itot'], self.var['grid']['xsize'], center_cell = False)
         self.var['grid']['y'] , self.var['grid']['ydist']  = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = True)
         self.var['grid']['yh'], self.var['grid']['yhdist'] = self.__define_coarsegrid(self.var['grid']['jtot'], self.var['grid']['ysize'], center_cell = False)
-        self.var['grid']['z'] , self.var['grid']['zdist']  = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = True)
-        self.var['grid']['zh'], self.var['grid']['zhdist'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = False)
+        #self.var['grid']['z'] , self.var['grid']['zdist']  = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = True)
+        #self.var['grid']['zh'], self.var['grid']['zhdist'] = self.__define_coarsegrid(self.var['grid']['ktot'], self.var['grid']['zsize'], center_cell = False)
+
+        #Keep vertical resolution same as finegrid
+        self.var['grid']['zh'] = self.finegrid['grid']['zh'][self.finegrid.kgc_edge:(self.finegrid.khend-1)] #Don't add top wall, already added later on
+        self.var['grid']['z']  = self.finegrid['grid']['z'] [self.finegrid.kgc_center:self.finegrid.kend]
         
         #Add ghostcells to grid
         self.__add_ghostcells_grid()
@@ -681,7 +687,7 @@ class Coarsegrid:
 
         self.var['output'][variable_name] = {}
         self.var['output'][variable_name]['orientation'] = self.finegrid['output'][variable_name]['orientation']
-        variable_downsampled = downsampling_training.downsample(finegrid = self.finegrid, coarsegrid = self, variable_name = variable_name, bool_edge_gridcell = self.var['output'][variable_name]['orientation'], periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
+        variable_downsampled = downsampling_training_hor.downsample(finegrid = self.finegrid, coarsegrid = self, variable_name = variable_name, bool_edge_gridcell = self.var['output'][variable_name]['orientation'], periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
         self.var['output'][variable_name]['variable'] = variable_downsampled.copy()
         #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
         self.__add_ghostcells(variable_name)
