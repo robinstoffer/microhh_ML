@@ -161,10 +161,10 @@ def generate_training_data_hor(dim_new_grid, input_directory, output_directory, 
     mvisc_ref = mvisc / (utau_ref * channel_half_width)
 
     #Loop over timesteps
-    #for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
+    for t in range(finegrid['time']['timesteps']): #Only works correctly in this script when whole simulation is saved with a constant time interval. 
         #NOTE1: does not select the last time step stored ('endtime' in {case}.ini file, this would require timesteps + 1 iterations.
         #NOTE2: when testing, the # of timesteps should be set equal to 1.
-    for t in range(1): #FOR TESTING PURPOSES ONLY!
+    #for t in range(1): #FOR TESTING PURPOSES ONLY!
         ##Read or define fine-resolution DNS data ##
         ############################################
 
@@ -368,52 +368,56 @@ def generate_training_data_hor(dim_new_grid, input_directory, output_directory, 
 
         print('Started loop over indices to calculate total transports')
         #Loop over indices coarse grid to calculate integrals for total turbulent AND viscous transport components
-        for izc in range(len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend])+1):
+ #       for izc in range(len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend])+1):
+ #           
+ #           zcor_c_middle_edge = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend][izc]
+ #           weights_z_edge, points_indices_z_edge = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_c_middle = zcor_c_middle_edge, dist_corc = coarsegrid['grid']['zhdist'], finegrid = finegrid, periodic_bc = periodic_bc[0], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['zsize'])
+ #           if izc != len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]):
+ #               zcor_c_middle_center = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend][izc]
+ #               weights_z_center, points_indices_z_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], cor_c_middle = zcor_c_middle_center, dist_corc = coarsegrid['grid']['zdist'], finegrid = finegrid)
+ #
+        for iyc in range(len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])+1):
             
-            zcor_c_middle_edge = coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend][izc]
-            weights_z_edge, points_indices_z_edge = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_c_middle = zcor_c_middle_edge, dist_corc = coarsegrid['grid']['zhdist'], finegrid = finegrid, periodic_bc = periodic_bc[0], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['zsize'])
-            if izc != len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend]):
-                zcor_c_middle_center = coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend][izc]
-                weights_z_center, points_indices_z_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], cor_c_middle = zcor_c_middle_center, dist_corc = coarsegrid['grid']['zdist'], finegrid = finegrid)
- 
-            for iyc in range(len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])+1):
+            ycor_c_middle_edge = coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend][iyc]
+            weights_y_edge, points_indices_y_edge = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_c_middle = ycor_c_middle_edge, dist_corc = coarsegrid['grid']['yhdist'], finegrid = finegrid, periodic_bc = periodic_bc[1], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['ysize'])
+            if iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend]):
+                ycor_c_middle_center = coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend][iyc]
+                weights_y_center, points_indices_y_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], cor_c_middle = ycor_c_middle_center, dist_corc = coarsegrid['grid']['ydist'], finegrid = finegrid)
+
+            for ixc in range(len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])+1):
                 
-                ycor_c_middle_edge = coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend][iyc]
-                weights_y_edge, points_indices_y_edge = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_c_middle = ycor_c_middle_edge, dist_corc = coarsegrid['grid']['yhdist'], finegrid = finegrid, periodic_bc = periodic_bc[1], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['ysize'])
-                if iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend]):
-                    ycor_c_middle_center = coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend][iyc]
-                    weights_y_center, points_indices_y_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], cor_c_middle = ycor_c_middle_center, dist_corc = coarsegrid['grid']['ydist'], finegrid = finegrid)
+                xcor_c_middle_edge = coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend][ixc]
+                weights_x_edge, points_indices_x_edge = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_c_middle = xcor_c_middle_edge, dist_corc = coarsegrid['grid']['xhdist'], finegrid = finegrid, periodic_bc = periodic_bc[2], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['xsize'])
+                if ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]):
+                    xcor_c_middle_center = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend][ixc]
+                    weights_x_center, points_indices_x_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle_center, dist_corc = coarsegrid['grid']['xdist'], finegrid = finegrid)
 
-                for ixc in range(len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])+1):
+                ##Apply 1-dimensional weights calculated above to calculate the total transport terms. This is done by: 1) choosing the correct interpolated velocities calculated before and multiplying those (this includes a loop over the vertical coordinate), 2) calculating the corresponding 2-dimensional weight arrays that take the relative contributions to the total integral into account (except in the vertical direction, where always only one grid cell is selected), 3) summing over the multiplied velocities compensated by the 2-dimensional weight arrays, and 4) add the contribution to the total transport from viscous forces. ##
+
+                #Determine 2D-weights
+                weights_x_center_y_center = weights_x_center[np.newaxis,:]*weights_y_center[:,np.newaxis]
+                weights_x_edge_y_center   = weights_x_edge[np.newaxis,:]*weights_y_center[:,np.newaxis]
+                weights_x_center_y_edge   = weights_x_center[np.newaxis,:]*weights_y_edge[:,np.newaxis]
+                
+                for izc in range(len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend])+1):
                     
-                    xcor_c_middle_edge = coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend][ixc]
-                    weights_x_edge, points_indices_x_edge = generate_coarsecoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_c_middle = xcor_c_middle_edge, dist_corc = coarsegrid['grid']['xhdist'], finegrid = finegrid, periodic_bc = periodic_bc[2], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['xsize'])
-                    if ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]):
-                        xcor_c_middle_center = coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend][ixc]
-                        weights_x_center, points_indices_x_center = generate_coarsecoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_c_middle = xcor_c_middle_center, dist_corc = coarsegrid['grid']['xdist'], finegrid = finegrid)
-
-                    ##Apply 1-dimensional weights calculated above to calculate the total transport terms. This is done by: 1) choosing the correct interpolated velocities calculated before and multiplying those, 2) calculating the corresponding 2-dimensional weight arrays that take the relative contributions to the total integral into account, 3) summing over the multiplied velocities compensated by the 2-dimensional weight arrays, and 4) add the contribution to the total transport from viscous forces. ##
-
                     #x,y,z: center coarse grid cell
                     #NOTE: +1 added to indices to ensure ghost cells are properly added in the code below.
                     if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend])) and (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])) and (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the z-, y- and x-coordinates.
 
                         #Contribution turbulence
-                        weights_y_center_z_center = weights_y_center[np.newaxis,:] * weights_z_center[:,np.newaxis]
-                        total_tau_xu_turb[izc,iyc,ixc+1] = np.sum(weights_y_center_z_center * u_uyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_center] ** 2) 
+                        total_tau_xu_turb[izc,iyc,ixc+1] = np.sum(weights_y_center * u_uyzint[izc,points_indices_y_center,ixc] ** 2) 
                         
                         #Contribution viscous forces
-                        total_tau_xu_visc[izc,iyc,ixc+1] = np.sum(weights_y_center_z_center * interp_tau_xu_visc[:,:,ixc][points_indices_z_center,:][:,points_indices_y_center])
+                        total_tau_xu_visc[izc,iyc,ixc+1] = np.sum(weights_y_center * interp_tau_xu_visc[izc,points_indices_y_center,ixc])
 
                         #Contribution turbulence
-                        weights_x_center_z_center = weights_x_center[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_yv_turb[izc,iyc+1,ixc] = np.sum(weights_x_center_z_center * v_vxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_center] ** 2) 
+                        total_tau_yv_turb[izc,iyc+1,ixc] = np.sum(weights_x_center * v_vxzint[izc,iyc,points_indices_x_center] ** 2) 
                         
                         #Contribution viscous forces
-                        total_tau_yv_visc[izc,iyc+1,ixc] = np.sum(weights_x_center_z_center * interp_tau_yv_visc[:,iyc,:][points_indices_z_center,:][:,points_indices_x_center])
+                        total_tau_yv_visc[izc,iyc+1,ixc] = np.sum(weights_x_center * interp_tau_yv_visc[izc,iyc,points_indices_x_center])
 
                         #Contribution turbulence
-                        weights_x_center_y_center = weights_x_center[np.newaxis,:]*weights_y_center[:,np.newaxis]
                         total_tau_zw_turb[izc+1,iyc,ixc] = np.sum(weights_x_center_y_center * w_wxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_center] ** 2)
                         
                         #Contribution viscous forces
@@ -424,31 +428,27 @@ def generate_training_data_hor(dim_new_grid, input_directory, output_directory, 
                     if (izc != len(coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend])): #Make sure this not evaluated for the len+1 iteration in the z-coordinates.
                         
                         #Contribution turbulence
-                        weights_y_edge_z_center   = weights_y_edge[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_xv_turb[izc,iyc,ixc] = np.sum(weights_y_edge_z_center * u_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge] * v_vyzint[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge])
+                        total_tau_xv_turb[izc,iyc,ixc] = np.sum(weights_y_edge * u_vyzint[izc,points_indices_y_edge,ixc] * v_vyzint[izc,points_indices_y_edge,ixc])
 
                         #Contribution viscous forces
-                        total_tau_xv_visc[izc,iyc,ixc] = np.sum(weights_y_edge_z_center * interp_tau_xv_visc[:,:,ixc][points_indices_z_center,:][:,points_indices_y_edge])
+                        total_tau_xv_visc[izc,iyc,ixc] = np.sum(weights_y_edge * interp_tau_xv_visc[izc,points_indices_y_edge,ixc])
                     
                         #Contribution turbulence
-                        weights_x_edge_z_center   = weights_x_edge[np.newaxis,:]*weights_z_center[:,np.newaxis]
-                        total_tau_yu_turb[izc,iyc,ixc] = np.sum(weights_x_edge_z_center * v_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge] * u_uxzint[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge])
+                        total_tau_yu_turb[izc,iyc,ixc] = np.sum(weights_x_edge * v_uxzint[izc,iyc,points_indices_x_edge] * u_uxzint[izc,iyc,points_indices_x_edge])
 
                         #Contribution viscous forces 
-                        total_tau_yu_visc[izc,iyc,ixc] = np.sum(weights_x_edge_z_center * interp_tau_yu_visc[:,iyc,:][points_indices_z_center,:][:,points_indices_x_edge])
+                        total_tau_yu_visc[izc,iyc,ixc] = np.sum(weights_x_edge * interp_tau_yu_visc[izc,iyc,points_indices_x_edge])
                     
                     #x,z: edge coarse grid cell; y:center coarse grid cell
                     if (iyc != len(coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend])): #Make sure this not evaluated for the len+1 iteration in the y-coordinates.
                         
                         #Contribution turbulence
-                        weights_y_center_z_edge   = weights_y_center[np.newaxis,:]*weights_z_edge[:,np.newaxis]
-                        total_tau_xw_turb[izc,iyc,ixc] = np.sum(weights_y_center_z_edge * u_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center] * w_wyzint[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center])
+                        total_tau_xw_turb[izc,iyc,ixc] = np.sum(weights_y_center * u_wyzint[izc,points_indices_y_center,ixc] * w_wyzint[izc,points_indices_y_center,ixc])
 
                         #Contribution viscous forces
-                        total_tau_xw_visc[izc,iyc,ixc] = np.sum(weights_y_center_z_edge * interp_tau_xw_visc[:,:,ixc][points_indices_z_edge,:][:,points_indices_y_center])
+                        total_tau_xw_visc[izc,iyc,ixc] = np.sum(weights_y_center * interp_tau_xw_visc[izc,points_indices_y_center,ixc])
                     
                         #Contribution turbulence
-                        weights_x_edge_y_center   = weights_x_edge[np.newaxis,:]*weights_y_center[:,np.newaxis]
                         total_tau_zu_turb[izc,iyc,ixc] = np.sum(weights_x_edge_y_center * w_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge] * u_uxyint[izc,:,:][points_indices_y_center,:][:,points_indices_x_edge])
 
                         #Contribution viscous forces
@@ -458,14 +458,12 @@ def generate_training_data_hor(dim_new_grid, input_directory, output_directory, 
                     if (ixc != len(coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend])): #Make sure this not evaluated for the len+1 iteration in the x-coordinates.
                         
                         #Contribution turbulence
-                        weights_x_center_z_edge   = weights_x_center[np.newaxis,:]*weights_z_edge[:,np.newaxis]
-                        total_tau_yw_turb[izc,iyc,ixc] = np.sum(weights_x_center_z_edge * v_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center] * w_wxzint[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center])
+                        total_tau_yw_turb[izc,iyc,ixc] = np.sum(weights_x_center * v_wxzint[izc,iyc,points_indices_x_center] * w_wxzint[izc,iyc,points_indices_x_center])
                         
                         #Contribution viscous forces
-                        total_tau_yw_visc[izc,iyc,ixc] = np.sum(weights_x_center_z_edge * interp_tau_yw_visc[:,iyc,:][points_indices_z_edge,:][:,points_indices_x_center])
+                        total_tau_yw_visc[izc,iyc,ixc] = np.sum(weights_x_center * interp_tau_yw_visc[izc,iyc,points_indices_x_center])
      
                         #Contribution turbulence
-                        weights_x_center_y_edge   = weights_x_center[np.newaxis,:]*weights_y_edge[:,np.newaxis]
                         total_tau_zv_turb[izc,iyc,ixc] = np.sum(weights_x_center_y_edge * w_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center] * v_vxyint[izc,:,:][points_indices_y_edge,:][:,points_indices_x_center])  
 
                         #Contribution viscous forces

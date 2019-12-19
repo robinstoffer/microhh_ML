@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -t 1-00:00:00
+#SBATCH -t 2-00:00:00
 ####SBATCH -t 1:00:00
 ####SBATCH -N 1
 ####SBATCH -n 48
@@ -12,7 +12,6 @@ cd microhh/cases/moser600/git_repository/Training\ data/
 
 #Load modules new environment
 module purge
-module load surf-devel
 module load 2019
 module load intel/2018b
 module load netCDF/4.6.1-intel-2018b
