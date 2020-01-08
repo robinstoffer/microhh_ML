@@ -39,9 +39,11 @@ delta_height = 1 #NOTE: uncomment when the height of the channel flow should be 
 utau_ref_channel = np.array(c['utau_ref'][:]) #NOTE: used friction velocity in [m/s] for the channel flow, needed for rescaling below.
 #utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
 utau_ref = utau_ref_channel #FOR TESTING PURPOSES ONLY!
-#Specify time steps NOTE: SHOULD BE 27 TO 30 for validation, and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
-tstart = 27
-tend   = 30
+#Specify time steps NOTE: SHOULD BE 27 TO 30 (up to MLP13) or 7 to 8 (MLP14 and above), and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
+#tstart = 27
+#tend   = 30
+tstart = 7
+tend   = 8
 
 #Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes.
 #NOTE1:rescale Smagorinsky, training fluxes, and CNN with a representative friction velocity.

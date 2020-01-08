@@ -12,7 +12,7 @@
 umask g+w
 cd
 #cd microhh/cases/moser600/simulation2
-cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP13
+cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP14
 
 #Load modules new environment
 module purge
