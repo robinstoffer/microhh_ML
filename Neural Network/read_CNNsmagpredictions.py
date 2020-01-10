@@ -13,8 +13,8 @@ from matplotlib.ticker import FormatStrFormatter
 parser = argparse.ArgumentParser(description='microhh_ML')
 parser.add_argument('--prediction_file', default=None, \
         help='NetCDF file that contains the predictions')
-parser.add_argument('--smagorinsky_file', default=None, \
-        help='NetCDF file that contains the calculated sub-grid scale transports according to the Smagorinsky-Lilly sub-grid model')
+#parser.add_argument('--smagorinsky_file', default=None, \
+#        help='NetCDF file that contains the calculated sub-grid scale transports according to the Smagorinsky-Lilly sub-grid model')
 parser.add_argument('--training_file', default=None, \
         help='NetCDF file that contains the training data, including the actual unresolved transports.')
 parser.add_argument('--make_plots', dest='make_plots', default=None, \
@@ -29,7 +29,7 @@ args = parser.parse_args()
 
 ###Fetch Smagorinsky fluxes, training fluxes, CNN predictions, and heights. Next, calculate isotropic part subgrid-scale stress and subtract it.###
 a = nc.Dataset(args.prediction_file,'r')
-b = nc.Dataset(args.smagorinsky_file,'r')
+#b = nc.Dataset(args.smagorinsky_file,'r')
 c = nc.Dataset(args.training_file,'r')
 
 #Define reference mid-channel height and representative friction velocity
@@ -47,15 +47,15 @@ tend   = 8
 
 #Extract smagorinsky fluxes, training fluxes (including resolved and total fluxes), CNN fluxes.
 #NOTE1:rescale Smagorinsky, training fluxes, and CNN with a representative friction velocity.
-smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
-smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_xu  = np.array(b['smag_tau_xu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_yu  = np.array(b['smag_tau_yu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_zu  = np.array(b['smag_tau_zu'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_xv  = np.array(b['smag_tau_xv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_yv  = np.array(b['smag_tau_yv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_zv  = np.array(b['smag_tau_zv'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_xw  = np.array(b['smag_tau_xw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_yw  = np.array(b['smag_tau_yw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
+#smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) / (utau_ref_channel ** 2))
 #
 unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,:]) * (utau_ref ** 2) #NOTE: data from training file is dimensionless in contrast to the data from the MLP and Smagorinsky scripts, and consquently the rescaling factor is different!
 #NOTE: size of array zw transport component is reduced by 1 in z-direction compared to training file, therefore this compensated by taking slices
@@ -165,7 +165,7 @@ xgcextra = np.array(c['xgcextra'][:])
 
 #Close files
 a.close()
-b.close()
+#b.close()
 c.close()
 
 ###Reconstruct flow fields###
@@ -658,33 +658,33 @@ if args.reconstruct_fields:
     var_tot_tau_zv   = d.createVariable("tot_tau_zv"  ,"f8",("tstep_unique","zhc","yhc","xc"))
     var_tot_tau_zw   = d.createVariable("tot_tau_zw"  ,"f8",("tstep_unique","zc","yc","xc"))
     #
-    var_unres_tau_xu_smag = d.createVariable("unres_tau_xu_smag","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_xv_smag = d.createVariable("unres_tau_xv_smag","f8",("tstep_unique","zc","yhc","xhc"))
-    var_unres_tau_xw_smag = d.createVariable("unres_tau_xw_smag","f8",("tstep_unique","zhc","yc","xhc"))
-    var_unres_tau_yu_smag = d.createVariable("unres_tau_yu_smag","f8",("tstep_unique","zc","yhc","xhc"))
-    var_unres_tau_yv_smag = d.createVariable("unres_tau_yv_smag","f8",("tstep_unique","zc","yc","xc"))
-    var_unres_tau_yw_smag = d.createVariable("unres_tau_yw_smag","f8",("tstep_unique","zhc","yhc","xc"))
-    var_unres_tau_zu_smag = d.createVariable("unres_tau_zu_smag","f8",("tstep_unique","zhc","yc","xhc"))
-    var_unres_tau_zv_smag = d.createVariable("unres_tau_zv_smag","f8",("tstep_unique","zhc","yhc","xc"))
-    var_unres_tau_zw_smag = d.createVariable("unres_tau_zw_smag","f8",("tstep_unique","zc","yc","xc"))
-    var_diff_tau_xu_smag  = d.createVariable("diff_tau_xu_smag" ,"f8",("tstep_unique","zc","yc","xc"))
-    var_diff_tau_xv_smag  = d.createVariable("diff_tau_xv_smag" ,"f8",("tstep_unique","zc","yhc","xhc"))
-    var_diff_tau_xw_smag  = d.createVariable("diff_tau_xw_smag" ,"f8",("tstep_unique","zhc","yc","xhc"))
-    var_diff_tau_yu_smag  = d.createVariable("diff_tau_yu_smag" ,"f8",("tstep_unique","zc","yhc","xhc"))
-    var_diff_tau_yv_smag  = d.createVariable("diff_tau_yv_smag" ,"f8",("tstep_unique","zc","yc","xc"))
-    var_diff_tau_yw_smag  = d.createVariable("diff_tau_yw_smag" ,"f8",("tstep_unique","zhc","yhc","xc"))
-    var_diff_tau_zu_smag  = d.createVariable("diff_tau_zu_smag" ,"f8",("tstep_unique","zhc","yc","xhc"))
-    var_diff_tau_zv_smag  = d.createVariable("diff_tau_zv_smag" ,"f8",("tstep_unique","zhc","yhc","xc"))
-    var_diff_tau_zw_smag  = d.createVariable("diff_tau_zw_smag" ,"f8",("tstep_unique","zc","yc","xc"))
-    var_tot_tau_xu_smag   = d.createVariable("tot_tau_xu_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
-    var_tot_tau_xv_smag   = d.createVariable("tot_tau_xv_smag"  ,"f8",("tstep_unique","zc","yhc","xhc"))
-    var_tot_tau_xw_smag   = d.createVariable("tot_tau_xw_smag"  ,"f8",("tstep_unique","zhc","yc","xhc"))
-    var_tot_tau_yu_smag   = d.createVariable("tot_tau_yu_smag"  ,"f8",("tstep_unique","zc","yhc","xhc"))
-    var_tot_tau_yv_smag   = d.createVariable("tot_tau_yv_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
-    var_tot_tau_yw_smag   = d.createVariable("tot_tau_yw_smag"  ,"f8",("tstep_unique","zhc","yhc","xc"))
-    var_tot_tau_zu_smag   = d.createVariable("tot_tau_zu_smag"  ,"f8",("tstep_unique","zhc","yc","xhc"))
-    var_tot_tau_zv_smag   = d.createVariable("tot_tau_zv_smag"  ,"f8",("tstep_unique","zhc","yhc","xc"))
-    var_tot_tau_zw_smag   = d.createVariable("tot_tau_zw_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
+    #var_unres_tau_xu_smag = d.createVariable("unres_tau_xu_smag","f8",("tstep_unique","zc","yc","xc"))
+    #var_unres_tau_xv_smag = d.createVariable("unres_tau_xv_smag","f8",("tstep_unique","zc","yhc","xhc"))
+    #var_unres_tau_xw_smag = d.createVariable("unres_tau_xw_smag","f8",("tstep_unique","zhc","yc","xhc"))
+    #var_unres_tau_yu_smag = d.createVariable("unres_tau_yu_smag","f8",("tstep_unique","zc","yhc","xhc"))
+    #var_unres_tau_yv_smag = d.createVariable("unres_tau_yv_smag","f8",("tstep_unique","zc","yc","xc"))
+    #var_unres_tau_yw_smag = d.createVariable("unres_tau_yw_smag","f8",("tstep_unique","zhc","yhc","xc"))
+    #var_unres_tau_zu_smag = d.createVariable("unres_tau_zu_smag","f8",("tstep_unique","zhc","yc","xhc"))
+    #var_unres_tau_zv_smag = d.createVariable("unres_tau_zv_smag","f8",("tstep_unique","zhc","yhc","xc"))
+    #var_unres_tau_zw_smag = d.createVariable("unres_tau_zw_smag","f8",("tstep_unique","zc","yc","xc"))
+    #var_diff_tau_xu_smag  = d.createVariable("diff_tau_xu_smag" ,"f8",("tstep_unique","zc","yc","xc"))
+    #var_diff_tau_xv_smag  = d.createVariable("diff_tau_xv_smag" ,"f8",("tstep_unique","zc","yhc","xhc"))
+    #var_diff_tau_xw_smag  = d.createVariable("diff_tau_xw_smag" ,"f8",("tstep_unique","zhc","yc","xhc"))
+    #var_diff_tau_yu_smag  = d.createVariable("diff_tau_yu_smag" ,"f8",("tstep_unique","zc","yhc","xhc"))
+    #var_diff_tau_yv_smag  = d.createVariable("diff_tau_yv_smag" ,"f8",("tstep_unique","zc","yc","xc"))
+    #var_diff_tau_yw_smag  = d.createVariable("diff_tau_yw_smag" ,"f8",("tstep_unique","zhc","yhc","xc"))
+    #var_diff_tau_zu_smag  = d.createVariable("diff_tau_zu_smag" ,"f8",("tstep_unique","zhc","yc","xhc"))
+    #var_diff_tau_zv_smag  = d.createVariable("diff_tau_zv_smag" ,"f8",("tstep_unique","zhc","yhc","xc"))
+    #var_diff_tau_zw_smag  = d.createVariable("diff_tau_zw_smag" ,"f8",("tstep_unique","zc","yc","xc"))
+    #var_tot_tau_xu_smag   = d.createVariable("tot_tau_xu_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
+    #var_tot_tau_xv_smag   = d.createVariable("tot_tau_xv_smag"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    #var_tot_tau_xw_smag   = d.createVariable("tot_tau_xw_smag"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    #var_tot_tau_yu_smag   = d.createVariable("tot_tau_yu_smag"  ,"f8",("tstep_unique","zc","yhc","xhc"))
+    #var_tot_tau_yv_smag   = d.createVariable("tot_tau_yv_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
+    #var_tot_tau_yw_smag   = d.createVariable("tot_tau_yw_smag"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    #var_tot_tau_zu_smag   = d.createVariable("tot_tau_zu_smag"  ,"f8",("tstep_unique","zhc","yc","xhc"))
+    #var_tot_tau_zv_smag   = d.createVariable("tot_tau_zv_smag"  ,"f8",("tstep_unique","zhc","yhc","xc"))
+    #var_tot_tau_zw_smag   = d.createVariable("tot_tau_zw_smag"  ,"f8",("tstep_unique","zc","yc","xc"))
     #
     var_tot_tau_xu_CNN   = d.createVariable("tot_tau_xu_CNN"  ,"f8",("tstep_unique","zc","yc","xgcextra"))
     var_tot_tau_xv_CNN   = d.createVariable("tot_tau_xv_CNN"  ,"f8",("tstep_unique","zc","yhcless","xhcless"))
@@ -739,33 +739,33 @@ if args.reconstruct_fields:
     var_tot_tau_zv[:,:,:,:]   = tot_tau_zv + res_tau_zv_visc
     var_tot_tau_zw[:,:,:,:]   = tot_tau_zw + res_tau_zw_visc
     #
-    var_unres_tau_xu_smag[:,:,:,:] = smag_tau_xu
-    var_unres_tau_xv_smag[:,:,:,:] = smag_tau_xv
-    var_unres_tau_xw_smag[:,:,:,:] = smag_tau_xw
-    var_unres_tau_yu_smag[:,:,:,:] = smag_tau_yu
-    var_unres_tau_yv_smag[:,:,:,:] = smag_tau_yv
-    var_unres_tau_yw_smag[:,:,:,:] = smag_tau_yw
-    var_unres_tau_zu_smag[:,:,:,:] = smag_tau_zu
-    var_unres_tau_zv_smag[:,:,:,:] = smag_tau_zv
-    var_unres_tau_zw_smag[:,:,:,:] = smag_tau_zw
-    var_diff_tau_xu_smag[:,:,:,:]  = smag_tau_xu + res_tau_xu_visc[:,:,:,1:]
-    var_diff_tau_xv_smag[:,:,:,:]  = smag_tau_xv + res_tau_xv_visc
-    var_diff_tau_xw_smag[:,:,:,:]  = smag_tau_xw + res_tau_xw_visc
-    var_diff_tau_yu_smag[:,:,:,:]  = smag_tau_yu + res_tau_yu_visc
-    var_diff_tau_yv_smag[:,:,:,:]  = smag_tau_yv + res_tau_yv_visc[:,:,1:,:]
-    var_diff_tau_yw_smag[:,:,:,:]  = smag_tau_yw + res_tau_yw_visc
-    var_diff_tau_zu_smag[:,:,:,:]  = smag_tau_zu + res_tau_zu_visc
-    var_diff_tau_zv_smag[:,:,:,:]  = smag_tau_zv + res_tau_zv_visc
-    var_diff_tau_zw_smag[:,:,:,:]  = smag_tau_zw + res_tau_zw_visc
-    var_tot_tau_xu_smag[:,:,:,:]   = smag_tau_xu + res_tau_xu[:,:,:,1:] + res_tau_xu_visc[:,:,:,1:]
-    var_tot_tau_xv_smag[:,:,:,:]   = smag_tau_xv + res_tau_xv           + res_tau_xv_visc
-    var_tot_tau_xw_smag[:,:,:,:]   = smag_tau_xw + res_tau_xw           + res_tau_xw_visc
-    var_tot_tau_yu_smag[:,:,:,:]   = smag_tau_yu + res_tau_yu           + res_tau_yu_visc
-    var_tot_tau_yv_smag[:,:,:,:]   = smag_tau_yv + res_tau_yv[:,:,1:,:] + res_tau_yv_visc[:,:,1:,:]
-    var_tot_tau_yw_smag[:,:,:,:]   = smag_tau_yw + res_tau_yw           + res_tau_yw_visc
-    var_tot_tau_zu_smag[:,:,:,:]   = smag_tau_zu + res_tau_zu           + res_tau_zu_visc
-    var_tot_tau_zv_smag[:,:,:,:]   = smag_tau_zv + res_tau_zv           + res_tau_zv_visc
-    var_tot_tau_zw_smag[:,:,:,:]   = smag_tau_zw + res_tau_zw           + res_tau_zw_visc #[:,1:,:,:] Uncomment this when zgcextra is included in res_tau_zw
+    #var_unres_tau_xu_smag[:,:,:,:] = smag_tau_xu
+    #var_unres_tau_xv_smag[:,:,:,:] = smag_tau_xv
+    #var_unres_tau_xw_smag[:,:,:,:] = smag_tau_xw
+    #var_unres_tau_yu_smag[:,:,:,:] = smag_tau_yu
+    #var_unres_tau_yv_smag[:,:,:,:] = smag_tau_yv
+    #var_unres_tau_yw_smag[:,:,:,:] = smag_tau_yw
+    #var_unres_tau_zu_smag[:,:,:,:] = smag_tau_zu
+    #var_unres_tau_zv_smag[:,:,:,:] = smag_tau_zv
+    #var_unres_tau_zw_smag[:,:,:,:] = smag_tau_zw
+    #var_diff_tau_xu_smag[:,:,:,:]  = smag_tau_xu + res_tau_xu_visc[:,:,:,1:]
+    #var_diff_tau_xv_smag[:,:,:,:]  = smag_tau_xv + res_tau_xv_visc
+    #var_diff_tau_xw_smag[:,:,:,:]  = smag_tau_xw + res_tau_xw_visc
+    #var_diff_tau_yu_smag[:,:,:,:]  = smag_tau_yu + res_tau_yu_visc
+    #var_diff_tau_yv_smag[:,:,:,:]  = smag_tau_yv + res_tau_yv_visc[:,:,1:,:]
+    #var_diff_tau_yw_smag[:,:,:,:]  = smag_tau_yw + res_tau_yw_visc
+    #var_diff_tau_zu_smag[:,:,:,:]  = smag_tau_zu + res_tau_zu_visc
+    #var_diff_tau_zv_smag[:,:,:,:]  = smag_tau_zv + res_tau_zv_visc
+    #var_diff_tau_zw_smag[:,:,:,:]  = smag_tau_zw + res_tau_zw_visc
+    #var_tot_tau_xu_smag[:,:,:,:]   = smag_tau_xu + res_tau_xu[:,:,:,1:] + res_tau_xu_visc[:,:,:,1:]
+    #var_tot_tau_xv_smag[:,:,:,:]   = smag_tau_xv + res_tau_xv           + res_tau_xv_visc
+    #var_tot_tau_xw_smag[:,:,:,:]   = smag_tau_xw + res_tau_xw           + res_tau_xw_visc
+    #var_tot_tau_yu_smag[:,:,:,:]   = smag_tau_yu + res_tau_yu           + res_tau_yu_visc
+    #var_tot_tau_yv_smag[:,:,:,:]   = smag_tau_yv + res_tau_yv[:,:,1:,:] + res_tau_yv_visc[:,:,1:,:]
+    #var_tot_tau_yw_smag[:,:,:,:]   = smag_tau_yw + res_tau_yw           + res_tau_yw_visc
+    #var_tot_tau_zu_smag[:,:,:,:]   = smag_tau_zu + res_tau_zu           + res_tau_zu_visc
+    #var_tot_tau_zv_smag[:,:,:,:]   = smag_tau_zv + res_tau_zv           + res_tau_zv_visc
+    #var_tot_tau_zw_smag[:,:,:,:]   = smag_tau_zw + res_tau_zw           + res_tau_zw_visc #[:,1:,:,:] Uncomment this when zgcextra is included in res_tau_zw
     #NOTE: compensate for missing ghost cells in CNN preds
     var_tot_tau_xu_CNN[:,:,:,:]    = preds_values_xu  + res_tau_xu[:,:,:,:]  + res_tau_xu_visc[:,:,:,:] 
     var_tot_tau_xv_CNN[:,:,:,:]    = preds_values_xv  + res_tau_xv[:,:,:-1,:-1]+ res_tau_xv_visc[:,:,:-1,:-1]
@@ -815,33 +815,33 @@ if args.reconstruct_fields:
     var_tot_tau_zv_horavg   = d.createVariable("tot_tau_zv_horavg","f8",  ("tstep_unique","zhc"))
     var_tot_tau_zw_horavg   = d.createVariable("tot_tau_zw_horavg","f8",  ("tstep_unique","zc"))
     #
-    var_unres_tau_xu_smag_horavg = d.createVariable("unres_tau_xu_smag_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_xv_smag_horavg = d.createVariable("unres_tau_xv_smag_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_xw_smag_horavg = d.createVariable("unres_tau_xw_smag_horavg","f8",("tstep_unique","zhc"))
-    var_unres_tau_yu_smag_horavg = d.createVariable("unres_tau_yu_smag_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_yv_smag_horavg = d.createVariable("unres_tau_yv_smag_horavg","f8",("tstep_unique","zc"))
-    var_unres_tau_yw_smag_horavg = d.createVariable("unres_tau_yw_smag_horavg","f8",("tstep_unique","zhc"))
-    var_unres_tau_zu_smag_horavg = d.createVariable("unres_tau_zu_smag_horavg","f8",("tstep_unique","zhc"))
-    var_unres_tau_zv_smag_horavg = d.createVariable("unres_tau_zv_smag_horavg","f8",("tstep_unique","zhc"))
-    var_unres_tau_zw_smag_horavg = d.createVariable("unres_tau_zw_smag_horavg","f8",("tstep_unique","zc"))
-    var_diff_tau_xu_smag_horavg  = d.createVariable("diff_tau_xu_smag_horavg","f8", ("tstep_unique","zc"))
-    var_diff_tau_xv_smag_horavg  = d.createVariable("diff_tau_xv_smag_horavg","f8", ("tstep_unique","zc"))
-    var_diff_tau_xw_smag_horavg  = d.createVariable("diff_tau_xw_smag_horavg","f8", ("tstep_unique","zhc"))
-    var_diff_tau_yu_smag_horavg  = d.createVariable("diff_tau_yu_smag_horavg","f8", ("tstep_unique","zc"))
-    var_diff_tau_yv_smag_horavg  = d.createVariable("diff_tau_yv_smag_horavg","f8", ("tstep_unique","zc"))
-    var_diff_tau_yw_smag_horavg  = d.createVariable("diff_tau_yw_smag_horavg","f8", ("tstep_unique","zhc"))
-    var_diff_tau_zu_smag_horavg  = d.createVariable("diff_tau_zu_smag_horavg","f8", ("tstep_unique","zhc"))
-    var_diff_tau_zv_smag_horavg  = d.createVariable("diff_tau_zv_smag_horavg","f8", ("tstep_unique","zhc"))
-    var_diff_tau_zw_smag_horavg  = d.createVariable("diff_tau_zw_smag_horavg","f8", ("tstep_unique","zc"))
-    var_tot_tau_xu_smag_horavg   = d.createVariable("tot_tau_xu_smag_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_xv_smag_horavg   = d.createVariable("tot_tau_xv_smag_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_xw_smag_horavg   = d.createVariable("tot_tau_xw_smag_horavg","f8",  ("tstep_unique","zhc"))
-    var_tot_tau_yu_smag_horavg   = d.createVariable("tot_tau_yu_smag_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_yv_smag_horavg   = d.createVariable("tot_tau_yv_smag_horavg","f8",  ("tstep_unique","zc"))
-    var_tot_tau_yw_smag_horavg   = d.createVariable("tot_tau_yw_smag_horavg","f8",  ("tstep_unique","zhc"))
-    var_tot_tau_zu_smag_horavg   = d.createVariable("tot_tau_zu_smag_horavg","f8",  ("tstep_unique","zhc"))
-    var_tot_tau_zv_smag_horavg   = d.createVariable("tot_tau_zv_smag_horavg","f8",  ("tstep_unique","zhc"))
-    var_tot_tau_zw_smag_horavg   = d.createVariable("tot_tau_zw_smag_horavg","f8",  ("tstep_unique","zc"))
+    #var_unres_tau_xu_smag_horavg = d.createVariable("unres_tau_xu_smag_horavg","f8",("tstep_unique","zc"))
+    #var_unres_tau_xv_smag_horavg = d.createVariable("unres_tau_xv_smag_horavg","f8",("tstep_unique","zc"))
+    #var_unres_tau_xw_smag_horavg = d.createVariable("unres_tau_xw_smag_horavg","f8",("tstep_unique","zhc"))
+    #var_unres_tau_yu_smag_horavg = d.createVariable("unres_tau_yu_smag_horavg","f8",("tstep_unique","zc"))
+    #var_unres_tau_yv_smag_horavg = d.createVariable("unres_tau_yv_smag_horavg","f8",("tstep_unique","zc"))
+    #var_unres_tau_yw_smag_horavg = d.createVariable("unres_tau_yw_smag_horavg","f8",("tstep_unique","zhc"))
+    #var_unres_tau_zu_smag_horavg = d.createVariable("unres_tau_zu_smag_horavg","f8",("tstep_unique","zhc"))
+    #var_unres_tau_zv_smag_horavg = d.createVariable("unres_tau_zv_smag_horavg","f8",("tstep_unique","zhc"))
+    #var_unres_tau_zw_smag_horavg = d.createVariable("unres_tau_zw_smag_horavg","f8",("tstep_unique","zc"))
+    #var_diff_tau_xu_smag_horavg  = d.createVariable("diff_tau_xu_smag_horavg","f8", ("tstep_unique","zc"))
+    #var_diff_tau_xv_smag_horavg  = d.createVariable("diff_tau_xv_smag_horavg","f8", ("tstep_unique","zc"))
+    #var_diff_tau_xw_smag_horavg  = d.createVariable("diff_tau_xw_smag_horavg","f8", ("tstep_unique","zhc"))
+    #var_diff_tau_yu_smag_horavg  = d.createVariable("diff_tau_yu_smag_horavg","f8", ("tstep_unique","zc"))
+    #var_diff_tau_yv_smag_horavg  = d.createVariable("diff_tau_yv_smag_horavg","f8", ("tstep_unique","zc"))
+    #var_diff_tau_yw_smag_horavg  = d.createVariable("diff_tau_yw_smag_horavg","f8", ("tstep_unique","zhc"))
+    #var_diff_tau_zu_smag_horavg  = d.createVariable("diff_tau_zu_smag_horavg","f8", ("tstep_unique","zhc"))
+    #var_diff_tau_zv_smag_horavg  = d.createVariable("diff_tau_zv_smag_horavg","f8", ("tstep_unique","zhc"))
+    #var_diff_tau_zw_smag_horavg  = d.createVariable("diff_tau_zw_smag_horavg","f8", ("tstep_unique","zc"))
+    #var_tot_tau_xu_smag_horavg   = d.createVariable("tot_tau_xu_smag_horavg","f8",  ("tstep_unique","zc"))
+    #var_tot_tau_xv_smag_horavg   = d.createVariable("tot_tau_xv_smag_horavg","f8",  ("tstep_unique","zc"))
+    #var_tot_tau_xw_smag_horavg   = d.createVariable("tot_tau_xw_smag_horavg","f8",  ("tstep_unique","zhc"))
+    #var_tot_tau_yu_smag_horavg   = d.createVariable("tot_tau_yu_smag_horavg","f8",  ("tstep_unique","zc"))
+    #var_tot_tau_yv_smag_horavg   = d.createVariable("tot_tau_yv_smag_horavg","f8",  ("tstep_unique","zc"))
+    #var_tot_tau_yw_smag_horavg   = d.createVariable("tot_tau_yw_smag_horavg","f8",  ("tstep_unique","zhc"))
+    #var_tot_tau_zu_smag_horavg   = d.createVariable("tot_tau_zu_smag_horavg","f8",  ("tstep_unique","zhc"))
+    #var_tot_tau_zv_smag_horavg   = d.createVariable("tot_tau_zv_smag_horavg","f8",  ("tstep_unique","zhc"))
+    #var_tot_tau_zw_smag_horavg   = d.createVariable("tot_tau_zw_smag_horavg","f8",  ("tstep_unique","zc"))
     #
     var_unres_tau_xu_CNN_horavg = d.createVariable("unres_tau_xu_CNN_horavg","f8",("tstep_unique","zc"))
     var_unres_tau_xv_CNN_horavg = d.createVariable("unres_tau_xv_CNN_horavg","f8",("tstep_unique","zc"))
@@ -899,11 +899,11 @@ if args.reconstruct_fields:
     var_diff_tau_xu_horavg[:,:]           = np.mean(var_diff_tau_xu[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_xu_horavg[:,:]            = np.mean(res_tau_xu,                   axis=(2,3), keepdims=False)
     var_tot_tau_xu_horavg[:,:]            = np.mean(tot_tau_xu,                   axis=(2,3), keepdims=False)
-    var_unres_tau_xu_smag_horavg[:,:]     = np.mean(smag_tau_xu,                  axis=(2,3), keepdims=False)
-    var_diff_tau_xu_smag_horavg[:,:]      = np.mean(var_diff_tau_xu_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_xu_smag_horavg[:,:]     = np.mean(smag_tau_xu,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_xu_smag_horavg[:,:]      = np.mean(var_diff_tau_xu_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_xu_CNN_horavg[:,:]      = np.mean(preds_values_xu[:,:,:,:-1],              axis=(2,3), keepdims=False)
     var_diff_tau_xu_CNN_horavg[:,:]       = np.mean(var_diff_tau_xu_CNN[:,:,:,:-1],              axis=(2,3), keepdims=False)
-    var_tot_tau_xu_smag_horavg[:,:]       = np.mean(smag_tau_xu + res_tau_xu[:,:,:,1:],     axis=(2,3), keepdims=False)
+    #var_tot_tau_xu_smag_horavg[:,:]       = np.mean(smag_tau_xu + res_tau_xu[:,:,:,1:],     axis=(2,3), keepdims=False)
     var_tot_tau_xu_CNN_horavg[:,:]        = np.mean(preds_values_xu[:,:,:,:-1] + res_tau_xu[:,:,:,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_xu[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_xu[:,:,:,:])        / np.array(var_res_tau_xu[:,:,:,:]))       ,-10)
     var_frac_unres_tau_xu_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_xu_horavg[:,:]) / np.array(var_res_tau_xu_horavg[:,:])),-10)
@@ -912,11 +912,11 @@ if args.reconstruct_fields:
     var_diff_tau_xv_horavg[:,:]           = np.mean(var_diff_tau_xv[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_xv_horavg[:,:]            = np.mean(res_tau_xv,                   axis=(2,3), keepdims=False)
     var_tot_tau_xv_horavg[:,:]            = np.mean(tot_tau_xv,                   axis=(2,3), keepdims=False)
-    var_unres_tau_xv_smag_horavg[:,:]     = np.mean(smag_tau_xv,                  axis=(2,3), keepdims=False)
-    var_diff_tau_xv_smag_horavg[:,:]      = np.mean(var_diff_tau_xv_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_xv_smag_horavg[:,:]     = np.mean(smag_tau_xv,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_xv_smag_horavg[:,:]      = np.mean(var_diff_tau_xv_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_xv_CNN_horavg[:,:]      = np.mean(preds_values_xv[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_xv_CNN_horavg[:,:]       = np.mean(var_diff_tau_xv_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_xv_smag_horavg[:,:]       = np.mean(smag_tau_xv + res_tau_xv,     axis=(2,3), keepdims=False)
+    #var_tot_tau_xv_smag_horavg[:,:]       = np.mean(smag_tau_xv + res_tau_xv,     axis=(2,3), keepdims=False)
     var_tot_tau_xv_CNN_horavg[:,:]        = np.mean(preds_values_xv + res_tau_xv[:,:,:-1,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_xv[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_xv[:,:,:,:])        / np.array(var_res_tau_xv[:,:,:,:]))       ,-10)
     var_frac_unres_tau_xv_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_xv_horavg[:,:]) / np.array(var_res_tau_xv_horavg[:,:])),-10)
@@ -925,11 +925,11 @@ if args.reconstruct_fields:
     var_diff_tau_xw_horavg[:,:]           = np.mean(var_diff_tau_xw[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_xw_horavg[:,:]            = np.mean(res_tau_xw,                   axis=(2,3), keepdims=False)
     var_tot_tau_xw_horavg[:,:]            = np.mean(tot_tau_xw,                   axis=(2,3), keepdims=False)
-    var_unres_tau_xw_smag_horavg[:,:]     = np.mean(smag_tau_xw,                  axis=(2,3), keepdims=False)
-    var_diff_tau_xw_smag_horavg[:,:]      = np.mean(var_diff_tau_xw_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_xw_smag_horavg[:,:]     = np.mean(smag_tau_xw,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_xw_smag_horavg[:,:]      = np.mean(var_diff_tau_xw_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_xw_CNN_horavg[:,:]      = np.mean(preds_values_xw[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_xw_CNN_horavg[:,:]       = np.mean(var_diff_tau_xw_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_xw_smag_horavg[:,:]       = np.mean(smag_tau_xw + res_tau_xw,     axis=(2,3), keepdims=False)
+    #var_tot_tau_xw_smag_horavg[:,:]       = np.mean(smag_tau_xw + res_tau_xw,     axis=(2,3), keepdims=False)
     var_tot_tau_xw_CNN_horavg[:,:]        = np.mean(preds_values_xw + res_tau_xw[:,:-1,:,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_xw[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_xw[:,:,:,:])        / np.array(var_res_tau_xw[:,:,:,:]))       ,-10)
     var_frac_unres_tau_xw_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_xw_horavg[:,:]) / np.array(var_res_tau_xw_horavg[:,:])),-10)
@@ -938,11 +938,11 @@ if args.reconstruct_fields:
     var_diff_tau_yu_horavg[:,:]           = np.mean(var_diff_tau_yu[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_yu_horavg[:,:]            = np.mean(res_tau_yu,                   axis=(2,3), keepdims=False)
     var_tot_tau_yu_horavg[:,:]            = np.mean(tot_tau_yu,                   axis=(2,3), keepdims=False)
-    var_unres_tau_yu_smag_horavg[:,:]     = np.mean(smag_tau_yu,                  axis=(2,3), keepdims=False)
-    var_diff_tau_yu_smag_horavg[:,:]      = np.mean(var_diff_tau_yu_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_yu_smag_horavg[:,:]     = np.mean(smag_tau_yu,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_yu_smag_horavg[:,:]      = np.mean(var_diff_tau_yu_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_yu_CNN_horavg[:,:]      = np.mean(preds_values_yu[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_yu_CNN_horavg[:,:]       = np.mean(var_diff_tau_yu_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_yu_smag_horavg[:,:]       = np.mean(smag_tau_yu + res_tau_yu,     axis=(2,3), keepdims=False)
+    #var_tot_tau_yu_smag_horavg[:,:]       = np.mean(smag_tau_yu + res_tau_yu,     axis=(2,3), keepdims=False)
     var_tot_tau_yu_CNN_horavg[:,:]        = np.mean(preds_values_yu + res_tau_yu[:,:,:-1,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_yu[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_yu[:,:,:,:])        / np.array(var_res_tau_yu[:,:,:,:]))       ,-10)
     var_frac_unres_tau_yu_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_yu_horavg[:,:]) / np.array(var_res_tau_yu_horavg[:,:])),-10)
@@ -951,11 +951,11 @@ if args.reconstruct_fields:
     var_diff_tau_yv_horavg[:,:]           = np.mean(var_diff_tau_yv[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_yv_horavg[:,:]            = np.mean(res_tau_yv,                   axis=(2,3), keepdims=False)
     var_tot_tau_yv_horavg[:,:]            = np.mean(tot_tau_yv,                   axis=(2,3), keepdims=False)
-    var_unres_tau_yv_smag_horavg[:,:]     = np.mean(smag_tau_yv,                  axis=(2,3), keepdims=False)
-    var_diff_tau_yv_smag_horavg[:,:]      = np.mean(var_diff_tau_yv_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_yv_smag_horavg[:,:]     = np.mean(smag_tau_yv,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_yv_smag_horavg[:,:]      = np.mean(var_diff_tau_yv_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_yv_CNN_horavg[:,:]      = np.mean(preds_values_yv[:,:,:-1,:],              axis=(2,3), keepdims=False)
     var_diff_tau_yv_CNN_horavg[:,:]       = np.mean(var_diff_tau_yv_CNN[:,:,:-1,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_yv_smag_horavg[:,:]       = np.mean(smag_tau_yv + res_tau_yv[:,:,1:,:],     axis=(2,3), keepdims=False)
+    #var_tot_tau_yv_smag_horavg[:,:]       = np.mean(smag_tau_yv + res_tau_yv[:,:,1:,:],     axis=(2,3), keepdims=False)
     var_tot_tau_yv_CNN_horavg[:,:]        = np.mean(preds_values_yv[:,:,:-1,:] + res_tau_yv[:,:,:-1,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_yv[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_yv[:,:,:,:])        / np.array(var_res_tau_yv[:,:,:,:]))       ,-10)
     var_frac_unres_tau_yv_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_yv_horavg[:,:]) / np.array(var_res_tau_yv_horavg[:,:])),-10)
@@ -964,11 +964,11 @@ if args.reconstruct_fields:
     var_diff_tau_yw_horavg[:,:]           = np.mean(var_diff_tau_yw[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_yw_horavg[:,:]            = np.mean(res_tau_yw,                   axis=(2,3), keepdims=False)
     var_tot_tau_yw_horavg[:,:]            = np.mean(tot_tau_yw,                   axis=(2,3), keepdims=False)
-    var_unres_tau_yw_smag_horavg[:,:]     = np.mean(smag_tau_yw,                  axis=(2,3), keepdims=False)
-    var_diff_tau_yw_smag_horavg[:,:]      = np.mean(var_diff_tau_yw_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_yw_smag_horavg[:,:]     = np.mean(smag_tau_yw,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_yw_smag_horavg[:,:]      = np.mean(var_diff_tau_yw_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_yw_CNN_horavg[:,:]      = np.mean(preds_values_yw[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_yw_CNN_horavg[:,:]       = np.mean(var_diff_tau_yw_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_yw_smag_horavg[:,:]       = np.mean(smag_tau_yw + res_tau_yw,     axis=(2,3), keepdims=False)
+    #var_tot_tau_yw_smag_horavg[:,:]       = np.mean(smag_tau_yw + res_tau_yw,     axis=(2,3), keepdims=False)
     var_tot_tau_yw_CNN_horavg[:,:]        = np.mean(preds_values_yw + res_tau_yw[:,:-1,:-1,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_yw[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_yw[:,:,:,:])        / np.array(var_res_tau_yw[:,:,:,:]))       ,-10)
     var_frac_unres_tau_yw_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_yw_horavg[:,:]) / np.array(var_res_tau_yw_horavg[:,:])),-10)
@@ -977,11 +977,11 @@ if args.reconstruct_fields:
     var_diff_tau_zu_horavg[:,:]           = np.mean(var_diff_tau_zu[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_zu_horavg[:,:]            = np.mean(res_tau_zu,                   axis=(2,3), keepdims=False)
     var_tot_tau_zu_horavg[:,:]            = np.mean(tot_tau_zu,                   axis=(2,3), keepdims=False)
-    var_unres_tau_zu_smag_horavg[:,:]     = np.mean(smag_tau_zu,                  axis=(2,3), keepdims=False)
-    var_diff_tau_zu_smag_horavg[:,:]      = np.mean(var_diff_tau_zu_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_zu_smag_horavg[:,:]     = np.mean(smag_tau_zu,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_zu_smag_horavg[:,:]      = np.mean(var_diff_tau_zu_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_zu_CNN_horavg[:,:]      = np.mean(preds_values_zu[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_zu_CNN_horavg[:,:]       = np.mean(var_diff_tau_zu_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_zu_smag_horavg[:,:]       = np.mean(smag_tau_zu + res_tau_zu,     axis=(2,3), keepdims=False)
+    #var_tot_tau_zu_smag_horavg[:,:]       = np.mean(smag_tau_zu + res_tau_zu,     axis=(2,3), keepdims=False)
     var_tot_tau_zu_CNN_horavg[:,:]        = np.mean(preds_values_zu + res_tau_zu[:,:,:,:-1], axis=(2,3), keepdims=False)
     var_frac_unres_tau_zu[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_zu[:,:,:,:])        / np.array(var_res_tau_zu[:,:,:,:]))       ,-10)
     var_frac_unres_tau_zu_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_zu_horavg[:,:]) / np.array(var_res_tau_zu_horavg[:,:])),-10)
@@ -990,11 +990,11 @@ if args.reconstruct_fields:
     var_diff_tau_zv_horavg[:,:]           = np.mean(var_diff_tau_zv[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_zv_horavg[:,:]            = np.mean(res_tau_zv,                   axis=(2,3), keepdims=False)
     var_tot_tau_zv_horavg[:,:]            = np.mean(tot_tau_zv,                   axis=(2,3), keepdims=False)
-    var_unres_tau_zv_smag_horavg[:,:]     = np.mean(smag_tau_zv,                  axis=(2,3), keepdims=False)
-    var_diff_tau_zv_smag_horavg[:,:]      = np.mean(var_diff_tau_zv_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_zv_smag_horavg[:,:]     = np.mean(smag_tau_zv,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_zv_smag_horavg[:,:]      = np.mean(var_diff_tau_zv_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_zv_CNN_horavg[:,:]      = np.mean(preds_values_zv[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_zv_CNN_horavg[:,:]       = np.mean(var_diff_tau_zv_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_zv_smag_horavg[:,:]       = np.mean(smag_tau_zv + res_tau_zv,     axis=(2,3), keepdims=False)
+    #var_tot_tau_zv_smag_horavg[:,:]       = np.mean(smag_tau_zv + res_tau_zv,     axis=(2,3), keepdims=False)
     var_tot_tau_zv_CNN_horavg[:,:]        = np.mean(preds_values_zv + res_tau_zv[:,:,:-1,:], axis=(2,3), keepdims=False)
     var_frac_unres_tau_zv[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_zv[:,:,:,:])        / np.array(var_res_tau_zv[:,:,:,:]))       ,-10)
     var_frac_unres_tau_zv_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_zv_horavg[:,:]) / np.array(var_res_tau_zv_horavg[:,:])),-10)
@@ -1003,11 +1003,11 @@ if args.reconstruct_fields:
     var_diff_tau_zw_horavg[:,:]           = np.mean(var_diff_tau_zw[:,:,:,:],                  axis=(2,3), keepdims=False)
     var_res_tau_zw_horavg[:,:]            = np.mean(res_tau_zw,                   axis=(2,3), keepdims=False)
     var_tot_tau_zw_horavg[:,:]            = np.mean(tot_tau_zw,                   axis=(2,3), keepdims=False)
-    var_unres_tau_zw_smag_horavg[:,:]     = np.mean(smag_tau_zw,                  axis=(2,3), keepdims=False)
-    var_diff_tau_zw_smag_horavg[:,:]      = np.mean(var_diff_tau_zw_smag[:,:,:,:],axis=(2,3), keepdims=False)
+    #var_unres_tau_zw_smag_horavg[:,:]     = np.mean(smag_tau_zw,                  axis=(2,3), keepdims=False)
+    #var_diff_tau_zw_smag_horavg[:,:]      = np.mean(var_diff_tau_zw_smag[:,:,:,:],axis=(2,3), keepdims=False)
     var_unres_tau_zw_CNN_horavg[:,:]      = np.mean(preds_values_zw[:,:,:,:],              axis=(2,3), keepdims=False)
     var_diff_tau_zw_CNN_horavg[:,:]       = np.mean(var_diff_tau_zw_CNN[:,:,:,:],              axis=(2,3), keepdims=False)
-    var_tot_tau_zw_smag_horavg[:,:]       = np.mean(smag_tau_zw + res_tau_zw[:,:,:,:],     axis=(2,3), keepdims=False)
+    #var_tot_tau_zw_smag_horavg[:,:]       = np.mean(smag_tau_zw + res_tau_zw[:,:,:,:],     axis=(2,3), keepdims=False)
     var_tot_tau_zw_CNN_horavg[:,:]        = np.mean(preds_values_zw + res_tau_zw, axis=(2,3), keepdims=False)
     var_frac_unres_tau_zw[:,:,:,:]    = np.maximum(np.minimum(10,np.array(var_unres_tau_zw[:,:,:,:])        / np.array(var_res_tau_zw[:,:,:,:]))       ,-10)
     var_frac_unres_tau_zw_horavg[:,:] = np.maximum(np.minimum(10,np.array(var_unres_tau_zw_horavg[:,:]) / np.array(var_res_tau_zw_horavg[:,:])),-10)
@@ -1043,25 +1043,25 @@ if args.make_plots:
     unres_tau_zw_CNN_horavg = np.array(fields['unres_tau_zw_CNN_horavg'][:,:])
     
     #Extract Smagorinsky fluxes
-    unres_tau_xu_smag = np.array(fields['unres_tau_xu_smag'][:,:,:,:])
-    unres_tau_xv_smag = np.array(fields['unres_tau_xv_smag'][:,:,:,:])
-    unres_tau_xw_smag = np.array(fields['unres_tau_xw_smag'][:,:,:,:])
-    unres_tau_yu_smag = np.array(fields['unres_tau_yu_smag'][:,:,:,:])
-    unres_tau_yv_smag = np.array(fields['unres_tau_yv_smag'][:,:,:,:])
-    unres_tau_yw_smag = np.array(fields['unres_tau_yw_smag'][:,:,:,:])
-    unres_tau_zu_smag = np.array(fields['unres_tau_zu_smag'][:,:,:,:])
-    unres_tau_zv_smag = np.array(fields['unres_tau_zv_smag'][:,:,:,:])
-    unres_tau_zw_smag = np.array(fields['unres_tau_zw_smag'][:,:,:,:])
-    #
-    unres_tau_xu_smag_horavg = np.array(fields['unres_tau_xu_smag_horavg'][:,:])
-    unres_tau_xv_smag_horavg = np.array(fields['unres_tau_xv_smag_horavg'][:,:])
-    unres_tau_xw_smag_horavg = np.array(fields['unres_tau_xw_smag_horavg'][:,:])
-    unres_tau_yu_smag_horavg = np.array(fields['unres_tau_yu_smag_horavg'][:,:])
-    unres_tau_yv_smag_horavg = np.array(fields['unres_tau_yv_smag_horavg'][:,:])
-    unres_tau_yw_smag_horavg = np.array(fields['unres_tau_yw_smag_horavg'][:,:])
-    unres_tau_zu_smag_horavg = np.array(fields['unres_tau_zu_smag_horavg'][:,:])
-    unres_tau_zv_smag_horavg = np.array(fields['unres_tau_zv_smag_horavg'][:,:])
-    unres_tau_zw_smag_horavg = np.array(fields['unres_tau_zw_smag_horavg'][:,:])
+    #unres_tau_xu_smag = np.array(fields['unres_tau_xu_smag'][:,:,:,:])
+    #unres_tau_xv_smag = np.array(fields['unres_tau_xv_smag'][:,:,:,:])
+    #unres_tau_xw_smag = np.array(fields['unres_tau_xw_smag'][:,:,:,:])
+    #unres_tau_yu_smag = np.array(fields['unres_tau_yu_smag'][:,:,:,:])
+    #unres_tau_yv_smag = np.array(fields['unres_tau_yv_smag'][:,:,:,:])
+    #unres_tau_yw_smag = np.array(fields['unres_tau_yw_smag'][:,:,:,:])
+    #unres_tau_zu_smag = np.array(fields['unres_tau_zu_smag'][:,:,:,:])
+    #unres_tau_zv_smag = np.array(fields['unres_tau_zv_smag'][:,:,:,:])
+    #unres_tau_zw_smag = np.array(fields['unres_tau_zw_smag'][:,:,:,:])
+    ##
+    #unres_tau_xu_smag_horavg = np.array(fields['unres_tau_xu_smag_horavg'][:,:])
+    #unres_tau_xv_smag_horavg = np.array(fields['unres_tau_xv_smag_horavg'][:,:])
+    #unres_tau_xw_smag_horavg = np.array(fields['unres_tau_xw_smag_horavg'][:,:])
+    #unres_tau_yu_smag_horavg = np.array(fields['unres_tau_yu_smag_horavg'][:,:])
+    #unres_tau_yv_smag_horavg = np.array(fields['unres_tau_yv_smag_horavg'][:,:])
+    #unres_tau_yw_smag_horavg = np.array(fields['unres_tau_yw_smag_horavg'][:,:])
+    #unres_tau_zu_smag_horavg = np.array(fields['unres_tau_zu_smag_horavg'][:,:])
+    #unres_tau_zv_smag_horavg = np.array(fields['unres_tau_zv_smag_horavg'][:,:])
+    #unres_tau_zw_smag_horavg = np.array(fields['unres_tau_zw_smag_horavg'][:,:])
     
     #Extract training fluxes
     #unres_tau_xu_traceless = np.array(fields['unres_tau_xu_traceless'][:,:,:,:])
@@ -1235,39 +1235,39 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
     
-    ##Make PDFs of labels and MLP predictions
-    #make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta_height)
-    #
-    ##Make horizontal cross-sections
-    ##NOTE1: some transport components are adjusted to convert them in a consistent way to equal shapes.
-    #make_horcross_heights(unres_tau_xu,            zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu[:,:,:,:-1], zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu[:,:,:,:-1], zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv[:,:,:-1,:], zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv,            zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv[:,:,:-1,:], zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw[:,:-1,:,:], zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw[:,:-1,:,:], zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw,            zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xu_CNN, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu_CNN, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu_CNN, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv_CNN, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv_CNN, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv_CNN, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta_height)
-    ##Make scatterplots
-    ##NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
+    #Make PDFs of labels and MLP predictions
+    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta_height)
+    
+    #Make horizontal cross-sections
+    #NOTE1: some transport components are adjusted to convert them in a consistent way to equal shapes.
+    make_horcross_heights(unres_tau_xu,            zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu[:,:,:,:-1], zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu[:,:,:,:-1], zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv[:,:,:-1,:], zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv,            zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv[:,:,:-1,:], zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw[:,:-1,:,:], zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw[:,:-1,:,:], zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw,            zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xu_CNN, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu_CNN, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu_CNN, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv_CNN, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv_CNN, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv_CNN, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta_height)
+    #Make scatterplots
+    #NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
     #make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu[:,:,:,1:], unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
     #make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True)
     #make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True)
