@@ -62,15 +62,16 @@ nz = z.shape[0]
 ny = y.shape[0]
 nx = x.shape[0]
 
-#Read variables from netCDF-files for an arbitrarty time step t=0
+#Read variables from netCDF-files for time step t=27 (corresponding to t=2820s and t=0 in dns field, which also used as starting point a posteriori test)
 #NOTE: undo normalisation with friction velocity!
-t=0 #Can be any time step, results should not change substantially
-uc_singlefield = np.array(a['uc'][t,kgc_center:kend,jgc:jend,igc:iend]) * ustar
-vc_singlefield = np.array(a['vc'][t,kgc_center:kend,jgc:jend,igc:iend]) * ustar
-wc_singlefield = np.array(a['wc'][t,kgc_center:kend,jgc:jend,igc:iend]) * ustar
-u_singlefield  = np.array(dnsu['u'][t,:,:,:])
-v_singlefield  = np.array(dnsv['v'][t,:,:,:])
-w_singlefield  = np.array(dnsw['w'][t,:,:,:])
+t_les=27 #
+t_dns=0 #Calculate u,v,w.nc such that t=0 corresponds to time of training time step above!
+uc_singlefield = np.array(a['uc'][t_les,kgc_center:kend,jgc:jend,igc:iend]) * ustar
+vc_singlefield = np.array(a['vc'][t_les,kgc_center:kend,jgc:jend,igc:iend]) * ustar
+wc_singlefield = np.array(a['wc'][t_les,kgc_center:kend,jgc:jend,igc:iend]) * ustar
+u_singlefield  = np.array(dnsu['u'][t_dns,:,:,:])
+v_singlefield  = np.array(dnsv['v'][t_dns,:,:,:])
+w_singlefield  = np.array(dnsw['w'][t_dns,:,:,:])
 
 #Loop over heights to calculate spectra
 num_var = 3

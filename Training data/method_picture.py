@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 training_data = nc.Dataset('/projects/1/flowsim/simulation1/lesscoarse/training_data.nc','r')
 highres_data = nc.Dataset('/projects/1/flowsim/simulation1/u.nc','r')
 highres_coord_data = nc.Dataset('/projects/1/flowsim/simulation1/v.nc','r')
-delta = 500 #Half-channel width in [m], 500 m is representative for a realistic ABL
+delta = 1500 #Half-channel width in [m], 500 m is representative for a realistic ABL
 #delta = 1 NOTE: half-channel width for Moser case
 utau_ref = 0.2 #Friction velocity in [m/s], 0.2 m/s is representative for a realistic ABL. This is applied to undo the normalisation and rescale the values to realistic numbers.
 utau_ref_moser = training_data['utau_ref'][:] #NOTE: friction velocity for Moser case, needed to normalize high-res velocity fields. The low-resolution fields were already normalized.
