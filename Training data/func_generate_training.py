@@ -274,6 +274,18 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #w_wxyint[1:,:,:] = w_wxyint_noghost.copy()
         #w_wxyint[0,:,:] = 0 - w_wxyint_noghost[0,:,:]
 
+        #Interpolate each  wind velocities from fine resolution to coarse resolution in all 3 spatial direction (instead of one as above!)
+        #NOTE1: this is not needed to calculate the unresolved transport, and is only required to calculate spectra of the isotropic unresolved transport components (which requires u'!)
+        #u-velocity
+        utot_box_center = _interpolate_side_cell(finegrid['output']['u']['variable'], (finegrid['grid']['z'],  finegrid['grid']['y'],  finegrid['grid']['xh']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
+        utot_box_stag   = _interpolate_side_cell(finegrid['output']['u']['variable'], (finegrid['grid']['z'],  finegrid['grid']['y'],  finegrid['grid']['xh']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], coarsegrid['grid']['xh'][coarsegrid.igc:coarsegrid.ihend]))
+        #v-velocity
+        vtot_box_center = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'],  finegrid['grid']['x']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
+        vtot_box_stag   = _interpolate_side_cell(finegrid['output']['v']['variable'], (finegrid['grid']['z'],  finegrid['grid']['yh'],  finegrid['grid']['x']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['yh'][coarsegrid.jgc:coarsegrid.jhend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
+        #w-velocity
+        wtot_box_center = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'],  finegrid['grid']['y'],  finegrid['grid']['x']), (coarsegrid['grid']['z'][coarsegrid.kgc:coarsegrid.kend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
+        wtot_box_stag   = _interpolate_side_cell(finegrid['output']['w']['variable'], (finegrid['grid']['zh'],  finegrid['grid']['y'],  finegrid['grid']['x']), (coarsegrid['grid']['zh'][coarsegrid.kgc:coarsegrid.khend], coarsegrid['grid']['y'][coarsegrid.jgc:coarsegrid.jend], coarsegrid['grid']['x'][coarsegrid.igc:coarsegrid.iend]))
+
         ##Calculate TOTAL transport of momentum over xz-, yz-, and xy-boundary for all three wind velocity components. ##
         #################################################################################################################
         
@@ -560,7 +572,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         #wc_wxyint = np.zeros((wc_wxyint_noghost.shape[0]+1, wc_wxyint_noghost.shape[1], wc_wxyint_noghost.shape[2]))
         #wc_wxyint[1:,:,:] = wc_wxyint_noghost.copy()
         #wc_wxyint[0,:,:] = 0 - wc_wxyint_noghost[0,:,:]
-
+        
         ##Calculate resolved and unresolved transport user specified coarse grid ##
         ###########################################################################
         #NOTE1: In the resolved transport terms, the resolved contribution of the viscous forces is considered as well. \
@@ -681,6 +693,18 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         unres_tau_zu_tot = unres_tau_zu_turb + unres_tau_zu_visc
         unres_tau_zv_tot = unres_tau_zv_turb + unres_tau_zv_visc
         unres_tau_zw_tot = unres_tau_zw_turb + unres_tau_zw_visc
+        
+        #For each  wind velocity, calculate the unresolved part both with and without contribution from the interpolation error
+        #NOTE1: this is not needed to calculate the unresolved transport, and is only required to calculate spectra of the isotropic unresolved transport components (which requires u'!)
+        #Only box filter
+        unres_u_box = utot_box_stag - coarsegrid['output']['u']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.ihend]
+        unres_v_box = vtot_box_stag - coarsegrid['output']['v']['variable'][coarsegrid.kgc:coarsegrid.kend,coarsegrid.jgc:coarsegrid.jhend,coarsegrid.igc:coarsegrid.iend]
+        unres_w_box = wtot_box_stag - coarsegrid['output']['w']['variable'][coarsegrid.kgc:coarsegrid.khend,coarsegrid.jgc:coarsegrid.jend,coarsegrid.igc:coarsegrid.iend]
+        #Box filter + interpolation error
+        unres_u_boxint = utot_box_center - uc_uyzint[:,:,1:]
+        unres_v_boxint = vtot_box_center - vc_vxzint[:,1:,:]
+        unres_w_boxint = wtot_box_center - wc_wxyint[1:,:,:]
+
 
         ##Store flow fields coarse grid and total/resolved/unresolved transports in netCDF-file ##
         ##########################################################################################
@@ -793,6 +817,18 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
             var_wc = a.createVariable("wc","f8",("time","zhgc","ygc","xgc"))
             var_pc = a.createVariable("pc","f8",("time","zgc","ygc","xgc"))
  
+            var_res_u_boxint      = a.createVariable("res_u_boxint","f8",("time","zc","yc","xc"))
+            var_res_v_boxint      = a.createVariable("res_v_boxint","f8",("time","zc","yc","xc"))
+            var_res_w_boxint      = a.createVariable("res_w_boxint","f8",("time","zc","yc","xc"))
+            
+            var_unres_u_box       = a.createVariable("unres_u_box","f8",("time","zc","yc","xhc"))
+            var_unres_v_box       = a.createVariable("unres_v_box","f8",("time","zc","yhc","xc"))
+            var_unres_w_box       = a.createVariable("unres_w_box","f8",("time","zhc","yc","xc"))
+            
+            var_unres_u_boxint    = a.createVariable("unres_u_boxint","f8",("time","zc","yc","xc"))
+            var_unres_v_boxint    = a.createVariable("unres_v_boxint","f8",("time","zc","yc","xc"))
+            var_unres_w_boxint    = a.createVariable("unres_w_boxint","f8",("time","zc","yc","xc"))
+            
             var_total_tau_xu_turb = a.createVariable("total_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
             var_total_tau_xu_visc = a.createVariable("total_tau_xu_visc","f8",("time","zc","yc","xgcextra"))
             var_res_tau_xu_turb   = a.createVariable("res_tau_xu_turb","f8",("time","zc","yc","xgcextra"))
@@ -872,6 +908,18 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
         var_vc[t,:,:,:] = coarsegrid['output']['v']['variable']
         var_wc[t,:,:,:] = coarsegrid['output']['w']['variable']
         var_pc[t,:,:,:] = coarsegrid['output']['p']['variable']
+
+        var_res_u_boxint[t,:,:,:]      = uc_uyzint[:,:,1:]
+        var_res_v_boxint[t,:,:,:]      = vc_vxzint[:,1:,:]
+        var_res_w_boxint[t,:,:,:]      = wc_wxyint[1:,:,:]
+        
+        var_unres_u_box[t,:,:,:]       = unres_u_box[:,:,:]
+        var_unres_v_box[t,:,:,:]       = unres_v_box[:,:,:]
+        var_unres_w_box[t,:,:,:]       = unres_w_box[:,:,:]
+        
+        var_unres_u_boxint[t,:,:,:]    = unres_u_boxint[:,:,:]
+        var_unres_v_boxint[t,:,:,:]    = unres_v_boxint[:,:,:]
+        var_unres_w_boxint[t,:,:,:]    = unres_w_boxint[:,:,:]
  
         var_total_tau_xu_turb[t,:,:,:] = total_tau_xu_turb[:,:,:]
         var_total_tau_xu_visc[t,:,:,:] = total_tau_xu_visc[:,:,:]
