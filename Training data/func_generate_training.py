@@ -20,7 +20,7 @@ def generate_training_data(dim_new_grid, input_directory, output_directory, reyn
     ''' Generates the training data required for a supervised machine learning algorithm, making use of the Finegrid and Coarsegrid objects defined in grid_objects_training.py. NOTE: the script  does not yet extract individual samples out of the flow fields; this is done in sample_training_data_tfrecord.py. \\ 
     For each available time step in the MicroHH output, the steps in this script are as follows: 
         1) Read the wind velocity variables and the pressure from the output files produced by MicroHH in the specified input_directory (which should be a string).
-        In this procedure, the wind velocities are normalized using a reference friction velocity that is calculated from the specified friction Reynolds number (via the variable reynolds_number_tau, which should be an integer or float). This should ensure that the training data is conistent for flows with similar Reynolds numbers.\\
+        In this procedure, the wind velocities are normalized using a reference friction velocity that is calculated from the specified friction Reynolds number (via the variable reynolds_number_tau, which should be an integer or float).\\
         2) Downsample these variables to a user-defined coarse grid. \\ 
         The dimensions of this new grid are defined via the dim_new_grid variable, which should be a tuple existing of three integers each specifying the amount of grid cells in the z,y,x-directions respectively. \\ 
         The script implicitly assumes that the grid distances are uniform in all three directions, and that the sizes of the domain are the same as in the original grid produced by MicroHH. \\
