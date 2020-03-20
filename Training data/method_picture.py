@@ -2,7 +2,9 @@ import netCDF4 as nc
 import numpy as np
 #from scipy.interpolate import RectBivariateSpline as rbs
 import matplotlib as mpl
-mpl.use('agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
+mpl.use('Agg') #Prevent that Matplotlib uses Tk, which is not configured for the Python version I am using
+#mpl.rc('text', usetex=True)
+#mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]#,r"\usepackage{dvipng}"]
 import matplotlib.pyplot as plt
 
 training_data = nc.Dataset('/projects/1/flowsim/simulation1/lesscoarse/training_data.nc','r')
@@ -39,7 +41,7 @@ xc = training_data.variables['xgc'][training_data.variables['igc'][:]-1:training
 #yhc = training_data.variables['yghc'][training_data.variables['jgc'][:]:training_data.variables['jhend'][:]]*delta
 #yc = training_data.variables['ygc'][training_data.variables['jgc'][:]:training_data.variables['jend'][:]+1]*delta
 zgc = training_data.variables['zgc'][training_data.variables['kgc_center'][:]:training_data.variables['kend'][:]]*delta
-xhc =  training_data.variables['xhc'][:iend_selecles+1]*delta #+1 needed to select edge of chosen region in domain
+xhc =  training_data.variables['xhgc'][training_data.variables['igc'][:]-1:training_data.variables['igc'][:]+iend_selecles]*delta #-1 needed to select edge of chosen region in domain
 #xc  = training_data.variables['xc'][:]*delta
 yhc = training_data.variables['yhc'][:jend_selecles+1]*delta
 yc  = training_data.variables['yc'][:jend_selecles]*delta
@@ -48,9 +50,9 @@ zc  = training_data.variables['zc'][:]*delta
 print(zgc[2])
 
 #NOTE: only turbulence contribution considered, not the total transport as the viscous contribution should not be added.
-total_tau_xu = training_data.variables['total_tau_xu_turb'][27,2,:jend_selecles,:iend_selecles] #* (utau_ref ** 2)
-res_tau_xu = training_data.variables['res_tau_xu_turb'][27,2,:jend_selecles,:iend_selecles] #* (utau_ref ** 2) 
-unres_tau_xu = training_data.variables['unres_tau_xu_turb'][27,2,:jend_selecles,:iend_selecles] #* (utau_ref ** 2)
+total_tau_xu = training_data.variables['total_tau_xu_turb'][27,2,:jend_selecles,:iend_selecles] + training_data.variables['total_tau_xu_visc'][27,2,:jend_selecles,:iend_selecles]
+res_tau_xu = training_data.variables['res_tau_xu_turb'][27,2,:jend_selecles,:iend_selecles] + training_data.variables['res_tau_xu_visc'][27,2,:jend_selecles,:iend_selecles]
+unres_tau_xu = training_data.variables['unres_tau_xu_tot'][27,2,:jend_selecles,:iend_selecles] #* (utau_ref ** 2)
 #print(total_tau_xu.shape)
 #print(xhc.shape)
 #print(yc.shape)
@@ -76,13 +78,13 @@ cbar.set_label('[-]',rotation=270,fontsize=20,labelpad=30)
 #cbar.set_label(r'$\rm {[m\ s^{-1}}]$',rotation=270,fontsize=20,labelpad=30)
 #for l in lines:
 #    plt.plot(*l, '#dddddd', linewidth=1.0)
-plt.xlabel('x/δ [-]',fontsize=20)
-plt.ylabel('y/δ [-]',fontsize=20)
+plt.xlabel(r'$x/\delta [-]$',fontsize=20)
+plt.ylabel(r'$y/\delta [-]$',fontsize=20)
 plt.xlim(0, x[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r'a) $u$', loc='center', fontsize=20)
+plt.title(r'a) $u$', loc='center', fontsize=20, y=1.08)
 #plt.title(r'a) high-resolution flow field u', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_high_res_u.png',bbox_inches='tight')
@@ -96,13 +98,13 @@ cbar.ax.tick_params(labelsize=16)
 cbar.set_label('[-]',rotation=270,fontsize=20,labelpad=30)
 #for l in lines:
 #    plt.plot(*l, '#dddddd', linewidth=2.0)
-plt.xlabel('x/δ [-]',fontsize=20)
-plt.ylabel('y/δ [-]',fontsize=20)
+plt.xlabel(r'$x/\delta [-]$',fontsize=20)
+plt.ylabel(r'$y/\delta [-]$',fontsize=20)
 plt.xlim(0, xc[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r'b) $\overline{u}$', loc='center', fontsize=20)
+plt.title(r'b) $\overline{u}$', loc='center', fontsize=20, y=1.08)
 #plt.title(r'b) coarse-grained flow field', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_low_res_u.png',bbox_inches='tight')
@@ -114,13 +116,13 @@ cbar.ax.tick_params(labelsize=16)
 cbar.set_label('[-]',rotation=270,fontsize=20,labelpad=30)
 #for l in lines:
 #    plt.plot(*l, '#dddddd', linewidth=2.0)
-plt.xlabel('x/δ [-]',fontsize=20)
-plt.ylabel('y/δ [-]',fontsize=20)
+plt.xlabel(r'$x/\delta [-]$',fontsize=20)
+plt.ylabel(r'$y/\delta [-]$',fontsize=20)
 plt.xlim(0, xhc[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r'c) $\overline{uu}$', loc='center', fontsize=20)
+plt.title(r"c) $\frac{1}{\Delta x \Delta y \Delta z} \int_{\partial\Omega_{j \mathbf{k}}^{in}} (u u - \frac{1}{\nu} \frac{\partial u_j}{\partial x_i}) \mathrm{d}\mathbf{x'}$", loc='center', fontsize=20, y=1.08)
 #plt.title(r'c) Total turbulent transport', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_total_transport.png',bbox_inches='tight')
@@ -132,13 +134,13 @@ cbar.ax.tick_params(labelsize=16)
 cbar.set_label('[-]',rotation=270,fontsize=20,labelpad=30)
 #for l in lines:
 #    plt.plot(*l, '#dddddd', linewidth=2.0)
-plt.xlabel('x/δ [-]',fontsize=20)
-plt.ylabel('y/δ [-]',fontsize=20)
+plt.xlabel(r'$x/\delta [-]$',fontsize=20)
+plt.ylabel(r'$y/\delta [-]$',fontsize=20)
 plt.xlim(0, xhc[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r'd) $\overline{u}\,\overline{u}$', loc='center', fontsize=20)
+plt.title(r'd) $\frac{\overline{u_i}^{\mathbf{k}} + \overline{u_i}^{\mathbf{k} - \mathbf{e_j}}}{2}$' " " r'$\frac{\overline{u_j}^{\mathbf{k}} + \overline{u_j}^{\mathbf{k} - \mathbf{e_i }}}{2} - \frac{1}{\nu} \frac{\overline{u_j}^{\mathbf{k}} - \overline{u_j}^{\mathbf{k} - \mathbf{e_i} }}{\Delta x_i}$', loc='center', fontsize=20, y=1.08)
 #plt.title(r'd) Resolved turbulent transport', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_res_transport.png',bbox_inches='tight')
@@ -151,13 +153,13 @@ cbar.set_label('[-]',rotation=270,fontsize=20,labelpad=30)
 
 #for l in lines:
 #    plt.plot(*l, '#dddddd', linewidth=2.0)
-plt.xlabel('x/δ [-]',fontsize=20)
-plt.ylabel('y/δ [-]',fontsize=20)
+plt.xlabel(r'$x/\delta [-]$',fontsize=20)
+plt.ylabel(r'$y/\delta [-]$',fontsize=20)
 plt.xlim(0, xhc[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r'e) $\tau_{uu}$', loc='center', fontsize=20)
+plt.title(r'e) $\tau_{ij}^{\mathbf{k}, in}$', loc='center', fontsize=20, y=1.08)
 #plt.title(r'e) Unresolved/subgrid turbulent transport', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_unres_transport.png',bbox_inches='tight')
