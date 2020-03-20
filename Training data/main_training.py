@@ -129,6 +129,6 @@ means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
 
 #NOTE1:Original downsampling (to downsample from 100m to 4m in horizontal directions): (64,16,32)
 #NOTE2: Resolution of high-resolution simulations is (256,384,768)
-generate_training_data((64,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
+#generate_training_data((64,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
 #generate_training_data_hor((48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
 generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_binary = True, create_netcdf = False, store_means_stdevs = True)

@@ -736,8 +736,9 @@ random_seed = 1234
 
 #Define filenames of tfrecords for training and validation
 #NOTE: each tfrecords contains all the samples from a single 'snapshot' of the flow, and thus corresponds to a single time step.
-nt_available = 8 #Amount of time steps that should be used for training/validation, assuming  that the number of the time step in the filenames ranges from 1 to nt_available without gaps.
-nt_total = 100 #Amount of time steps INCLUDING all produced tfrecord files (also the ones not used for training/validation).
+nt_available = 30 #Amount of time steps that should be used for training/validation, assuming  that the number of the time step in the filenames ranges from 1 to nt_available without gaps.
+#nt_total = 100 #Amount of time steps INCLUDING all produced tfrecord files (also the ones not used for training/validation).
+nt_total = 30 #Amount of time steps INCLUDING all produced tfrecord files (also the ones not used for training/validation).
 #nt_available = 2 #FOR TESTING PURPOSES ONLY!
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)

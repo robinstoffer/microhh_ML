@@ -72,8 +72,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     utau_ref   = np.array(a['utau_ref'][:], dtype = 'f4')
 
     #Define shapes of output arrays based on stored training data
-    nt = a['unres_tau_xu_turb'].shape[0] # NOTE1: nt should be the same for all variables.
-    #nt = 1 #NOTE:FOR TESTING PURPOSES ONLY!!!
+    #nt = a['unres_tau_xu_turb'].shape[0] # NOTE1: nt should be the same for all variables.
+    nt = 30 #SHOULD CORRESPOND TO NUMER OF TRAINING FIELDS USED IN MLP TRAINING
     nz = zc.shape[0]
     ny = yc.shape[0]
     nx = xc.shape[0]
@@ -342,50 +342,51 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
                     pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
         
-                    #Calculate deviatoric part fluxes by subtracting the residual kinetic energy, take location in grid into account!
-                    #NOTE1:make use of horizontal periodic and vertical no-slip BCs to account for additional values needed not stored in arrays!
-                    #NOTE2: in calculations res_kin, ensure the components are located at the same location in the grid
-                    res_kin_energy_upstream   = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost])
-                    #If at bottom wall, mirror xu, yv by putting a minus sign in front of them (which can be done because of no-slip BC, i.e. xu & yv are 0 at top wall). This has to be done because the needed values at the bottom wall are not present in the arrays.
-                    if index_z_noghost == 0:
-                        res_kin_energy_upstreamzw = 0.5 * (-unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] - unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost])
-                    else:
-                        res_kin_energy_upstreamzw = 0.5 * (unres_tau_xu_singlefield[index_z_noghost-1,index_y_noghost,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost-1,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost])
+                    ##Calculate deviatoric part fluxes by subtracting the residual kinetic energy, take location in grid into account!
+                    ##NOTE1:make use of horizontal periodic and vertical no-slip BCs to account for additional values needed not stored in arrays!
+                    ##NOTE2: in calculations res_kin, ensure the components are located at the same location in the grid
+                    ##NOTE3:calculation wrong when viscous flux has been added to unresolved transport!!!
+                    #res_kin_energy_upstream   = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost])
+                    ##If at bottom wall, mirror xu, yv by putting a minus sign in front of them (which can be done because of no-slip BC, i.e. xu & yv are 0 at top wall). This has to be done because the needed values at the bottom wall are not present in the arrays.
+                    #if index_z_noghost == 0:
+                    #    res_kin_energy_upstreamzw = 0.5 * (-unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] - unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost])
+                    #else:
+                    #    res_kin_energy_upstreamzw = 0.5 * (unres_tau_xu_singlefield[index_z_noghost-1,index_y_noghost,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost-1,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost])
 
 
-                    #res_kin_energy_downstream = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost]) WRONG!!!
-                    if index_x_noghost+1 > (nx-1):
-                        index_x_reskin = (index_x_noghost+1) - nx
-                    else:
-                        index_x_reskin = (index_x_noghost+1)
-                    res_kin_energy_downstreamxu = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_reskin] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_reskin])
-                    if index_y_noghost+1 > (ny-1):
-                        index_y_reskin = (index_y_noghost+1) - ny
-                    else:
-                        index_y_reskin = (index_y_noghost+1)
-                    res_kin_energy_downstreamyv = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_reskin,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_reskin,index_x_noghost])
-                    res_kin_energy_downstreamzw = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost])
+                    ##res_kin_energy_downstream = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost]) WRONG!!!
+                    #if index_x_noghost+1 > (nx-1):
+                    #    index_x_reskin = (index_x_noghost+1) - nx
+                    #else:
+                    #    index_x_reskin = (index_x_noghost+1)
+                    #res_kin_energy_downstreamxu = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_reskin] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_reskin])
+                    #if index_y_noghost+1 > (ny-1):
+                    #    index_y_reskin = (index_y_noghost+1) - ny
+                    #else:
+                    #    index_y_reskin = (index_y_noghost+1)
+                    #res_kin_energy_downstreamyv = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_reskin,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_reskin,index_x_noghost])
+                    #res_kin_energy_downstreamzw = 0.5 * (unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] + unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost])
                     
                     #Store corresponding unresolved transports
-                    unres_tau_xu_samples_upstream[sample_num]   = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] - (2.0/3.0)*res_kin_energy_upstream
+                    unres_tau_xu_samples_upstream[sample_num]   = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] #- (2.0/3.0)*res_kin_energy_upstream
                     unres_tau_xu_samples_upstream[sample_num]   = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
                     unres_tau_xv_samples_upstream[sample_num]   = unres_tau_xv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
                     unres_tau_xw_samples_upstream[sample_num]   = unres_tau_xw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
                     unres_tau_yu_samples_upstream[sample_num]   = unres_tau_yu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
-                    unres_tau_yv_samples_upstream[sample_num]   = unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] - (2.0/3.0)*res_kin_energy_upstream
+                    unres_tau_yv_samples_upstream[sample_num]   = unres_tau_yv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] #- (2.0/3.0)*res_kin_energy_upstream
                     unres_tau_yw_samples_upstream[sample_num]   = unres_tau_yw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]                
                     unres_tau_zu_samples_upstream[sample_num]   = unres_tau_zu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
                     unres_tau_zv_samples_upstream[sample_num]   = unres_tau_zv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost]
-                    unres_tau_zw_samples_upstream[sample_num]   = unres_tau_zw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] - (2.0/3.0)*res_kin_energy_upstreamzw
-                    unres_tau_xu_samples_downstream[sample_num] = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1] - (2.0/3.0)*res_kin_energy_downstreamxu
+                    unres_tau_zw_samples_upstream[sample_num]   = unres_tau_zw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost] #- (2.0/3.0)*res_kin_energy_upstreamzw
+                    unres_tau_xu_samples_downstream[sample_num] = unres_tau_xu_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1] #- (2.0/3.0)*res_kin_energy_downstreamxu
                     unres_tau_xv_samples_downstream[sample_num] = unres_tau_xv_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1]
                     unres_tau_xw_samples_downstream[sample_num] = unres_tau_xw_singlefield[index_z_noghost,index_y_noghost,index_x_noghost+1]
                     unres_tau_yu_samples_downstream[sample_num] = unres_tau_yu_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost]
-                    unres_tau_yv_samples_downstream[sample_num] = unres_tau_yv_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost] - (2.0/3.0)*res_kin_energy_downstreamyv
+                    unres_tau_yv_samples_downstream[sample_num] = unres_tau_yv_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost] #- (2.0/3.0)*res_kin_energy_downstreamyv
                     unres_tau_yw_samples_downstream[sample_num] = unres_tau_yw_singlefield[index_z_noghost,index_y_noghost+1,index_x_noghost]                
                     unres_tau_zu_samples_downstream[sample_num] = unres_tau_zu_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost]
                     unres_tau_zv_samples_downstream[sample_num] = unres_tau_zv_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost]
-                    unres_tau_zw_samples_downstream[sample_num] = unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost] - (2.0/3.0)*res_kin_energy_downstreamzw
+                    unres_tau_zw_samples_downstream[sample_num] = unres_tau_zw_singlefield[index_z_noghost+1,index_y_noghost,index_x_noghost] #- (2.0/3.0)*res_kin_energy_downstreamzw
    
                     #Store corresponding locations
                     tstep_samples[sample_num] = int(t)
