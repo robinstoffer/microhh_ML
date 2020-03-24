@@ -41,6 +41,8 @@ parser.add_argument('--benchmark', dest='benchmark', default=None, \
 parser.add_argument('--debug', default=None, \
         action='store_true', \
         help='Run script in debug mode to inspect tensor values while the Estimator is in training mode.')
+parser.add_argument('--n_hidden', type=int, default=64, \
+        help='Number of neurons in hidden layer')
 parser.add_argument('--intra_op_parallelism_threads', type=int, default=ncores-1, \
         help='intra_op_parallelism_threads')
 parser.add_argument('--inter_op_parallelism_threads', type=int, default=1, \
@@ -742,7 +744,7 @@ nt_total = 30 #Amount of time steps INCLUDING all produced tfrecord files (also 
 #nt_available = 2 #FOR TESTING PURPOSES ONLY!
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
-train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.125) #Set aside 1/8 of files for validation.
+train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1) #Set aside 10% of files for validation.
 train_filenames = np.zeros((len(train_stepnumbers),), dtype=object)
 val_filenames   = np.zeros((len(val_stepnumbers),), dtype=object)
 
@@ -761,6 +763,8 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
     else:
         val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
     j+=1
+print("Validation files:")
+print(val_filenames)
 
 #Extract friction velocity from training file (which is needed for the denormalisation implemented within the MLP)
 training_file = nc.Dataset(args.training_filepath, 'r')
@@ -928,11 +932,13 @@ else:
     kernelsize_conv1 = 3
 
 hyperparams =  {
-'n_dense1':64, #Neurons in hidden layer for each control volume
+'n_dense1':args.n_hidden, #Neurons in hidden layer for each control volume
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
 'learning_rate':0.0001
 }
+print("number of neurons in hidden layer: ", str(args.n_hidden))
+print("Checkpoint directory: ", args.checkpoint_dir)
 
 #Instantiate an Estimator with model defined by model_fn
 MLP = tf.estimator.Estimator(model_fn = model_fn, config=my_checkpointing_config, params = hyperparams, model_dir=args.checkpoint_dir, warm_start_from = warmstart_dir)
@@ -960,7 +966,7 @@ tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 # 2) Set-up and store the inference/prediction graph.
 #NOTE1: the input and model function are called manually rather than using the tf.estimator.Estimator syntax.
 #NOTE2: the resulting predictions and labels are automatically stored in a netCDF-file called MLP_predictions.nc, which is placed in the specified checkpoint_dir.
-#NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file and other scripts. Fast inference is currently being implemented by generating a frozen graph from the trained MLP.
+#NOTE3: this implementation of the inference is computationally not efficient, but does allow to inspect and visualize the predictions afterwards in detail using the produced netCDF-file and other scripts.
 print('Inference mode started.')
 
 create_file = True #Flag to make sure netCDF file is initialized
@@ -1557,7 +1563,7 @@ for val_filename in val_filenames:
                     tot_sample_begin = tot_sample_end #Make sure stored variables are not overwritten.
 
                 except tf.errors.OutOfRangeError:
-                    break #Break out of while-loop after one validation file (i.e. one flow 'snapshot'). NOTE: for this part of the code it is important that the eval_input_fn do not implement the .repeat() method on the created tf.Dataset.
+                    break #Break out of while-loop after one validation file (i.e. one flow 'snapshot'). NOTE: for this part of the code it is important that the eval_input_fn does not implement the .repeat() method on the created tf.Dataset.
 
 if args.benchmark is None:
     predictions_file.close() #Close netCDF-file after each validation file

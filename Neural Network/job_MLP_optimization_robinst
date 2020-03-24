@@ -12,8 +12,6 @@
 # To make sure all folders and files within the project space are created with write permission for the group:
 umask g+w
 
-PORT=40600
-
 cd
 #cd microhh/cases/moser600/simulation2
 cd /projects/1/flowsim/simulation1/lesscoarse
@@ -48,7 +46,65 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 #Enable Horovod timeline
 #export HOROVOD_TIMELINE='/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_CNN14/horovod.json'
 
-python3 -u /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/MLP2_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP16' --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --training_filepath '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --n_hidden 64 --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
+echo $SLURM_ARRAY_TASK_ID
+
+#Depending on task id of array job, set correctly the number of the MLP and the number of neurons in the hidden layer
+if [ $SLURM_ARRAY_TASK_ID == 0 ]
+then
+    export MLPNUM=20
+    export NHIDDEN=1
+fi
+if [ $SLURM_ARRAY_TASK_ID == 1 ]
+then
+    export MLPNUM=21
+    export NHIDDEN=2
+fi
+if [ $SLURM_ARRAY_TASK_ID == 2 ]
+then
+    export MLPNUM=22
+    export NHIDDEN=4
+fi
+if [ $SLURM_ARRAY_TASK_ID == 3 ]
+then
+    export MLPNUM=23
+    export NHIDDEN=8
+fi
+if [ $SLURM_ARRAY_TASK_ID == 4 ]
+then
+    export MLPNUM=24
+    export NHIDDEN=16
+fi
+if [ $SLURM_ARRAY_TASK_ID == 5 ]
+then
+    export MLPNUM=25
+    export NHIDDEN=32
+fi
+if [ $SLURM_ARRAY_TASK_ID == 6 ]
+then
+    export MLPNUM=26
+    export NHIDDEN=64
+fi
+if [ $SLURM_ARRAY_TASK_ID == 7 ]
+then
+    export MLPNUM=27
+    export NHIDDEN=128
+fi
+if [ $SLURM_ARRAY_TASK_ID == 8 ]
+then
+    export MLPNUM=28
+    export NHIDDEN=256
+fi
+if [ $SLURM_ARRAY_TASK_ID == 9 ]
+then
+    export MLPNUM=29
+    export NHIDDEN=512
+fi
+
+#To run this script as an array job:
+##sbatch --array=0-9 job_MLP_optimization_robinst
+
+python3 -u /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/MLP2_estimator.py --input_dir '/projects/1/flowsim/simulation1/lesscoarse/' --checkpoint_dir "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP$MLPNUM" --stored_means_stdevs_filepath '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --training_filepath '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --n_hidden $NHIDDEN --num_steps 500000 --batch_size 1000 --checkpoint_steps 10000
+
 #use python3 -u to flush output from e.g. print statements directly to the output file
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
