@@ -272,7 +272,7 @@ def train_input_fn(filenames, batch_size, means, stdevs):
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line, means, stdevs), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated. 
-    dataset = dataset.shuffle(buffer_size=10000)
+    dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over
     dataset = dataset.repeat()
     dataset = dataset.batch(batch_size)
     dataset.prefetch(1)
