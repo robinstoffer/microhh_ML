@@ -42,8 +42,8 @@ c = nc.Dataset(args.training_file,'r')
 delta_height = 1 #NOTE: uncomment when the height of the channel flow should be used.
 utau_ref_channel = np.array(c['utau_ref'][:]) #NOTE: used friction velocity in [m/s] for the channel flow, needed for rescaling below.
 #utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
-utau_ref = utau_ref_channel #FOR TESTING PURPOSES ONLY!
-#Specify time steps NOTE: SHOULD BE 27 TO 30 (up to MLP13) or 7 to 8 (MLP14 and above), and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
+utau_ref = utau_ref_channel #Ucnomment this line to ensure velocities are denormalized in accordance with the channel flow specs
+#Specify time steps NOTE: SHOULD BE 27 TO 30 (up to MLP13, MLP16, and MLP20+) or 7 to 8 (MLP14 and MLP15), and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
 tstart = 27
 tend   = 30
 #tstart = 7
@@ -65,33 +65,35 @@ smag_tau_zw  = np.array(b['smag_tau_zw'][tstart:tend,:,:,:]) * ((utau_ref ** 2) 
 #NOTE1: data from training file is dimensionless in contrast to the data from the MLP and Smagorinsky scripts, and consquently the rescaling factor is different!
 #NOTE2: size of arrays in isotropic directions is reduced by 1 compared to training file, therefore this compensated by taking slices
 #NOTE3: in staggered directions, ghost cells added previously are removed, except in the z-direction
-unres_tau_xu = np.array(c['unres_tau_xu_turb'] [tstart:tend,:,:,1:]) * (utau_ref ** 2)
-unres_tau_yu = np.array(c['unres_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
-unres_tau_zu = np.array(c['unres_tau_zu_turb'] [tstart:tend,:,:,:-1]) * (utau_ref ** 2) 
-unres_tau_xv = np.array(c['unres_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
-unres_tau_yv = np.array(c['unres_tau_yv_turb'] [tstart:tend,:,1:,:]) * (utau_ref ** 2) 
-unres_tau_zv = np.array(c['unres_tau_zv_turb'] [tstart:tend,:,:-1,:]) * (utau_ref ** 2) 
-unres_tau_xw = np.array(c['unres_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
-unres_tau_yw = np.array(c['unres_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
-unres_tau_zw = np.array(c['unres_tau_zw_turb'] [tstart:tend,1:,:,:])* (utau_ref ** 2) 
-res_tau_xu   = np.array(c['res_tau_xu_turb']   [tstart:tend,:,:,1:]) * (utau_ref ** 2) 
-res_tau_yu   = np.array(c['res_tau_yu_turb']   [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)   
-res_tau_zu   = np.array(c['res_tau_zu_turb']   [tstart:tend,:,:,:-1]) * (utau_ref ** 2)   
-res_tau_xv   = np.array(c['res_tau_xv_turb']   [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)   
-res_tau_yv   = np.array(c['res_tau_yv_turb']   [tstart:tend,:,1:,:]) * (utau_ref ** 2)   
-res_tau_zv   = np.array(c['res_tau_zv_turb']   [tstart:tend,:,:-1,:]) * (utau_ref ** 2)   
-res_tau_xw   = np.array(c['res_tau_xw_turb']   [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)   
-res_tau_yw   = np.array(c['res_tau_yw_turb']   [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)   
-res_tau_zw   = np.array(c['res_tau_zw_turb']   [tstart:tend,1:,:,:])* (utau_ref ** 2)   
-tot_tau_xu   = np.array(c['total_tau_xu_turb'] [tstart:tend,:,:,1:]) * (utau_ref ** 2)  
-tot_tau_yu   = np.array(c['total_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
-tot_tau_zu   = np.array(c['total_tau_zu_turb'] [tstart:tend,:,:,:-1]) * (utau_ref ** 2)
-tot_tau_xv   = np.array(c['total_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
-tot_tau_yv   = np.array(c['total_tau_yv_turb'] [tstart:tend,:,1:,:]) * (utau_ref ** 2)
-tot_tau_zv   = np.array(c['total_tau_zv_turb'] [tstart:tend,:,:-1,:])* (utau_ref ** 2)
-tot_tau_xw   = np.array(c['total_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
-tot_tau_yw   = np.array(c['total_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
-tot_tau_zw   = np.array(c['total_tau_zw_turb'] [tstart:tend,1:,:,:])* (utau_ref ** 2)
+#NOTE4: on purpose both the ANN and smag predictions are compared to the fluxes resulting from the advection AND the viscous term. Both these terms have unresolved contributions in our FV-method. It is also to demonstrate that the correlation of smag is (very) low in that case, as smag does not take the visouc term and made numerical errors explicitly into account.
+#NOTE5: for the smag predictions, we do subtract the deviatoric part when we compare the fluxes as this part could also be accounted for with a modified pressure term (which we did not do in our simulation, but is common practice when smag is used)
+unres_tau_xu = np.array(c['unres_tau_xu_tot'] [tstart:tend,:,:,1:]) * (utau_ref ** 2)
+unres_tau_yu = np.array(c['unres_tau_yu_tot'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
+unres_tau_zu = np.array(c['unres_tau_zu_tot'] [tstart:tend,:,:,:-1]) * (utau_ref ** 2) 
+unres_tau_xv = np.array(c['unres_tau_xv_tot'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
+unres_tau_yv = np.array(c['unres_tau_yv_tot'] [tstart:tend,:,1:,:]) * (utau_ref ** 2) 
+unres_tau_zv = np.array(c['unres_tau_zv_tot'] [tstart:tend,:,:-1,:]) * (utau_ref ** 2) 
+unres_tau_xw = np.array(c['unres_tau_xw_tot'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) 
+unres_tau_yw = np.array(c['unres_tau_yw_tot'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) 
+unres_tau_zw = np.array(c['unres_tau_zw_tot'] [tstart:tend,1:,:,:])* (utau_ref ** 2) 
+res_tau_xu   = np.array(c['res_tau_xu_turb']   [tstart:tend,:,:,1:]) * (utau_ref ** 2)    + np.array(c['res_tau_xu_visc']   [tstart:tend,:,:,1:]) * (utau_ref ** 2)    
+res_tau_yu   = np.array(c['res_tau_yu_turb']   [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) + np.array(c['res_tau_yu_visc']   [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+res_tau_zu   = np.array(c['res_tau_zu_turb']   [tstart:tend,:,:,:-1]) * (utau_ref ** 2)   + np.array(c['res_tau_zu_visc']   [tstart:tend,:,:,:-1]) * (utau_ref ** 2)  
+res_tau_xv   = np.array(c['res_tau_xv_turb']   [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) + np.array(c['res_tau_xv_visc']   [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+res_tau_yv   = np.array(c['res_tau_yv_turb']   [tstart:tend,:,1:,:]) * (utau_ref ** 2)    + np.array(c['res_tau_yv_visc']   [tstart:tend,:,1:,:]) * (utau_ref ** 2)   
+res_tau_zv   = np.array(c['res_tau_zv_turb']   [tstart:tend,:,:-1,:]) * (utau_ref ** 2)   + np.array(c['res_tau_zv_visc']   [tstart:tend,:,:-1,:]) * (utau_ref ** 2)  
+res_tau_xw   = np.array(c['res_tau_xw_turb']   [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) + np.array(c['res_tau_xw_visc']   [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
+res_tau_yw   = np.array(c['res_tau_yw_turb']   [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) + np.array(c['res_tau_yw_visc']   [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
+res_tau_zw   = np.array(c['res_tau_zw_turb']   [tstart:tend,1:,:,:])* (utau_ref ** 2)     + np.array(c['res_tau_zw_visc']   [tstart:tend,1:,:,:])* (utau_ref ** 2)    
+tot_tau_xu   = np.array(c['total_tau_xu_turb'] [tstart:tend,:,:,1:]) * (utau_ref ** 2)    + np.array(c['total_tau_xu_visc'] [tstart:tend,:,:,1:]) * (utau_ref ** 2)   
+tot_tau_yu   = np.array(c['total_tau_yu_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) + np.array(c['total_tau_yu_visc'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+tot_tau_zu   = np.array(c['total_tau_zu_turb'] [tstart:tend,:,:,:-1]) * (utau_ref ** 2)   + np.array(c['total_tau_zu_visc'] [tstart:tend,:,:,:-1]) * (utau_ref ** 2)  
+tot_tau_xv   = np.array(c['total_tau_xv_turb'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) + np.array(c['total_tau_xv_visc'] [tstart:tend,:,:-1,:-1]) * (utau_ref ** 2)
+tot_tau_yv   = np.array(c['total_tau_yv_turb'] [tstart:tend,:,1:,:]) * (utau_ref ** 2)    + np.array(c['total_tau_yv_visc'] [tstart:tend,:,1:,:]) * (utau_ref ** 2)   
+tot_tau_zv   = np.array(c['total_tau_zv_turb'] [tstart:tend,:,:-1,:])* (utau_ref ** 2)    + np.array(c['total_tau_zv_visc'] [tstart:tend,:,:-1,:])* (utau_ref ** 2)   
+tot_tau_xw   = np.array(c['total_tau_xw_turb'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2) + np.array(c['total_tau_xw_visc'] [tstart:tend,:-1,:,:-1]) * (utau_ref ** 2)
+tot_tau_yw   = np.array(c['total_tau_yw_turb'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2) + np.array(c['total_tau_yw_visc'] [tstart:tend,:-1,:-1,:]) * (utau_ref ** 2)
+tot_tau_zw   = np.array(c['total_tau_zw_turb'] [tstart:tend,1:,:,:])* (utau_ref ** 2)     + np.array(c['total_tau_zw_visc'] [tstart:tend,1:,:,:]) * (utau_ref ** 2)
 #
 res_tau_xu_visc = np.array(c['res_tau_xu_visc'][tstart:tend,:,:,1:]) * (utau_ref ** 2)
 res_tau_yu_visc = np.array(c['res_tau_yu_visc'][tstart:tend,:,:-1,:-1]) * (utau_ref ** 2) 
@@ -487,6 +489,7 @@ if args.reconstruct_fields:
                 twodimcor_even2  = twodimcor_even
             
             #Assign upstream and downstream values to combined field, depends on whether the vertical or horizontal directions are considered.
+            #NOTE: the first two conditions ensure that for the bottom and top layer when sampled in the z-direction, only the upstream and downstream field respectively are used. For components other than zw, in the channel flow these are overwritten with the vertical boundary conditions (zh(less)_wallszero = True).
             if (i == 0) and (sample_dir == 'z'):
                 combined_field[indices_combined] = upstream_field[indices_up]
             elif (i == (sample_dim-1)) and (sample_dir == 'z'):

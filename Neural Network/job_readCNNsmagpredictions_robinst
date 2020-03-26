@@ -11,9 +11,6 @@
 
 # To make sure all folders and files within the project space are created with write permission for the group:
 umask g+w
-cd
-#cd microhh/cases/moser600/simulation2
-cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP13
 
 #Load modules new environment
 module purge
@@ -26,38 +23,71 @@ module load cuDNN/7.6.3-CUDA-10.0.130
 module load FFTW/3.3.8-intel-2018b
 module load Doxygen/1.8.14-GCCcore-7.3.0
 
-##Load modules old environment
-#module purge
-##module load eb
-#module load surfsara
-#module load CMake/3.7.2-intel-2016b
-##module load cuDNN/7.0.5-CUDA-9.0.176
-#module load netCDF/4.4.1.1-intel-2016b
-#module load netCDF-C++4/4.3.0-intel-2016b
-#module load FFTW/3.3.5-intel-2016b
-#module load Doxygen/1.8.11-intel-2016b
-##module load Python/3.6.1-intel-2016b Already loaded in virtual environment
-
-export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared Python libraries can be found
-
-#module purge
-#module load eb
-#module load surfsara
-#module load CMake/3.9.5-GCCcore-6.4.0
-#module load cuDNN/7.0.5-CUDA-9.0.176
-#module load netCDF/4.5.0-foss-2017b
-#module load netCDF-C++4/4.3.0-foss-2017b
-#module load Doxygen/1.8.13-GCCcore-6.4.0
-#module unload ScaLAPACK/2.0.2-gompi-2017b-OpenBLAS-0.2.20
+#export LD_LIBRARY_PATH=$SURFSARA_LIBRARY_PATH:$LD_LIBRARY_PATH #Make sure shared Python libraries can be found
 
 source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
-#python3 CNN1_estimator.py > output_CNN1_estimator.txt
-#srun python3 CNN1_estimator.py > output_CNN1_estimator.txt
+echo $SLURM_ARRAY_TASK_ID
 
+#Depending on task id of array job, set correctly the number of the MLP and the number of neurons in the hidden layer
+if [ $SLURM_ARRAY_TASK_ID == 0 ]
+then
+    export MLPNUM=20
+    export NHIDDEN=1
+fi
+if [ $SLURM_ARRAY_TASK_ID == 1 ]
+then
+    export MLPNUM=21
+    export NHIDDEN=2
+fi
+if [ $SLURM_ARRAY_TASK_ID == 2 ]
+then
+    export MLPNUM=22
+    export NHIDDEN=4
+fi
+if [ $SLURM_ARRAY_TASK_ID == 3 ]
+then
+    export MLPNUM=23
+    export NHIDDEN=8
+fi
+if [ $SLURM_ARRAY_TASK_ID == 4 ]
+then
+    export MLPNUM=24
+    export NHIDDEN=16
+fi
+if [ $SLURM_ARRAY_TASK_ID == 5 ]
+then
+    export MLPNUM=25
+    export NHIDDEN=32
+fi
+if [ $SLURM_ARRAY_TASK_ID == 6 ]
+then
+    export MLPNUM=26
+    export NHIDDEN=64
+fi
+if [ $SLURM_ARRAY_TASK_ID == 7 ]
+then
+    export MLPNUM=27
+    export NHIDDEN=128
+fi
+if [ $SLURM_ARRAY_TASK_ID == 8 ]
+then
+    export MLPNUM=28
+    export NHIDDEN=256
+fi
+if [ $SLURM_ARRAY_TASK_ID == 9 ]
+then
+    export MLPNUM=29
+    export NHIDDEN=512
+fi
+
+#To run this script as an array job:
+##sbatch --array=0-9 job_readCNNsmagpredictions_robinst
+
+cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP$MLPNUM
 
 #Make CNN/Smag predictions and reconstruct fields
-python3 -u ../read_CNNsmagpredictions.py --prediction_file '/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP13/MLP_predictions.nc' --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --make_table --make_plots #--reconstruct_fields
+python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/MLP_predictions_${MLPNUM}.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --table_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/corr_ANN_smag_${MLPNUM}.csv" --reconstruct_fields --make_table --make_plots #--reconstruct_fields
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""

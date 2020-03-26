@@ -504,7 +504,7 @@ def model_fn(features, labels, mode, params):
         labels_stand = tf.math.divide(labels_means, stdevs_labels, name = 'labels_stand')
         #a5 = tf.print("labels_stand: ", labels_stand[0,:], output_stream=tf.logging.info, summarize=-1)
     
-    #Create mask to disgard boundary conditions during training (currently tested with no-slip BC in vertical direction and periodic BCs in horizontal directions). At the top and bottom wall, several components are by definition 0 in turbulent channel flow. Consequently, the corresponding output values are explicitly set to 0 by masking them.
+    #Create mask to disgard boundary conditions during training (currently tested with no-slip BC in vertical direction and periodic BCs in horizontal directions), since these are already known in inference mode. At the top and bottom wall, several components are by definition 0 in turbulent channel flow because of the no-slip BCs. Consequently, the corresponding output values are explicitly set to 0 by masking them such that their influence on the training is diminished.
     #NOTE1:make sure this part of the graph is not executed in inference/predict mode, where the boundary conditions are discarded outside the network anyway as they are already predefined in the model.
     if not mode == tf.estimator.ModeKeys.PREDICT:
         flag_topwall = tf.identity(features['flag_topwall_sample'], name = 'flag_topwall') 
@@ -516,13 +516,16 @@ def model_fn(features, labels, mode, params):
         
             #Select all transport components where vertical boundary condition (i.e. no-slip BC) do not apply and that are not discarded in inference mode.
             #NOTE1: zw_upstream and zw_downstream are not selected at the bottom wall, although no explicit no-slip vertical BC is valid there. These components are not used during inference to keep the application of the MLP symmetric, and therefore these components are out of convenience set equal to 0 just as the other components where an explicit vertical no-slip BC is defined. In that way, it does not influence the training and does not introduce asymmetry in the predictions of the MLP.
+            #NOTE2: zu/zv_upstream/downstream are not set to 0 at both the bottom and top walls, because we included the unresolved viscous flux, on top of the unresolved turbulent flux, in the labels. This means that these components are not 0 anymore, despite that the no-slip BCs are valid for the unresolved turublent flux contribution. 
             components_topwall_bool = tf.constant(
                     [[True,  True,  #xu_upstream, xu_downstream
                       True,  True,  #yu_upstream, yu_downstream
-                      True,  False, #zu_upstream, zu_downstream
+                      #True,  False, #zu_upstream, zu_downstream
+                      True,  True, #zu_upstream, zu_downstream
                       True,  True,  #xv_upstream, xv_downstream
                       True,  True,  #yv_upstream, yv_downstream
-                      True,  False, #zv_upstream, zv_downstream
+                      #True,  False, #zv_upstream, zv_downstream
+                      True,  True, #zv_upstream, zv_downstream
                       True,  True,  #xw_upstream, xw_downstream
                       True,  True,  #yw_upstream, yw_downstream
                       True,  True]])#zw_upstream, zw_downstream
@@ -530,10 +533,12 @@ def model_fn(features, labels, mode, params):
             components_bottomwall_bool = tf.constant(
                     [[True,  True,  #xu_upstream, xu_downstream
                       True,  True,  #yu_upstream, yu_downstream
-                      False, True,  #zu_upstream, zu_downstream
+                      #False, True,  #zu_upstream, zu_downstream
+                      True,  True,  #zu_upstream, zu_downstream
                       True,  True,  #xv_upstream, xv_downstream
                       True,  True,  #yv_upstream, yv_downstream
-                      False, True,  #zv_upstream, zv_downstream
+                      #False, True,  #zv_upstream, zv_downstream
+                      True, True,  #zv_upstream, zv_downstream
                       False, False, #xw_upstream, xw_downstream
                       False, False, #yw_upstream, yw_downstream
                       False, False]])#zw_upstream, zw_downstream
