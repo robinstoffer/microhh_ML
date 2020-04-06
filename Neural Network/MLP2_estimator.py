@@ -49,8 +49,8 @@ parser.add_argument('--inter_op_parallelism_threads', type=int, default=1, \
         help='inter_op_parallelism_threads')
 parser.add_argument('--num_steps', type=int, default=10000, \
         help='Number of steps, i.e. number of batches times number of epochs')
-parser.add_argument('--batch_size', type=int, default=100, \
-        help='Number of samples selected in each batch')
+#parser.add_argument('--batch_size', type=int, default=100, \
+#        help='Number of samples selected in each batch')
 parser.add_argument('--profile_steps', type=int, default=10000, \
         help='Every nth step, a profile measurement is performed that is stored in a JSON-file.')
 parser.add_argument('--summary_steps', type=int, default=100, \
@@ -139,7 +139,8 @@ def _parse_function(example_proto,means,stdevs):
             }
 
             
-        parsed_features = tf.parse_single_example(example_proto, keys_to_features)
+        #parsed_features = tf.parse_single_example(example_proto, keys_to_features) #Uncomment when .batch() applied after .map()
+        parsed_features = tf.parse_example(example_proto, keys_to_features)
         #parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
         #parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'], stdevs['vc'])
         #parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc'], stdevs['wc'])
@@ -228,7 +229,8 @@ def _parse_function(example_proto,means,stdevs):
                 'flag_bottomwall_sample':tf.FixedLenFeature([],tf.int64)
             }
 
-        parsed_features = tf.parse_single_example(example_proto, keys_to_features)
+        #parsed_features = tf.parse_single_example(example_proto, keys_to_features) #Uncomment when .batch() is applied after .map()
+        parsed_features = tf.parse_example(example_proto, keys_to_features)
     
     #Extract labels from the features dictionary, and stack them in a new labels array.
     labels = {}
@@ -269,12 +271,13 @@ def _parse_function(example_proto,means,stdevs):
 #Define training input function
 def train_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
+    dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line, means, stdevs), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated. 
     dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over
+    #dataset = dataset.batch(batch_size)
     dataset = dataset.repeat()
-    dataset = dataset.batch(batch_size)
     dataset.prefetch(1)
 
     return dataset
@@ -282,10 +285,11 @@ def train_input_fn(filenames, batch_size, means, stdevs):
 #Define evaluation function
 def eval_input_fn(filenames, batch_size, means, stdevs):
     dataset = tf.data.TFRecordDataset(filenames)
+    dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
-    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs))
+    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs), num_parallel_calls=ncores)
     dataset = dataset.cache() 
-    dataset = dataset.batch(batch_size)
+    #dataset = dataset.batch(batch_size)
     dataset.prefetch(1)
 
     return dataset    
@@ -698,9 +702,10 @@ def model_fn(features, labels, mode, params):
                 'pred_tau_zw_downstream':output_denorm[:,17]}) 
     
     #Compute loss
-    weights = tf.constant([[1,1,1,1,10,10,1,1,1,1,1,1,10,10,1,1,1,1]])
-    mse_tau_total = tf.losses.mean_squared_error(labels_mask, output_layer_mask, weights=weights)
-    loss = tf.reduce_mean(mse_tau_total)
+    weights = tf.constant([[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]])
+    #weights = tf.constant([[1,1,1,1,10,10,1,1,1,1,1,1,10,10,1,1,1,1]])
+    loss = tf.losses.mean_squared_error(labels_mask, output_layer_mask, weights=weights, reduction=tf.losses.Reduction.SUM_OVER_BATCH_SIZE) #Mean taken over batch rather than over number of components
+    #loss = tf.reduce_mean(mse_tau_total)
         
     #Define function to calculate the logarithm
     def log10(values):
@@ -737,10 +742,16 @@ def model_fn(features, labels, mode, params):
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 #Define settings
-batch_size = int(args.batch_size)
+#batch_size = int(args.batch_size)
+batch_size = 1 #Uncomment when each tfrecord file corresponds to one batch
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 num_labels = 6 #Number of predicted transport components for each sub-MLP
 random_seed = 1234
+
+#Extract friction velocity and heights from training file (where friction velocity is needed for the denormalisation implemented within the MLP)
+training_file = nc.Dataset(args.training_filepath, 'r')
+utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
+heights = np.array(training_file['zc'][:], dtype = 'f4')
 
 #Define filenames of tfrecords for training and validation
 #NOTE: each tfrecords contains all the samples from a single 'snapshot' of the flow, and thus corresponds to a single time step.
@@ -751,31 +762,48 @@ nt_total = 30 #Amount of time steps INCLUDING all produced tfrecord files (also 
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
 train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1) #Set aside 10% of files for validation.
-train_filenames = np.zeros((len(train_stepnumbers),), dtype=object)
-val_filenames   = np.zeros((len(val_stepnumbers),), dtype=object)
+train_filenames = np.zeros((len(train_stepnumbers)*len(heights),), dtype=object)
+val_filenames   = np.zeros((len(val_stepnumbers)*len(heights),), dtype=object)
 
 i=0
 for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
-    if args.gradients is None:
-        train_filenames[i] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(train_stepnumber+1, nt_total)
-    else:
-        train_filenames[i] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(train_stepnumber+1, nt_total)
+
+    k=0
+    for height in heights: #Loop over all vertical levels where samples are stored
+
+        if args.gradients is None:
+            train_filenames[i*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
+        else:
+            train_filenames[i*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
+      
+        k+=1
+
     i+=1
 
 j=0
 for val_stepnumber in val_stepnumbers: #Generate validation filenames from selected step numbers and total steps
-    if args.gradients is None:
-        val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}.tfrecords'.format(val_stepnumber+1, nt_total)
-    else:
-        val_filenames[j] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients.tfrecords'.format(val_stepnumber+1, nt_total)
+
+    k=0
+    for height in heights: #Loop over all vertical levels where samples are stored
+       
+        if args.gradients is None:
+            val_filenames[j*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(val_stepnumber+1, nt_total, height)
+        else:
+            val_filenames[j*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(val_stepnumber+1, nt_total, height)
+       
+        k+=1
+
     j+=1
+
+#Randomly shuffle filenames
+np.random.shuffle(train_filenames)
+np.random.shuffle(val_filenames)
+
+#Print filenames to check
+print("Training files:")
+print(train_filenames)
 print("Validation files:")
 print(val_filenames)
-
-#Extract friction velocity from training file (which is needed for the denormalisation implemented within the MLP)
-training_file = nc.Dataset(args.training_filepath, 'r')
-utau_ref = np.array(training_file['utau_ref'][:], dtype = 'f4')
-#utau_ref = 1. #Set it ONLY to 1. for old tfrecords that do not have to be made non-dimensionless!!!
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
@@ -1575,3 +1603,7 @@ if args.benchmark is None:
     predictions_file.close() #Close netCDF-file after each validation file
     print("Finished making predictions for each validation file.")
 ###
+
+#Close all nc-files
+training_file.close()
+means_stdevs_file.close()
