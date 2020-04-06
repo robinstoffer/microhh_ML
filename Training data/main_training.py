@@ -115,7 +115,8 @@ from sample_training_data_tfrecord import generate_samples
 
 input_directory = '/projects/1/flowsim/simulation1/'
 #output_directory = '/projects/1/flowsim/simulation1/coarsehor/'
-output_directory = '/projects/1/flowsim/simulation1/lesscoarse/'
+#output_directory = '/projects/1/flowsim/simulation1/lesscoarse/'
+output_directory = '/projects/1/flowsim/simulation1/lesscoarse_horfields/'
 settings_filepath = '/projects/1/flowsim/simulation1/moser600.ini'
 grid_filepath = '/projects/1/flowsim/simulation1/grid.0000000'
 #input_directory = '/home/robinst/microhh/cases/moser600/simulation2_new/'

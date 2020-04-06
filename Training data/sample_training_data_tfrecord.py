@@ -86,7 +86,8 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     cells_around_centercell_gradients = int(size_samples_gradients // 2)
     if nz < size_samples:
         raise RuntimeError("The number of vertical layers should at least be equal to the specified sample size.")
-    nsamples = nz * ny * nx
+#    nsamples = nz * ny * nx #Uncomment when samples should be stored per time step
+    nsamples = ny * nx #Uncomment when samples should be stored per vertical level
     
     #Define arrays to store means and stdevs according to store_means_stdevs flag
     if store_means_stdevs:
@@ -152,7 +153,7 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
     #for t in range(1): #FOR TESTING PURPOSES ONLY!
         #Define some auxilary variables to keep track of sample numbers
         tot_sample_begin = tot_sample_num #
-        sample_num = 0
+        #sample_num = 0 #uncomment when sampling is needed for each time step
         
         #Open/create netCDF-file for storage
         if create_file and create_netcdf:
@@ -163,41 +164,41 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             samples_file = nc.Dataset(samples_filepath, 'r+')
             create_variables = False #Don't define variables when netCDF file already exists, because it should already contain those variables.
     
-        #Define variables for storage
-        uc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        vc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        wc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        pc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
-        ugradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        ugrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        ugradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        vgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        vgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        vgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        wgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        wgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        wgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        pgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        pgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        pgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
-        unres_tau_xu_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_xv_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_xw_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_yu_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_yv_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_yw_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_zu_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_zv_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_zw_samples_upstream   = np.zeros((nsamples,1))
-        unres_tau_xu_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_xv_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_xw_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_yu_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_yv_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_yw_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_zu_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_zv_samples_downstream = np.zeros((nsamples,1))
-        unres_tau_zw_samples_downstream = np.zeros((nsamples,1))
+        ##Define variables for storage #Uncomment lines below when samples should be stored per time step
+        #uc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+        #vc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+        #wc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+        #pc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+        ##Ugradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Ugrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Ugradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Vgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Vgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Vgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Wgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Wgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Wgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Pgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Pgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        ##Pgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+        #unres_tau_xu_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_xv_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_xw_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_yu_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_yv_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_yw_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_zu_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_zv_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_zw_samples_upstream   = np.zeros((nsamples,1))
+        #unres_tau_xu_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_xv_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_xw_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_yu_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_yv_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_yw_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_zu_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_zv_samples_downstream = np.zeros((nsamples,1))
+        #unres_tau_zw_samples_downstream = np.zeros((nsamples,1))
         
         #Read variables from netCDF-file
         uc_singlefield = np.array(a['uc'][t,:,:,:])
@@ -215,26 +216,26 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         unres_tau_zv_singlefield = np.array(a["unres_tau_zv_tot"][t,:,:,:])
         unres_tau_zw_singlefield = np.array(a["unres_tau_zw_tot"][t,:,:,:])
 
-        #Define arrays to store for each sample the locations and time step
-        tstep_samples  = np.zeros((nsamples,1))
-        zhloc_samples  = np.zeros((nsamples,1))
-        zloc_samples   = np.zeros((nsamples,1))
-        yhloc_samples  = np.zeros((nsamples,1))
-        yloc_samples   = np.zeros((nsamples,1))
-        xhloc_samples  = np.zeros((nsamples,1))
-        xloc_samples   = np.zeros((nsamples,1))
+        ##Define arrays to store for each sample the locations and time step #Uncomment when samples should be stored per time step
+        #tstep_samples  = np.zeros((nsamples,1))
+        #zhloc_samples  = np.zeros((nsamples,1))
+        #zloc_samples   = np.zeros((nsamples,1))
+        #yhloc_samples  = np.zeros((nsamples,1))
+        #yloc_samples   = np.zeros((nsamples,1))
+        #xhloc_samples  = np.zeros((nsamples,1))
+        #xloc_samples   = np.zeros((nsamples,1))
 
-        #Define arrays to store for each sample flags indicating whether it is located at the bottom/top wall (1) or not (0)
-        flag_topwall_samples    = np.zeros((nsamples,1), dtype=np.int64)
-        flag_bottomwall_samples = np.zeros((nsamples,1), dtype=np.int64)
+        ##Define arrays to store for each sample flags indicating whether it is located at the bottom/top wall (1) or not (0) #Uncomment when samples should be stored per time step
+        #flag_topwall_samples    = np.zeros((nsamples,1), dtype=np.int64)
+        #flag_bottomwall_samples = np.zeros((nsamples,1), dtype=np.int64)
         
-        #Calculate gradients of wind speed and pressure fields#
-        #NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
-        #NOTE2: if the half-channel width delta is not equal to 1, revise the gradients calculation below!
-        pgradz,pgrady,pgradx = np.gradient(pc_singlefield,zgc,ygc,xgc,edge_order=2)
-        wgradz,wgrady,wgradx = np.gradient(wc_singlefield,zhgc,ygc,xgc,edge_order=2)
-        vgradz,vgrady,vgradx = np.gradient(vc_singlefield,zgc,yhgc,xgc,edge_order=2)
-        ugradz,ugrady,ugradx = np.gradient(uc_singlefield,zgc,ygc,xhgc,edge_order=2)
+        ##Calculate gradients of wind speed and pressure fields#
+        ##NOTE1: retains dimensions of original flow field, so gradients are still located on the same locations as the corresponding velocities. It uses second-order central differences in the interior, and second-order forward/backward differences at the edges.
+        ##NOTE2: if the half-channel width delta is not equal to 1, revise the gradients calculation below!
+        #pgradz,pgrady,pgradx = np.gradient(pc_singlefield,zgc,ygc,xgc,edge_order=2)
+        #wgradz,wgrady,wgradx = np.gradient(wc_singlefield,zhgc,ygc,xgc,edge_order=2)
+        #vgradz,vgrady,vgradx = np.gradient(vc_singlefield,zgc,yhgc,xgc,edge_order=2)
+        #ugradz,ugrady,ugradx = np.gradient(uc_singlefield,zgc,ygc,xhgc,edge_order=2)
 
         #Calculate means and stdevs according to store_means_stdevs flag
         if store_means_stdevs:
@@ -242,18 +243,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             mean_vc[t] = np.mean(vc_singlefield)
             mean_wc[t] = np.mean(wc_singlefield)
             mean_pc[t] = np.mean(pc_singlefield)
-            mean_ugradx[t] = np.mean(ugradx)
-            mean_ugrady[t] = np.mean(ugrady)
-            mean_ugradz[t] = np.mean(ugradz)
-            mean_vgradx[t] = np.mean(vgradx)
-            mean_vgrady[t] = np.mean(vgrady)
-            mean_vgradz[t] = np.mean(vgradz)
-            mean_wgradx[t] = np.mean(wgradx)
-            mean_wgrady[t] = np.mean(wgrady)
-            mean_wgradz[t] = np.mean(wgradz)
-            mean_pgradx[t] = np.mean(pgradx)
-            mean_pgrady[t] = np.mean(pgrady)
-            mean_pgradz[t] = np.mean(pgradz)
+            #mean_ugradx[t] = np.mean(ugradx)
+            #mean_ugrady[t] = np.mean(ugrady)
+            #mean_ugradz[t] = np.mean(ugradz)
+            #mean_vgradx[t] = np.mean(vgradx)
+            #mean_vgrady[t] = np.mean(vgrady)
+            #mean_vgradz[t] = np.mean(vgradz)
+            #mean_wgradx[t] = np.mean(wgradx)
+            #mean_wgrady[t] = np.mean(wgrady)
+            #mean_wgradz[t] = np.mean(wgradz)
+            #mean_pgradx[t] = np.mean(pgradx)
+            #mean_pgrady[t] = np.mean(pgrady)
+            #mean_pgradz[t] = np.mean(pgradz)
             #
             mean_unres_tau_xu[t] = np.mean(unres_tau_xu_singlefield)
             mean_unres_tau_yu[t] = np.mean(unres_tau_yu_singlefield)
@@ -265,22 +266,22 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             mean_unres_tau_yw[t] = np.mean(unres_tau_yw_singlefield)
             mean_unres_tau_zw[t] = np.mean(unres_tau_zw_singlefield)
             #
-            stdev_uc[t] = np.std(uc_singlefield)
-            stdev_vc[t] = np.std(vc_singlefield)
-            stdev_wc[t] = np.std(wc_singlefield)
-            stdev_pc[t] = np.std(pc_singlefield)
-            stdev_ugradx[t] = np.std(ugradx)
-            stdev_ugrady[t] = np.std(ugrady)
-            stdev_ugradz[t] = np.std(ugradz)
-            stdev_vgradx[t] = np.std(vgradx)
-            stdev_vgrady[t] = np.std(vgrady)
-            stdev_vgradz[t] = np.std(vgradz)
-            stdev_wgradx[t] = np.std(wgradx)
-            stdev_wgrady[t] = np.std(wgrady)
-            stdev_wgradz[t] = np.std(wgradz)
-            stdev_pgradx[t] = np.std(pgradx)
-            stdev_pgrady[t] = np.std(pgrady)
-            stdev_pgradz[t] = np.std(pgradz)
+            #stdev_uc[t] = np.std(uc_singlefield)
+            #stdev_vc[t] = np.std(vc_singlefield)
+            #stdev_wc[t] = np.std(wc_singlefield)
+            #stdev_pc[t] = np.std(pc_singlefield)
+            #stdev_ugradx[t] = np.std(ugradx)
+            #stdev_ugrady[t] = np.std(ugrady)
+            #stdev_ugradz[t] = np.std(ugradz)
+            #stdev_vgradx[t] = np.std(vgradx)
+            #stdev_vgrady[t] = np.std(vgrady)
+            #stdev_vgradz[t] = np.std(vgradz)
+            #stdev_wgradx[t] = np.std(wgradx)
+            #stdev_wgrady[t] = np.std(wgrady)
+            #stdev_wgradz[t] = np.std(wgradz)
+            #stdev_pgradx[t] = np.std(pgradx)
+            #stdev_pgrady[t] = np.std(pgrady)
+            #stdev_pgradz[t] = np.std(pgradz)
             #
             stdev_unres_tau_xu[t] = np.std(unres_tau_xu_singlefield)
             stdev_unres_tau_yu[t] = np.std(unres_tau_yu_singlefield)
@@ -304,10 +305,63 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             index_zlow                    = index_z - cells_around_centercell
             index_zhigh                   = index_z + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
             index_z_noghost               = index_z - cells_around_centercell
-            # Idem for gradients
-            index_zlow_gradients          = index_z - cells_around_centercell_gradients
-            index_zhigh_gradients         = index_z + cells_around_centercell_gradients + 1
-            
+            ## Idem for gradients
+            #index_zlow_gradients          = index_z - cells_around_centercell_gradients
+            #index_zhigh_gradients         = index_z + cells_around_centercell_gradients + 1
+
+
+            #Define variables for storage
+            uc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+            vc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+            wc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+            pc_samples = np.zeros((nsamples,size_samples,size_samples,size_samples))
+            #Ugradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Ugrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Ugradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Vgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Vgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Vgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Wgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Wgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Wgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Pgradx_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Pgrady_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            #Pgradz_samples = np.zeros((nsamples,size_samples_gradients,size_samples_gradients,size_samples_gradients))
+            unres_tau_xu_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_xv_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_xw_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_yu_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_yv_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_yw_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_zu_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_zv_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_zw_samples_upstream   = np.zeros((nsamples,1))
+            unres_tau_xu_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_xv_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_xw_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_yu_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_yv_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_yw_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_zu_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_zv_samples_downstream = np.zeros((nsamples,1))
+            unres_tau_zw_samples_downstream = np.zeros((nsamples,1))
+        
+            #Define arrays to store for each sample the locations and time step #Uncomment when samples should be stored per time step
+            tstep_samples  = np.zeros((nsamples,1))
+            zhloc_samples  = np.zeros((nsamples,1))
+            zloc_samples   = np.zeros((nsamples,1))
+            yhloc_samples  = np.zeros((nsamples,1))
+            yloc_samples   = np.zeros((nsamples,1))
+            xhloc_samples  = np.zeros((nsamples,1))
+            xloc_samples   = np.zeros((nsamples,1))
+
+            #Define arrays to store for each sample flags indicating whether it is located at the bottom/top wall (1) or not (0) #Uncomment when samples should be stored per time step
+            flag_topwall_samples    = np.zeros((nsamples,1), dtype=np.int64)
+            flag_bottomwall_samples = np.zeros((nsamples,1), dtype=np.int64)
+        
+            #Set counter for samples, uncomment when samples should be stored per vertical level
+            sample_num = 0
+
             for index_y in range(jgc,jend): 
                 index_ylow                = index_y - cells_around_centercell
                 index_yhigh               = index_y + cells_around_centercell + 1 #NOTE: +1 needed to ensure that in the slicing operation the selected number of grid cells above the center grid cell, is equal to the number of grid cells selected below the center grid cell.
@@ -329,18 +383,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     vc_samples[sample_num,:,:,:]     = vc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
                     wc_samples[sample_num,:,:,:]     = wc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
                     pc_samples[sample_num,:,:,:]     = pc_singlefield[index_zlow:index_zhigh,index_ylow:index_yhigh,index_xlow:index_xhigh]
-                    ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
-                    pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #ugradx_samples[sample_num,:,:,:] = ugradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #ugrady_samples[sample_num,:,:,:] = ugrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #ugradz_samples[sample_num,:,:,:] = ugradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #vgradx_samples[sample_num,:,:,:] = vgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #vgrady_samples[sample_num,:,:,:] = vgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #vgradz_samples[sample_num,:,:,:] = vgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #wgradx_samples[sample_num,:,:,:] = wgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #wgrady_samples[sample_num,:,:,:] = wgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #wgradz_samples[sample_num,:,:,:] = wgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #pgradx_samples[sample_num,:,:,:] = pgradx[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #pgrady_samples[sample_num,:,:,:] = pgrady[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
+                    #pgradz_samples[sample_num,:,:,:] = pgradz[index_zlow_gradients:index_zhigh_gradients,index_ylow_gradients:index_yhigh_gradients,index_xlow_gradients:index_xhigh_gradients]
         
                     ##Calculate deviatoric part fluxes by subtracting the residual kinetic energy, take location in grid into account!
                     ##NOTE1:make use of horizontal periodic and vertical no-slip BCs to account for additional values needed not stored in arrays!
@@ -406,698 +460,577 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                     sample_num +=1
                     tot_sample_num+=1
 
-        ###
-        #Randomly shuffle the input and output data in a consistent manner, such there is no specific order in the samples stored. This will likely help the machine learning algorithm to converge faster towards the global minimum.
-        uc_samples, vc_samples, wc_samples, pc_samples, \
-        ugradx_samples, ugrady_samples, ugradz_samples, \
-        vgradx_samples, vgrady_samples, vgradz_samples, \
-        wgradx_samples, wgrady_samples, wgradz_samples, \
-        pgradx_samples, pgrady_samples, pgradz_samples, \
-        unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, \
-        unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, \
-        unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, \
-        unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, \
-        unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, \
-        unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, \
-        tstep_samples, zhloc_samples, zloc_samples, \
-        yhloc_samples, yloc_samples, xhloc_samples, \
-        xloc_samples, flag_topwall_samples, flag_bottomwall_samples \
-        = shuffle(
-        uc_samples, vc_samples, wc_samples, pc_samples,
-        ugradx_samples, ugrady_samples, ugradz_samples,
-        vgradx_samples, vgrady_samples, vgradz_samples,
-        wgradx_samples, wgrady_samples, wgradz_samples,
-        pgradx_samples, pgrady_samples, pgradz_samples,
-        unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, \
-        unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, \
-        unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, \
-        unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, \
-        unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, \
-        unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, \
-        tstep_samples, zhloc_samples, zloc_samples,
-        yhloc_samples, yloc_samples, xhloc_samples,
-        xloc_samples, flag_topwall_samples, flag_bottomwall_samples)
+            ###
+            #Randomly shuffle the input and output data in a consistent manner, such there is no specific order in the samples stored. This will likely help the machine learning algorithm to converge faster towards the global minimum.
+            #ugradx_samples, ugrady_samples, ugradz_samples, \
+            #vgradx_samples, vgrady_samples, vgradz_samples, \
+            #wgradx_samples, wgrady_samples, wgradz_samples, \
+            #pgradx_samples, pgrady_samples, pgradz_samples, \
+            uc_samples, vc_samples, wc_samples, pc_samples, \
+            unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, \
+            unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, \
+            unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, \
+            unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, \
+            unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, \
+            unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, \
+            tstep_samples, zhloc_samples, zloc_samples, \
+            yhloc_samples, yloc_samples, xhloc_samples, \
+            xloc_samples, flag_topwall_samples, flag_bottomwall_samples \
+            = shuffle(
+            uc_samples, vc_samples, wc_samples, pc_samples,
+            #ugradx_samples, ugrady_samples, ugradz_samples,
+            #vgradx_samples, vgrady_samples, vgradz_samples,
+            #wgradx_samples, wgrady_samples, wgradz_samples,
+            #pgradx_samples, pgrady_samples, pgradz_samples,
+            unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream,
+            unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream,
+            unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream,
+            unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream,
+            unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream,
+            unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream,
+            tstep_samples, zhloc_samples, zloc_samples,
+            yhloc_samples, yloc_samples, xhloc_samples,
+            xloc_samples, flag_topwall_samples, flag_bottomwall_samples)
 
-        #Store samples in nc-file if required by create_netcdf flag
-        if create_netcdf:
+            #Store samples in nc-file if required by create_netcdf flag
+            if create_netcdf:
 
-            ##Store samples for each timestep
-            tot_sample_end = tot_sample_num
-            dummy,zsize,ysize,xsize = pc_samples.shape
-            
-            if create_variables:
-                #Create new dimensions
-                #dim_xhs = samples_file.createDimension("xhs",xsize-1) 
-                #dim_xs = samples_file.createDimension("xs",xsize)
-                #dim_yhs = samples_file.createDimension("yhs",ysize-1)
-                #dim_ys = samples_file.createDimension("ys",ysize)
-                #dim_zhs = samples_file.createDimension("zhs",zsize-1)
-                #dim_zs = samples_file.createDimension("zs",zsize)
-                samples_file.createDimension("ns"  , None)
-                samples_file.createDimension("boxx", size_samples)
-                samples_file.createDimension("boxy", size_samples)
-                samples_file.createDimension("boxz", size_samples)
-                samples_file.createDimension("boxx_gradients", size_samples_gradients)
-                samples_file.createDimension("boxy_gradients", size_samples_gradients)
-                samples_file.createDimension("boxz_gradients", size_samples_gradients)
+                ##Store samples for each timestep
+                tot_sample_end = tot_sample_num
+                dummy,zsize,ysize,xsize = pc_samples.shape
                 
-                #Create new variables
-                varuc           = samples_file.createVariable("uc_samples","f8",("ns","boxz","boxy","boxx"))
-                varvc           = samples_file.createVariable("vc_samples","f8",("ns","boxz","boxy","boxx"))
-                varwc           = samples_file.createVariable("wc_samples","f8",("ns","boxz","boxy","boxx"))
-                varpc           = samples_file.createVariable("pc_samples","f8",("ns","boxz","boxy","boxx"))
-                varugradx       = samples_file.createVariable("ugradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varugrady       = samples_file.createVariable("ugrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varugradz       = samples_file.createVariable("ugradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varvgradx       = samples_file.createVariable("vgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varvgrady       = samples_file.createVariable("vgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varvgradz       = samples_file.createVariable("vgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varwgradx       = samples_file.createVariable("wgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varwgrady       = samples_file.createVariable("wgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varwgradz       = samples_file.createVariable("wgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varpgradx       = samples_file.createVariable("pgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varpgrady       = samples_file.createVariable("pgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varpgradz       = samples_file.createVariable("pgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
-                varunres_tau_xu_upstream   = samples_file.createVariable("unres_tau_xu_samples_upstream","f8",("ns",))
-                varunres_tau_xv_upstream   = samples_file.createVariable("unres_tau_xv_samples_upstream","f8",("ns",))
-                varunres_tau_xw_upstream   = samples_file.createVariable("unres_tau_xw_samples_upstream","f8",("ns",))
-                varunres_tau_yu_upstream   = samples_file.createVariable("unres_tau_yu_samples_upstream","f8",("ns",))
-                varunres_tau_yv_upstream   = samples_file.createVariable("unres_tau_yv_samples_upstream","f8",("ns",))
-                varunres_tau_yw_upstream   = samples_file.createVariable("unres_tau_yw_samples_upstream","f8",("ns",))
-                varunres_tau_zu_upstream   = samples_file.createVariable("unres_tau_zu_samples_upstream","f8",("ns",))
-                varunres_tau_zv_upstream   = samples_file.createVariable("unres_tau_zv_samples_upstream","f8",("ns",))
-                varunres_tau_zw_upstream   = samples_file.createVariable("unres_tau_zw_samples_upstream","f8",("ns",))
-                varunres_tau_xu_downstream = samples_file.createVariable("unres_tau_xu_samples_downstream","f8",("ns",))
-                varunres_tau_xv_downstream = samples_file.createVariable("unres_tau_xv_samples_downstream","f8",("ns",))
-                varunres_tau_xw_downstream = samples_file.createVariable("unres_tau_xw_samples_downstream","f8",("ns",))
-                varunres_tau_yu_downstream = samples_file.createVariable("unres_tau_yu_samples_downstream","f8",("ns",))
-                varunres_tau_yv_downstream = samples_file.createVariable("unres_tau_yv_samples_downstream","f8",("ns",))
-                varunres_tau_yw_downstream = samples_file.createVariable("unres_tau_yw_samples_downstream","f8",("ns",))
-                varunres_tau_zu_downstream = samples_file.createVariable("unres_tau_zu_samples_downstream","f8",("ns",))
-                varunres_tau_zv_downstream = samples_file.createVariable("unres_tau_zv_samples_downstream","f8",("ns",))
-                varunres_tau_zw_downstream = samples_file.createVariable("unres_tau_zw_samples_downstream","f8",("ns",))
-                vartstep           = samples_file.createVariable("tstep_samples","f8",("ns",))
-                varzhloc           = samples_file.createVariable("zhloc_samples","f8",("ns",))
-                varzloc            = samples_file.createVariable("zloc_samples","f8",("ns",))
-                varyhloc           = samples_file.createVariable("yhloc_samples","f8",("ns",))
-                varyloc            = samples_file.createVariable("yloc_samples","f8",("ns",))
-                varxhloc           = samples_file.createVariable("xhloc_samples","f8",("ns",))
-                varxloc            = samples_file.createVariable("xloc_samples","f8",("ns",))
-                varflag_topwall    = samples_file.createVariable("flag_topwall_samples","f8",("ns",))
-                varflag_bottomwall = samples_file.createVariable("flag_bottomwall_samples","f8",("ns",))
+                if create_variables:
+                    #Create new dimensions
+                    #dim_xhs = samples_file.createDimension("xhs",xsize-1) 
+                    #dim_xs = samples_file.createDimension("xs",xsize)
+                    #dim_yhs = samples_file.createDimension("yhs",ysize-1)
+                    #dim_ys = samples_file.createDimension("ys",ysize)
+                    #dim_zhs = samples_file.createDimension("zhs",zsize-1)
+                    #dim_zs = samples_file.createDimension("zs",zsize)
+                    samples_file.createDimension("ns"  , None)
+                    samples_file.createDimension("boxx", size_samples)
+                    samples_file.createDimension("boxy", size_samples)
+                    samples_file.createDimension("boxz", size_samples)
+                    samples_file.createDimension("boxx_gradients", size_samples_gradients)
+                    samples_file.createDimension("boxy_gradients", size_samples_gradients)
+                    samples_file.createDimension("boxz_gradients", size_samples_gradients)
+                    
+                    #Create new variables
+                    varuc           = samples_file.createVariable("uc_samples","f8",("ns","boxz","boxy","boxx"))
+                    varvc           = samples_file.createVariable("vc_samples","f8",("ns","boxz","boxy","boxx"))
+                    varwc           = samples_file.createVariable("wc_samples","f8",("ns","boxz","boxy","boxx"))
+                    varpc           = samples_file.createVariable("pc_samples","f8",("ns","boxz","boxy","boxx"))
+                    #varugradx       = samples_file.createVariable("ugradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varugrady       = samples_file.createVariable("ugrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varugradz       = samples_file.createVariable("ugradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varvgradx       = samples_file.createVariable("vgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varvgrady       = samples_file.createVariable("vgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varvgradz       = samples_file.createVariable("vgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varwgradx       = samples_file.createVariable("wgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varwgrady       = samples_file.createVariable("wgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varwgradz       = samples_file.createVariable("wgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varpgradx       = samples_file.createVariable("pgradx_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varpgrady       = samples_file.createVariable("pgrady_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    #varpgradz       = samples_file.createVariable("pgradz_samples","f8",("ns","boxz_gradients","boxy_gradients","boxx_gradients"))
+                    varunres_tau_xu_upstream   = samples_file.createVariable("unres_tau_xu_samples_upstream","f8",("ns",))
+                    varunres_tau_xv_upstream   = samples_file.createVariable("unres_tau_xv_samples_upstream","f8",("ns",))
+                    varunres_tau_xw_upstream   = samples_file.createVariable("unres_tau_xw_samples_upstream","f8",("ns",))
+                    varunres_tau_yu_upstream   = samples_file.createVariable("unres_tau_yu_samples_upstream","f8",("ns",))
+                    varunres_tau_yv_upstream   = samples_file.createVariable("unres_tau_yv_samples_upstream","f8",("ns",))
+                    varunres_tau_yw_upstream   = samples_file.createVariable("unres_tau_yw_samples_upstream","f8",("ns",))
+                    varunres_tau_zu_upstream   = samples_file.createVariable("unres_tau_zu_samples_upstream","f8",("ns",))
+                    varunres_tau_zv_upstream   = samples_file.createVariable("unres_tau_zv_samples_upstream","f8",("ns",))
+                    varunres_tau_zw_upstream   = samples_file.createVariable("unres_tau_zw_samples_upstream","f8",("ns",))
+                    varunres_tau_xu_downstream = samples_file.createVariable("unres_tau_xu_samples_downstream","f8",("ns",))
+                    varunres_tau_xv_downstream = samples_file.createVariable("unres_tau_xv_samples_downstream","f8",("ns",))
+                    varunres_tau_xw_downstream = samples_file.createVariable("unres_tau_xw_samples_downstream","f8",("ns",))
+                    varunres_tau_yu_downstream = samples_file.createVariable("unres_tau_yu_samples_downstream","f8",("ns",))
+                    varunres_tau_yv_downstream = samples_file.createVariable("unres_tau_yv_samples_downstream","f8",("ns",))
+                    varunres_tau_yw_downstream = samples_file.createVariable("unres_tau_yw_samples_downstream","f8",("ns",))
+                    varunres_tau_zu_downstream = samples_file.createVariable("unres_tau_zu_samples_downstream","f8",("ns",))
+                    varunres_tau_zv_downstream = samples_file.createVariable("unres_tau_zv_samples_downstream","f8",("ns",))
+                    varunres_tau_zw_downstream = samples_file.createVariable("unres_tau_zw_samples_downstream","f8",("ns",))
+                    vartstep           = samples_file.createVariable("tstep_samples","f8",("ns",))
+                    varzhloc           = samples_file.createVariable("zhloc_samples","f8",("ns",))
+                    varzloc            = samples_file.createVariable("zloc_samples","f8",("ns",))
+                    varyhloc           = samples_file.createVariable("yhloc_samples","f8",("ns",))
+                    varyloc            = samples_file.createVariable("yloc_samples","f8",("ns",))
+                    varxhloc           = samples_file.createVariable("xhloc_samples","f8",("ns",))
+                    varxloc            = samples_file.createVariable("xloc_samples","f8",("ns",))
+                    varflag_topwall    = samples_file.createVariable("flag_topwall_samples","f8",("ns",))
+                    varflag_bottomwall = samples_file.createVariable("flag_bottomwall_samples","f8",("ns",))
+                    
+    
+    
+                create_variables = False #Make sure the variables are only created once    
+    
+                #Store variables
+                varuc[tot_sample_begin:tot_sample_end,:,:,:]                = uc_samples[:,:,:,:]
+                varvc[tot_sample_begin:tot_sample_end,:,:,:]                = vc_samples[:,:,:,:]
+                varwc[tot_sample_begin:tot_sample_end,:,:,:]                = wc_samples[:,:,:,:]
+                varpc[tot_sample_begin:tot_sample_end,:,:,:]                = pc_samples[:,:,:,:]
+                #varugradx[tot_sample_begin:tot_sample_end,:,:,:]            = ugradx_samples[:,:,:,:]
+                #varugrady[tot_sample_begin:tot_sample_end,:,:,:]            = ugrady_samples[:,:,:,:]
+                #varugradz[tot_sample_begin:tot_sample_end,:,:,:]            = ugradz_samples[:,:,:,:]
+                #varvgradx[tot_sample_begin:tot_sample_end,:,:,:]            = vgradx_samples[:,:,:,:]
+                #varvgrady[tot_sample_begin:tot_sample_end,:,:,:]            = vgrady_samples[:,:,:,:]
+                #varvgradz[tot_sample_begin:tot_sample_end,:,:,:]            = vgradz_samples[:,:,:,:]
+                #varwgradx[tot_sample_begin:tot_sample_end,:,:,:]            = wgradx_samples[:,:,:,:]
+                #varwgrady[tot_sample_begin:tot_sample_end,:,:,:]            = wgrady_samples[:,:,:,:]
+                #varwgradz[tot_sample_begin:tot_sample_end,:,:,:]            = wgradz_samples[:,:,:,:]
+                #varpgradx[tot_sample_begin:tot_sample_end,:,:,:]            = pgradx_samples[:,:,:,:]
+                #varpgrady[tot_sample_begin:tot_sample_end,:,:,:]            = pgrady_samples[:,:,:,:]
+                #varpgradz[tot_sample_begin:tot_sample_end,:,:,:]            = pgradz_samples[:,:,:,:]
+                varunres_tau_xu_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_xu_samples_upstream[:]
+                varunres_tau_xv_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_xv_samples_upstream[:]
+                varunres_tau_xw_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_xw_samples_upstream[:]
+                varunres_tau_yu_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_yu_samples_upstream[:]
+                varunres_tau_yv_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_yv_samples_upstream[:]
+                varunres_tau_yw_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_yw_samples_upstream[:]
+                varunres_tau_zu_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_zu_samples_upstream[:]
+                varunres_tau_zv_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_zv_samples_upstream[:]
+                varunres_tau_zw_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_zw_samples_upstream[:]
+                varunres_tau_xu_downstream[tot_sample_begin:tot_sample_end] = unres_tau_xu_samples_downstream[:]
+                varunres_tau_xv_downstream[tot_sample_begin:tot_sample_end] = unres_tau_xv_samples_downstream[:]
+                varunres_tau_xw_downstream[tot_sample_begin:tot_sample_end] = unres_tau_xw_samples_downstream[:]
+                varunres_tau_yu_downstream[tot_sample_begin:tot_sample_end] = unres_tau_yu_samples_downstream[:]
+                varunres_tau_yv_downstream[tot_sample_begin:tot_sample_end] = unres_tau_yv_samples_downstream[:]
+                varunres_tau_yw_downstream[tot_sample_begin:tot_sample_end] = unres_tau_yw_samples_downstream[:]
+                varunres_tau_zu_downstream[tot_sample_begin:tot_sample_end] = unres_tau_zu_samples_downstream[:]
+                varunres_tau_zv_downstream[tot_sample_begin:tot_sample_end] = unres_tau_zv_samples_downstream[:]
+                varunres_tau_zw_downstream[tot_sample_begin:tot_sample_end] = unres_tau_zw_samples_downstream[:]
+                vartstep[tot_sample_begin:tot_sample_end]                   = tstep_samples[:]
+                varzhloc[tot_sample_begin:tot_sample_end]                   = zhloc_samples[:] 
+                varzloc[tot_sample_begin:tot_sample_end]                    = zloc_samples[:]
+                varyhloc[tot_sample_begin:tot_sample_end]                   = yhloc_samples[:]
+                varyloc[tot_sample_begin:tot_sample_end]                    = yloc_samples[:]
+                varxhloc[tot_sample_begin:tot_sample_end]                   = xhloc_samples[:]
+                varxloc[tot_sample_begin:tot_sample_end]                    = xloc_samples[:]
+                varflag_topwall[tot_sample_begin:tot_sample_end]            = flag_topwall_samples[:]
+                varflag_bottomwall[tot_sample_begin:tot_sample_end]         = flag_bottomwall_samples[:]
+    
+                #close storage file
+                samples_file.close()
+    
+            #Create binary tfrecord files (partly copied from script imagenet_to_gcs.py provided by the Tensorflow authors, 2017
+            if create_binary:
+    
+                def _int64_feature(value):
+                    """Wrapper for inserting int64 features into Example proto."""
+                    if not isinstance(value, list):
+                        value = [value]
+                    return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
+    
+                def _float_feature(value):
+                    """Wrapper for inserting float features into Example proto."""
+                    if not isinstance(value,list):
+                        value = [value]
+                    return tf.train.Feature(float_list=tf.train.FloatList(value=value))        
                 
-    
-    
-            create_variables = False #Make sure the variables are only created once    
-    
-            #Store variables
-            varuc[tot_sample_begin:tot_sample_end,:,:,:]                = uc_samples[:,:,:,:]
-            varvc[tot_sample_begin:tot_sample_end,:,:,:]                = vc_samples[:,:,:,:]
-            varwc[tot_sample_begin:tot_sample_end,:,:,:]                = wc_samples[:,:,:,:]
-            varpc[tot_sample_begin:tot_sample_end,:,:,:]                = pc_samples[:,:,:,:]
-            varugradx[tot_sample_begin:tot_sample_end,:,:,:]            = ugradx_samples[:,:,:,:]
-            varugrady[tot_sample_begin:tot_sample_end,:,:,:]            = ugrady_samples[:,:,:,:]
-            varugradz[tot_sample_begin:tot_sample_end,:,:,:]            = ugradz_samples[:,:,:,:]
-            varvgradx[tot_sample_begin:tot_sample_end,:,:,:]            = vgradx_samples[:,:,:,:]
-            varvgrady[tot_sample_begin:tot_sample_end,:,:,:]            = vgrady_samples[:,:,:,:]
-            varvgradz[tot_sample_begin:tot_sample_end,:,:,:]            = vgradz_samples[:,:,:,:]
-            varwgradx[tot_sample_begin:tot_sample_end,:,:,:]            = wgradx_samples[:,:,:,:]
-            varwgrady[tot_sample_begin:tot_sample_end,:,:,:]            = wgrady_samples[:,:,:,:]
-            varwgradz[tot_sample_begin:tot_sample_end,:,:,:]            = wgradz_samples[:,:,:,:]
-            varpgradx[tot_sample_begin:tot_sample_end,:,:,:]            = pgradx_samples[:,:,:,:]
-            varpgrady[tot_sample_begin:tot_sample_end,:,:,:]            = pgrady_samples[:,:,:,:]
-            varpgradz[tot_sample_begin:tot_sample_end,:,:,:]            = pgradz_samples[:,:,:,:]
-            varunres_tau_xu_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_xu_samples_upstream[:]
-            varunres_tau_xv_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_xv_samples_upstream[:]
-            varunres_tau_xw_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_xw_samples_upstream[:]
-            varunres_tau_yu_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_yu_samples_upstream[:]
-            varunres_tau_yv_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_yv_samples_upstream[:]
-            varunres_tau_yw_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_yw_samples_upstream[:]
-            varunres_tau_zu_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_zu_samples_upstream[:]
-            varunres_tau_zv_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_zv_samples_upstream[:]
-            varunres_tau_zw_upstream[tot_sample_begin:tot_sample_end]   = unres_tau_zw_samples_upstream[:]
-            varunres_tau_xu_downstream[tot_sample_begin:tot_sample_end] = unres_tau_xu_samples_downstream[:]
-            varunres_tau_xv_downstream[tot_sample_begin:tot_sample_end] = unres_tau_xv_samples_downstream[:]
-            varunres_tau_xw_downstream[tot_sample_begin:tot_sample_end] = unres_tau_xw_samples_downstream[:]
-            varunres_tau_yu_downstream[tot_sample_begin:tot_sample_end] = unres_tau_yu_samples_downstream[:]
-            varunres_tau_yv_downstream[tot_sample_begin:tot_sample_end] = unres_tau_yv_samples_downstream[:]
-            varunres_tau_yw_downstream[tot_sample_begin:tot_sample_end] = unres_tau_yw_samples_downstream[:]
-            varunres_tau_zu_downstream[tot_sample_begin:tot_sample_end] = unres_tau_zu_samples_downstream[:]
-            varunres_tau_zv_downstream[tot_sample_begin:tot_sample_end] = unres_tau_zv_samples_downstream[:]
-            varunres_tau_zw_downstream[tot_sample_begin:tot_sample_end] = unres_tau_zw_samples_downstream[:]
-            vartstep[tot_sample_begin:tot_sample_end]                   = tstep_samples[:]
-            varzhloc[tot_sample_begin:tot_sample_end]                   = zhloc_samples[:] 
-            varzloc[tot_sample_begin:tot_sample_end]                    = zloc_samples[:]
-            varyhloc[tot_sample_begin:tot_sample_end]                   = yhloc_samples[:]
-            varyloc[tot_sample_begin:tot_sample_end]                    = yloc_samples[:]
-            varxhloc[tot_sample_begin:tot_sample_end]                   = xhloc_samples[:]
-            varxloc[tot_sample_begin:tot_sample_end]                    = xloc_samples[:]
-            varflag_topwall[tot_sample_begin:tot_sample_end]            = flag_topwall_samples[:]
-            varflag_bottomwall[tot_sample_begin:tot_sample_end]         = flag_bottomwall_samples[:]
-    
-            #close storage file
-            samples_file.close()
-    
-        #Create binary tfrecord files (partly copied from script imagenet_to_gcs.py provided by the Tensorflow authors, 2017
-        if create_binary:
-    
-            def _int64_feature(value):
-                """Wrapper for inserting int64 features into Example proto."""
-                if not isinstance(value, list):
-                    value = [value]
-                return tf.train.Feature(int64_list=tf.train.Int64List(value=value))
-    
-            def _float_feature(value):
-                """Wrapper for inserting float features into Example proto."""
-                if not isinstance(value,list):
-                    value = [value]
-                return tf.train.Feature(float_list=tf.train.FloatList(value=value))        
-            
-            def _convert_to_example(uc_sample, vc_sample, wc_sample, pc_sample, 
-                    unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
-                    unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
-                    unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream,
-                    unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
-                    unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
-                    unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream,
-                    x_sample_size, y_sample_size, z_sample_size, 
-                    tstep_sample, xloc_sample, xhloc_sample, 
-                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
-                    flag_topwall_sample, flag_bottomwall_sample):
-                """Build a protocol for an individual sample.
+                def _convert_to_example(uc_sample, vc_sample, wc_sample, pc_sample, 
+                        unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
+                        unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
+                        unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream,
+                        unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
+                        unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
+                        unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream,
+                        x_sample_size, y_sample_size, z_sample_size, 
+                        tstep_sample, xloc_sample, xhloc_sample, 
+                        yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                        flag_topwall_sample, flag_bottomwall_sample):
+                    """Build a protocol for an individual sample.
+                    
+                    The inputs are:
                 
-                The inputs are:
-            
-                  uc_sample: float, sample of u-component on coarse grid
+                      uc_sample: float, sample of u-component on coarse grid
     
-                  vc_sample: float, sample of v-component on coarse grid
+                      vc_sample: float, sample of v-component on coarse grid
     
-                  wc_sample: float, sample of w-component on coarse grid
+                      wc_sample: float, sample of w-component on coarse grid
     
-                  pc_sample: float, sample of p on coarse grid
-            
-                  unres_tau_xu_sample_upstream: float, sample of unres_tau_xu_upstream on coarse grid
+                      pc_sample: float, sample of p on coarse grid
+                
+                      unres_tau_xu_sample_upstream: float, sample of unres_tau_xu_upstream on coarse grid
     
-                  unres_tau_xv_sample_upstream: float, sample of unres_tau_xv_upstream on coarse grid
+                      unres_tau_xv_sample_upstream: float, sample of unres_tau_xv_upstream on coarse grid
     
-                  unres_tau_xw_sample_upstream: float, sample of unres_tau_xw_upstream on coarse grid
+                      unres_tau_xw_sample_upstream: float, sample of unres_tau_xw_upstream on coarse grid
     
-                  unres_tau_yu_sample_upstream: float, sample of unres_tau_yu_upstream on coarse grid
+                      unres_tau_yu_sample_upstream: float, sample of unres_tau_yu_upstream on coarse grid
     
-                  unres_tau_yv_sample_upstream: float, sample of unres_tau_yv_upstream on coarse grid
+                      unres_tau_yv_sample_upstream: float, sample of unres_tau_yv_upstream on coarse grid
     
-                  unres_tau_yw_sample_upstream: float, sample of unres_tau_yw_upstream on coarse grid
+                      unres_tau_yw_sample_upstream: float, sample of unres_tau_yw_upstream on coarse grid
     
-                  unres_tau_zu_sample_upstream: float, sample of unres_tau_zu_upstream on coarse grid
+                      unres_tau_zu_sample_upstream: float, sample of unres_tau_zu_upstream on coarse grid
     
-                  unres_tau_zv_sample_upstream: float, sample of unres_tau_zv_upstream on coarse grid
+                      unres_tau_zv_sample_upstream: float, sample of unres_tau_zv_upstream on coarse grid
     
-                  unres_tau_zw_sample_upstream: float, sample of unres_tau_zw_upstream on coarse grid
-                  
-                  unres_tau_xu_sample_downstream: float, sample of unres_tau_xu_downstream on coarse grid
+                      unres_tau_zw_sample_upstream: float, sample of unres_tau_zw_upstream on coarse grid
+                      
+                      unres_tau_xu_sample_downstream: float, sample of unres_tau_xu_downstream on coarse grid
     
-                  unres_tau_xv_sample_downstream: float, sample of unres_tau_xv_downstream on coarse grid
+                      unres_tau_xv_sample_downstream: float, sample of unres_tau_xv_downstream on coarse grid
     
-                  unres_tau_xw_sample_downstream: float, sample of unres_tau_xw_downstream on coarse grid
+                      unres_tau_xw_sample_downstream: float, sample of unres_tau_xw_downstream on coarse grid
     
-                  unres_tau_yu_sample_downstream: float, sample of unres_tau_yu_downstream on coarse grid
+                      unres_tau_yu_sample_downstream: float, sample of unres_tau_yu_downstream on coarse grid
     
-                  unres_tau_yv_sample_downstream: float, sample of unres_tau_yv_downstream on coarse grid
+                      unres_tau_yv_sample_downstream: float, sample of unres_tau_yv_downstream on coarse grid
     
-                  unres_tau_yw_sample_downstream: float, sample of unres_tau_yw_downstream on coarse grid
+                      unres_tau_yw_sample_downstream: float, sample of unres_tau_yw_downstream on coarse grid
     
-                  unres_tau_zu_sample_downstream: float, sample of unres_tau_zu_downstream on coarse grid
+                      unres_tau_zu_sample_downstream: float, sample of unres_tau_zu_downstream on coarse grid
     
-                  unres_tau_zv_sample_downstream: float, sample of unres_tau_zv_downstream on coarse grid
+                      unres_tau_zv_sample_downstream: float, sample of unres_tau_zv_downstream on coarse grid
     
-                  unres_tau_zw_sample_downstream: float, sample of unres_tau_zw_downstream on coarse grid
+                      unres_tau_zw_sample_downstream: float, sample of unres_tau_zw_downstream on coarse grid
     
-                  x_sample_size: integer, number of grid cells in x-direction selected in sample
+                      x_sample_size: integer, number of grid cells in x-direction selected in sample
     
-                  y_sample_size: integer, number of grid cells in y-direction selected in sample
+                      y_sample_size: integer, number of grid cells in y-direction selected in sample
     
-                  z_sample_size: integer, number of grid cells in z-direction selected in sample
+                      z_sample_size: integer, number of grid cells in z-direction selected in sample
 
-                  tstep_sample:  float, time step of sample
-                  
-                  xloc_sample:   float, location of sample in x-direction
+                      tstep_sample:  float, time step of sample
+                      
+                      xloc_sample:   float, location of sample in x-direction
 
-                  xhloc_sample:  float, location of sample in xh-direction
+                      xhloc_sample:  float, location of sample in xh-direction
 
-                  yloc_sample:   float, location of sample in y-direction
-                  
-                  yhloc_sample:  float, location of sample in yh-direction
+                      yloc_sample:   float, location of sample in y-direction
+                      
+                      yhloc_sample:  float, location of sample in yh-direction
      
-                  zloc_sample:   float, location of sample in z-direction
+                      zloc_sample:   float, location of sample in z-direction
+                    
+                      zhloc_sample:  float, location of sample in zh-direction
+
+                      flag_topwall_sample: integer, flag indicating wheter loc is at the top wall
+
+                      flag_bottomwall_sample: integer, flag indicating wheter loc is at the bottom wall
+                    
+                    Returns:
+
+                      Example protocol
+                    """
                 
-                  zhloc_sample:  float, location of sample in zh-direction
-
-                  flag_topwall_sample: integer, flag indicating wheter loc is at the top wall
-
-                  flag_bottomwall_sample: integer, flag indicating wheter loc is at the bottom wall
+                    example = tf.train.Example(features=tf.train.Features(feature={
+                                   'uc_sample': _float_feature(uc_sample.flatten().tolist()),
+                                   'vc_sample': _float_feature(vc_sample.flatten().tolist()),
+                                   'wc_sample': _float_feature(wc_sample.flatten().tolist()),
+                                   'pc_sample': _float_feature(pc_sample.flatten().tolist()),
+                                   'unres_tau_xu_sample_upstream': _float_feature(unres_tau_xu_sample_upstream.flatten().tolist()),
+                                   'unres_tau_xv_sample_upstream': _float_feature(unres_tau_xv_sample_upstream.flatten().tolist()),
+                                   'unres_tau_xw_sample_upstream': _float_feature(unres_tau_xw_sample_upstream.flatten().tolist()),
+                                   'unres_tau_yu_sample_upstream': _float_feature(unres_tau_yu_sample_upstream.flatten().tolist()),
+                                   'unres_tau_yv_sample_upstream': _float_feature(unres_tau_yv_sample_upstream.flatten().tolist()),
+                                   'unres_tau_yw_sample_upstream': _float_feature(unres_tau_yw_sample_upstream.flatten().tolist()),
+                                   'unres_tau_zu_sample_upstream': _float_feature(unres_tau_zu_sample_upstream.flatten().tolist()),
+                                   'unres_tau_zv_sample_upstream': _float_feature(unres_tau_zv_sample_upstream.flatten().tolist()),
+                                   'unres_tau_zw_sample_upstream': _float_feature(unres_tau_zw_sample_upstream.flatten().tolist()),
+                                   'unres_tau_xu_sample_downstream': _float_feature(unres_tau_xu_sample_downstream.flatten().tolist()),
+                                   'unres_tau_xv_sample_downstream': _float_feature(unres_tau_xv_sample_downstream.flatten().tolist()),
+                                   'unres_tau_xw_sample_downstream': _float_feature(unres_tau_xw_sample_downstream.flatten().tolist()),
+                                   'unres_tau_yu_sample_downstream': _float_feature(unres_tau_yu_sample_downstream.flatten().tolist()),
+                                   'unres_tau_yv_sample_downstream': _float_feature(unres_tau_yv_sample_downstream.flatten().tolist()),
+                                   'unres_tau_yw_sample_downstream': _float_feature(unres_tau_yw_sample_downstream.flatten().tolist()),
+                                   'unres_tau_zu_sample_downstream': _float_feature(unres_tau_zu_sample_downstream.flatten().tolist()),
+                                   'unres_tau_zv_sample_downstream': _float_feature(unres_tau_zv_sample_downstream.flatten().tolist()),
+                                   'unres_tau_zw_sample_downstream': _float_feature(unres_tau_zw_sample_downstream.flatten().tolist()),
+                                   'x_sample_size': _int64_feature(x_sample_size),
+                                   'y_sample_size': _int64_feature(y_sample_size),
+                                   'z_sample_size': _int64_feature(z_sample_size),
+                                   'tstep_sample' : _int64_feature(tstep_sample),
+                                   'flag_topwall_sample': _int64_feature(flag_topwall_sample),
+                                   'flag_bottomwall_sample': _int64_feature(flag_bottomwall_sample),
+                                   'xloc_sample'  : _float_feature(xloc_sample),
+                                   'xhloc_sample' : _float_feature(xhloc_sample),
+                                   'yloc_sample'  : _float_feature(yloc_sample),
+                                   'yhloc_sample' : _float_feature(yhloc_sample),
+                                   'zloc_sample'  : _float_feature(zloc_sample),
+                                   'zhloc_sample' : _float_feature(zhloc_sample)}))        
+                    return example
                 
-                Returns:
-
-                  Example protocol
-                """
-            
-                example = tf.train.Example(features=tf.train.Features(feature={
-                               'uc_sample': _float_feature(uc_sample.flatten().tolist()),
-                               'vc_sample': _float_feature(vc_sample.flatten().tolist()),
-                               'wc_sample': _float_feature(wc_sample.flatten().tolist()),
-                               'pc_sample': _float_feature(pc_sample.flatten().tolist()),
-                               'unres_tau_xu_sample_upstream': _float_feature(unres_tau_xu_sample_upstream.flatten().tolist()),
-                               'unres_tau_xv_sample_upstream': _float_feature(unres_tau_xv_sample_upstream.flatten().tolist()),
-                               'unres_tau_xw_sample_upstream': _float_feature(unres_tau_xw_sample_upstream.flatten().tolist()),
-                               'unres_tau_yu_sample_upstream': _float_feature(unres_tau_yu_sample_upstream.flatten().tolist()),
-                               'unres_tau_yv_sample_upstream': _float_feature(unres_tau_yv_sample_upstream.flatten().tolist()),
-                               'unres_tau_yw_sample_upstream': _float_feature(unres_tau_yw_sample_upstream.flatten().tolist()),
-                               'unres_tau_zu_sample_upstream': _float_feature(unres_tau_zu_sample_upstream.flatten().tolist()),
-                               'unres_tau_zv_sample_upstream': _float_feature(unres_tau_zv_sample_upstream.flatten().tolist()),
-                               'unres_tau_zw_sample_upstream': _float_feature(unres_tau_zw_sample_upstream.flatten().tolist()),
-                               'unres_tau_xu_sample_downstream': _float_feature(unres_tau_xu_sample_downstream.flatten().tolist()),
-                               'unres_tau_xv_sample_downstream': _float_feature(unres_tau_xv_sample_downstream.flatten().tolist()),
-                               'unres_tau_xw_sample_downstream': _float_feature(unres_tau_xw_sample_downstream.flatten().tolist()),
-                               'unres_tau_yu_sample_downstream': _float_feature(unres_tau_yu_sample_downstream.flatten().tolist()),
-                               'unres_tau_yv_sample_downstream': _float_feature(unres_tau_yv_sample_downstream.flatten().tolist()),
-                               'unres_tau_yw_sample_downstream': _float_feature(unres_tau_yw_sample_downstream.flatten().tolist()),
-                               'unres_tau_zu_sample_downstream': _float_feature(unres_tau_zu_sample_downstream.flatten().tolist()),
-                               'unres_tau_zv_sample_downstream': _float_feature(unres_tau_zv_sample_downstream.flatten().tolist()),
-                               'unres_tau_zw_sample_downstream': _float_feature(unres_tau_zw_sample_downstream.flatten().tolist()),
-                               'x_sample_size': _int64_feature(x_sample_size),
-                               'y_sample_size': _int64_feature(y_sample_size),
-                               'z_sample_size': _int64_feature(z_sample_size),
-                               'tstep_sample' : _int64_feature(tstep_sample),
-                               'flag_topwall_sample': _int64_feature(flag_topwall_sample),
-                               'flag_bottomwall_sample': _int64_feature(flag_bottomwall_sample),
-                               'xloc_sample'  : _float_feature(xloc_sample),
-                               'xhloc_sample' : _float_feature(xhloc_sample),
-                               'yloc_sample'  : _float_feature(yloc_sample),
-                               'yhloc_sample' : _float_feature(yhloc_sample),
-                               'zloc_sample'  : _float_feature(zloc_sample),
-                               'zhloc_sample' : _float_feature(zhloc_sample)}))        
-                return example
-            
-            def _process_image_files_batch(output_file, uc_samples, vc_samples, wc_samples, pc_samples, 
-                    unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
-                    unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
-                    unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
-                    unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
-                    unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
-                    unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
-                    x_sample_size, y_sample_size, z_sample_size, 
-                    tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
-                    flag_topwall_samples, flag_bottomwall_samples):
-            
-                """Processes and saves samples in TFrecord format.
-            
-                The inputs are:
-            
-                  output_file: string, name of file in which the samples are stored
-            
-                  uc_samples: float, samples of u-component on coarse grid
-    
-                  vc_samples: float, samples of v-component on coarse grid
-    
-                  wc_samples: float, samples of w-component on coarse grid
-    
-                  pc_samples: float, samples of p on coarse grid
-    
-                  unres_tau_xu_samples_upstream: float, samples of unres_tau_xu_upstream on coarse grid
-    
-                  unres_tau_xv_samples_upstream: float, samples of unres_tau_xv_upstream on coarse grid
-    
-                  unres_tau_xw_samples_upstream: float, samples of unres_tau_xw_upstream on coarse grid
-    
-                  unres_tau_yu_samples_upstream: float, samples of unres_tau_yu_upstream on coarse grid
-    
-                  unres_tau_yv_samples_upstream: float, samples of unres_tau_yv_upstream on coarse grid
-    
-                  unres_tau_yw_samples_upstream: float, samples of unres_tau_yw_upstream on coarse grid
-    
-                  unres_tau_zu_samples_upstream: float, samples of unres_tau_zu_upstream on coarse grid
-    
-                  unres_tau_zv_samples_upstream: float, samples of unres_tau_zv_upstream on coarse grid
-    
-                  unres_tau_zw_samples_upstream: float, samples of unres_tau_zw_upstream on coarse grid
-                  
-                  unres_tau_xu_samples_downstream: float, samples of unres_tau_xu_downstream on coarse grid
-    
-                  unres_tau_xv_samples_downstream: float, samples of unres_tau_xv_downstream on coarse grid
-    
-                  unres_tau_xw_samples_downstream: float, samples of unres_tau_xw_downstream on coarse grid
-    
-                  unres_tau_yu_samples_downstream: float, samples of unres_tau_yu_downstream on coarse grid
-    
-                  unres_tau_yv_samples_downstream: float, samples of unres_tau_yv_downstream on coarse grid
-    
-                  unres_tau_yw_samples_downstream: float, samples of unres_tau_yw_downstream on coarse grid
-    
-                  unres_tau_zu_samples_downstream: float, samples of unres_tau_zu_downstream on coarse grid
-    
-                  unres_tau_zv_samples_downstream: float, samples of unres_tau_zv_downstream on coarse grid
-    
-                  unres_tau_zw_samples_downstream: float, samples of unres_tau_zw_downstream on coarse grid
-    
-                  x_sample_size: integer, number of grid cells in x-direction selected in samples
-    
-                  y_sample_size: integer, number of grid cells in y-direction selected in samples
-    
-                  z_sample_size: integer, number of grid cells in z-direction selected in samples
-
-                  tstep_samples:  float, time step of sample
-                  
-                  xloc_samples:   float, location of samples in x-direction
-
-                  xhloc_samples:  float, location of samples in xh-direction
-
-                  yloc_samples:   float, location of samples in y-direction
-                  
-                  yhloc_samples:  float, location of samples in yh-direction
-     
-                  zloc_samples:   float, location of samples in z-direction
-                
-                  zhloc_samples:  float, location of samples in zh-direction
-
-                  flag_topwall_samples: integer, flag indicating wheter loc is at the top wall
-
-                  flag_bottomwall_samples: integer, flag indicating wheter loc is at the bottom wall
-                """
-                writer = tf.python_io.TFRecordWriter(output_file)
-    
-                for uc_sample, vc_sample, wc_sample, pc_sample, \
-                unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, \
-                unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, \
-                unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, \
-                unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, \
-                unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, \
-                unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, \
-                tstep_sample, xloc_sample, xhloc_sample, \
-                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample, \
-                flag_topwall_sample, flag_bottomwall_sample in zip(
-                        uc_samples, vc_samples, wc_samples, pc_samples, 
+                def _process_image_files_batch(output_file, uc_samples, vc_samples, wc_samples, pc_samples, 
                         unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
                         unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
                         unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
                         unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
                         unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
                         unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+                        x_sample_size, y_sample_size, z_sample_size, 
                         tstep_samples, xloc_samples, xhloc_samples, 
                         yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
                         flag_topwall_samples, flag_bottomwall_samples):
-                    
-                    example = _convert_to_example(uc_sample, vc_sample, wc_sample, pc_sample, 
-                              unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
-                              unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
-                              unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, 
-                              unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
-                              unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
-                              unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
-                              x_sample_size, y_sample_size, z_sample_size, 
-                              tstep_sample, xloc_sample, xhloc_sample, 
-                              yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
-                              flag_topwall_sample, flag_bottomwall_sample)
-                    
-                    writer.write(example.SerializeToString())
-            
-                writer.close()
-            
-
-            def _convert_to_example_gradients(ugradx_sample, ugrady_sample, ugradz_sample, 
-                    vgradx_sample, vgrady_sample, vgradz_sample, 
-                    wgradx_sample, wgrady_sample, wgradz_sample, 
-                    pgradx_sample, pgrady_sample, pgradz_sample, 
-                    unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
-                    unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
-                    unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, 
-                    unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
-                    unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
-                    unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
-                    x_sample_size, y_sample_size, z_sample_size, 
-                    tstep_sample, xloc_sample, xhloc_sample, 
-                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
-                    flag_topwall_sample, flag_bottomwall_sample):
-                """Build a protocol for an individual sample with gradients.
                 
-                The inputs are:
-            
-                  ugradx_sample: float, sample of u-gradient w.r.t x on coarse grid
+                    """Processes and saves samples in TFrecord format.
+                
+                    The inputs are:
+                
+                      output_file: string, name of file in which the samples are stored
+                
+                      uc_samples: float, samples of u-component on coarse grid
+    
+                      vc_samples: float, samples of v-component on coarse grid
+    
+                      wc_samples: float, samples of w-component on coarse grid
+    
+                      pc_samples: float, samples of p on coarse grid
+    
+                      unres_tau_xu_samples_upstream: float, samples of unres_tau_xu_upstream on coarse grid
+    
+                      unres_tau_xv_samples_upstream: float, samples of unres_tau_xv_upstream on coarse grid
+    
+                      unres_tau_xw_samples_upstream: float, samples of unres_tau_xw_upstream on coarse grid
+    
+                      unres_tau_yu_samples_upstream: float, samples of unres_tau_yu_upstream on coarse grid
+    
+                      unres_tau_yv_samples_upstream: float, samples of unres_tau_yv_upstream on coarse grid
+    
+                      unres_tau_yw_samples_upstream: float, samples of unres_tau_yw_upstream on coarse grid
+    
+                      unres_tau_zu_samples_upstream: float, samples of unres_tau_zu_upstream on coarse grid
+    
+                      unres_tau_zv_samples_upstream: float, samples of unres_tau_zv_upstream on coarse grid
+    
+                      unres_tau_zw_samples_upstream: float, samples of unres_tau_zw_upstream on coarse grid
+                      
+                      unres_tau_xu_samples_downstream: float, samples of unres_tau_xu_downstream on coarse grid
+    
+                      unres_tau_xv_samples_downstream: float, samples of unres_tau_xv_downstream on coarse grid
+    
+                      unres_tau_xw_samples_downstream: float, samples of unres_tau_xw_downstream on coarse grid
+    
+                      unres_tau_yu_samples_downstream: float, samples of unres_tau_yu_downstream on coarse grid
+    
+                      unres_tau_yv_samples_downstream: float, samples of unres_tau_yv_downstream on coarse grid
+    
+                      unres_tau_yw_samples_downstream: float, samples of unres_tau_yw_downstream on coarse grid
+    
+                      unres_tau_zu_samples_downstream: float, samples of unres_tau_zu_downstream on coarse grid
+    
+                      unres_tau_zv_samples_downstream: float, samples of unres_tau_zv_downstream on coarse grid
+    
+                      unres_tau_zw_samples_downstream: float, samples of unres_tau_zw_downstream on coarse grid
+    
+                      x_sample_size: integer, number of grid cells in x-direction selected in samples
+    
+                      y_sample_size: integer, number of grid cells in y-direction selected in samples
+    
+                      z_sample_size: integer, number of grid cells in z-direction selected in samples
 
-                  ugrady_sample: float, sample of u-gradient w.r.t y on coarse grid
+                      tstep_samples:  float, time step of sample
+                      
+                      xloc_samples:   float, location of samples in x-direction
 
-                  ugradz_sample: float, sample of u-gradient w.r.t z on coarse grid
+                      xhloc_samples:  float, location of samples in xh-direction
 
-                  vgradx_sample: float, sample of v-gradient w.r.t x on coarse grid
-
-                  vgrady_sample: float, sample of v-gradient w.r.t y on coarse grid
-
-                  vgradz_sample: float, sample of v-gradient w.r.t z on coarse grid
-
-                  wgradx_sample: float, sample of w-gradient w.r.t x on coarse grid
-
-                  wgrady_sample: float, sample of w-gradient w.r.t y on coarse grid
-
-                  wgradz_sample: float, sample of w-gradient w.r.t z on coarse grid
-
-                  pgradx_sample: float, sample of p-gradient w.r.t x on coarse grid
-
-                  pgrady_sample: float, sample of p-gradient w.r.t y on coarse grid
-    
-                  pgradz_sample: float, sample of p-gradient w.r.t z on coarse grid
-
-                  unres_tau_xu_sample_upstream: float, sample of unres_tau_xu_upstream on coarse grid
-    
-                  unres_tau_xv_sample_upstream: float, sample of unres_tau_xv_upstream on coarse grid
-    
-                  unres_tau_xw_sample_upstream: float, sample of unres_tau_xw_upstream on coarse grid
-    
-                  unres_tau_yu_sample_upstream: float, sample of unres_tau_yu_upstream on coarse grid
-    
-                  unres_tau_yv_sample_upstream: float, sample of unres_tau_yv_upstream on coarse grid
-    
-                  unres_tau_yw_sample_upstream: float, sample of unres_tau_yw_upstream on coarse grid
-    
-                  unres_tau_zu_sample_upstream: float, sample of unres_tau_zu_upstream on coarse grid
-    
-                  unres_tau_zv_sample_upstream: float, sample of unres_tau_zv_upstream on coarse grid
-    
-                  unres_tau_zw_sample_upstream: float, sample of unres_tau_zw_upstream on coarse grid
-                  
-                  unres_tau_xu_sample_downstream: float, sample of unres_tau_xu_downstream on coarse grid
-    
-                  unres_tau_xv_sample_downstream: float, sample of unres_tau_xv_downstream on coarse grid
-    
-                  unres_tau_xw_sample_downstream: float, sample of unres_tau_xw_downstream on coarse grid
-    
-                  unres_tau_yu_sample_downstream: float, sample of unres_tau_yu_downstream on coarse grid
-    
-                  unres_tau_yv_sample_downstream: float, sample of unres_tau_yv_downstream on coarse grid
-    
-                  unres_tau_yw_sample_downstream: float, sample of unres_tau_yw_downstream on coarse grid
-    
-                  unres_tau_zu_sample_downstream: float, sample of unres_tau_zu_downstream on coarse grid
-    
-                  unres_tau_zv_sample_downstream: float, sample of unres_tau_zv_downstream on coarse grid
-    
-                  unres_tau_zw_sample_downstream: float, sample of unres_tau_zw_downstream on coarse grid
-    
-                  x_sample_size: integer, number of grid cells in x-direction selected in sample
-    
-                  y_sample_size: integer, number of grid cells in y-direction selected in sample
-    
-                  z_sample_size: integer, number of grid cells in z-direction selected in sample
-
-                  tstep_sample:  float, time step of sample
-                  
-                  xloc_sample:   float, location of sample in x-direction
-
-                  xhloc_sample:  float, location of sample in xh-direction
-
-                  yloc_sample:   float, location of sample in y-direction
-                  
-                  yhloc_sample:  float, location of sample in yh-direction
+                      yloc_samples:   float, location of samples in y-direction
+                      
+                      yhloc_samples:  float, location of samples in yh-direction
      
-                  zloc_sample:   float, location of sample in z-direction
+                      zloc_samples:   float, location of samples in z-direction
+                    
+                      zhloc_samples:  float, location of samples in zh-direction
+
+                      flag_topwall_samples: integer, flag indicating wheter loc is at the top wall
+
+                      flag_bottomwall_samples: integer, flag indicating wheter loc is at the bottom wall
+                    """
+                    writer = tf.python_io.TFRecordWriter(output_file)
+    
+                    for uc_sample, vc_sample, wc_sample, pc_sample, \
+                    unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, \
+                    unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, \
+                    unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, \
+                    unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, \
+                    unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, \
+                    unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, \
+                    tstep_sample, xloc_sample, xhloc_sample, \
+                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample, \
+                    flag_topwall_sample, flag_bottomwall_sample in zip(
+                            uc_samples, vc_samples, wc_samples, pc_samples, 
+                            unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
+                            unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
+                            unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
+                            unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
+                            unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
+                            unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+                            tstep_samples, xloc_samples, xhloc_samples, 
+                            yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                            flag_topwall_samples, flag_bottomwall_samples):
+                        
+                        example = _convert_to_example(uc_sample, vc_sample, wc_sample, pc_sample, 
+                                  unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
+                                  unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
+                                  unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, 
+                                  unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
+                                  unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
+                                  unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
+                                  x_sample_size, y_sample_size, z_sample_size, 
+                                  tstep_sample, xloc_sample, xhloc_sample, 
+                                  yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                                  flag_topwall_sample, flag_bottomwall_sample)
+                        
+                        writer.write(example.SerializeToString())
                 
-                  zhloc_sample:  float, location of sample in zh-direction
+                    writer.close()
+                
 
-                  flag_topwall_sample: integer, flag indicating wheter loc is at the top wall
+                def _convert_to_example_gradients(ugradx_sample, ugrady_sample, ugradz_sample, 
+                        vgradx_sample, vgrady_sample, vgradz_sample, 
+                        wgradx_sample, wgrady_sample, wgradz_sample, 
+                        pgradx_sample, pgrady_sample, pgradz_sample, 
+                        unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
+                        unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
+                        unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, 
+                        unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
+                        unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
+                        unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
+                        x_sample_size, y_sample_size, z_sample_size, 
+                        tstep_sample, xloc_sample, xhloc_sample, 
+                        yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                        flag_topwall_sample, flag_bottomwall_sample):
+                    """Build a protocol for an individual sample with gradients.
+                    
+                    The inputs are:
+                
+                      ugradx_sample: float, sample of u-gradient w.r.t x on coarse grid
 
-                  flag_bottomwall_sample: integer, flag indicating wheter loc is at the bottom wall
+                      ugrady_sample: float, sample of u-gradient w.r.t y on coarse grid
 
-                Returns:
-                  Example proto
-                """
-            
-                example = tf.train.Example(features=tf.train.Features(feature={
-                               'ugradx_sample': _float_feature(ugradx_sample.flatten().tolist()),
-                               'ugrady_sample': _float_feature(ugrady_sample.flatten().tolist()),
-                               'ugradz_sample': _float_feature(ugradz_sample.flatten().tolist()),
-                               'vgradx_sample': _float_feature(vgradx_sample.flatten().tolist()),
-                               'vgrady_sample': _float_feature(vgrady_sample.flatten().tolist()),
-                               'vgradz_sample': _float_feature(vgradz_sample.flatten().tolist()),
-                               'wgradx_sample': _float_feature(wgradx_sample.flatten().tolist()),
-                               'wgrady_sample': _float_feature(wgrady_sample.flatten().tolist()),
-                               'wgradz_sample': _float_feature(wgradz_sample.flatten().tolist()),
-                               'pgradx_sample': _float_feature(pgradx_sample.flatten().tolist()),
-                               'pgrady_sample': _float_feature(pgrady_sample.flatten().tolist()),
-                               'pgradz_sample': _float_feature(pgradz_sample.flatten().tolist()),
-                               'unres_tau_xu_sample_upstream': _float_feature(unres_tau_xu_sample_upstream.flatten().tolist()),
-                               'unres_tau_xv_sample_upstream': _float_feature(unres_tau_xv_sample_upstream.flatten().tolist()),
-                               'unres_tau_xw_sample_upstream': _float_feature(unres_tau_xw_sample_upstream.flatten().tolist()),
-                               'unres_tau_yu_sample_upstream': _float_feature(unres_tau_yu_sample_upstream.flatten().tolist()),
-                               'unres_tau_yv_sample_upstream': _float_feature(unres_tau_yv_sample_upstream.flatten().tolist()),
-                               'unres_tau_yw_sample_upstream': _float_feature(unres_tau_yw_sample_upstream.flatten().tolist()),
-                               'unres_tau_zu_sample_upstream': _float_feature(unres_tau_zu_sample_upstream.flatten().tolist()),
-                               'unres_tau_zv_sample_upstream': _float_feature(unres_tau_zv_sample_upstream.flatten().tolist()),
-                               'unres_tau_zw_sample_upstream': _float_feature(unres_tau_zw_sample_upstream.flatten().tolist()),
-                               'unres_tau_xu_sample_downstream': _float_feature(unres_tau_xu_sample_downstream.flatten().tolist()),
-                               'unres_tau_xv_sample_downstream': _float_feature(unres_tau_xv_sample_downstream.flatten().tolist()),
-                               'unres_tau_xw_sample_downstream': _float_feature(unres_tau_xw_sample_downstream.flatten().tolist()),
-                               'unres_tau_yu_sample_downstream': _float_feature(unres_tau_yu_sample_downstream.flatten().tolist()),
-                               'unres_tau_yv_sample_downstream': _float_feature(unres_tau_yv_sample_downstream.flatten().tolist()),
-                               'unres_tau_yw_sample_downstream': _float_feature(unres_tau_yw_sample_downstream.flatten().tolist()),
-                               'unres_tau_zu_sample_downstream': _float_feature(unres_tau_zu_sample_downstream.flatten().tolist()),
-                               'unres_tau_zv_sample_downstream': _float_feature(unres_tau_zv_sample_downstream.flatten().tolist()),
-                               'unres_tau_zw_sample_downstream': _float_feature(unres_tau_zw_sample_downstream.flatten().tolist()),
-                               'x_sample_size': _int64_feature(x_sample_size),
-                               'y_sample_size': _int64_feature(y_sample_size),
-                               'z_sample_size': _int64_feature(z_sample_size),        
-                               'tstep_sample' : _int64_feature(tstep_sample),
-                               'flag_topwall_sample': _int64_feature(flag_topwall_sample),
-                               'flag_bottomwall_sample': _int64_feature(flag_bottomwall_sample),
-                               'xloc_sample'  : _float_feature(xloc_sample),
-                               'xhloc_sample' : _float_feature(xhloc_sample),
-                               'yloc_sample'  : _float_feature(yloc_sample),
-                               'yhloc_sample' : _float_feature(yhloc_sample),
-                               'zloc_sample'  : _float_feature(zloc_sample),
-                               'zhloc_sample' : _float_feature(zhloc_sample)}))        
+                      ugradz_sample: float, sample of u-gradient w.r.t z on coarse grid
 
-                return example
-            
-            def _process_image_files_batch_gradient(output_file,ugradx_samples, ugrady_samples, ugradz_samples, 
-                    vgradx_samples, vgrady_samples, vgradz_samples, 
-                    wgradx_samples, wgrady_samples, wgradz_samples, 
-                    pgradx_samples, pgrady_samples, pgradz_samples, 
-                    unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
-                    unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
-                    unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
-                    unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
-                    unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
-                    unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
-                    x_sample_size, y_sample_size, z_sample_size, 
-                    tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
-                    flag_topwall_samples, flag_bottomwall_samples):
-            
-                """Processes and saves samples with gradients in TFrecord format.
-            
-                The inputs are:
-            
-                  output_file: string, name of file in which the samples are stored
+                      vgradx_sample: float, sample of v-gradient w.r.t x on coarse grid
 
-                  ugradx_samples: float, samples of u-gradient w.r.t x on coarse grid
+                      vgrady_sample: float, sample of v-gradient w.r.t y on coarse grid
 
-                  ugrady_samples: float, samples of u-gradient w.r.t y on coarse grid
+                      vgradz_sample: float, sample of v-gradient w.r.t z on coarse grid
 
-                  ugradz_samples: float, samples of u-gradient w.r.t z on coarse grid
+                      wgradx_sample: float, sample of w-gradient w.r.t x on coarse grid
 
-                  vgradx_samples: float, samples of v-gradient w.r.t x on coarse grid
+                      wgrady_sample: float, sample of w-gradient w.r.t y on coarse grid
 
-                  vgrady_samples: float, samples of v-gradient w.r.t y on coarse grid
+                      wgradz_sample: float, sample of w-gradient w.r.t z on coarse grid
 
-                  vgradz_samples: float, samples of v-gradient w.r.t z on coarse grid
+                      pgradx_sample: float, sample of p-gradient w.r.t x on coarse grid
 
-                  wgradx_samples: float, samples of w-gradient w.r.t x on coarse grid
+                      pgrady_sample: float, sample of p-gradient w.r.t y on coarse grid
+    
+                      pgradz_sample: float, sample of p-gradient w.r.t z on coarse grid
 
-                  wgrady_samples: float, samples of w-gradient w.r.t y on coarse grid
+                      unres_tau_xu_sample_upstream: float, sample of unres_tau_xu_upstream on coarse grid
+    
+                      unres_tau_xv_sample_upstream: float, sample of unres_tau_xv_upstream on coarse grid
+    
+                      unres_tau_xw_sample_upstream: float, sample of unres_tau_xw_upstream on coarse grid
+    
+                      unres_tau_yu_sample_upstream: float, sample of unres_tau_yu_upstream on coarse grid
+    
+                      unres_tau_yv_sample_upstream: float, sample of unres_tau_yv_upstream on coarse grid
+    
+                      unres_tau_yw_sample_upstream: float, sample of unres_tau_yw_upstream on coarse grid
+    
+                      unres_tau_zu_sample_upstream: float, sample of unres_tau_zu_upstream on coarse grid
+    
+                      unres_tau_zv_sample_upstream: float, sample of unres_tau_zv_upstream on coarse grid
+    
+                      unres_tau_zw_sample_upstream: float, sample of unres_tau_zw_upstream on coarse grid
+                      
+                      unres_tau_xu_sample_downstream: float, sample of unres_tau_xu_downstream on coarse grid
+    
+                      unres_tau_xv_sample_downstream: float, sample of unres_tau_xv_downstream on coarse grid
+    
+                      unres_tau_xw_sample_downstream: float, sample of unres_tau_xw_downstream on coarse grid
+    
+                      unres_tau_yu_sample_downstream: float, sample of unres_tau_yu_downstream on coarse grid
+    
+                      unres_tau_yv_sample_downstream: float, sample of unres_tau_yv_downstream on coarse grid
+    
+                      unres_tau_yw_sample_downstream: float, sample of unres_tau_yw_downstream on coarse grid
+    
+                      unres_tau_zu_sample_downstream: float, sample of unres_tau_zu_downstream on coarse grid
+    
+                      unres_tau_zv_sample_downstream: float, sample of unres_tau_zv_downstream on coarse grid
+    
+                      unres_tau_zw_sample_downstream: float, sample of unres_tau_zw_downstream on coarse grid
+    
+                      x_sample_size: integer, number of grid cells in x-direction selected in sample
+    
+                      y_sample_size: integer, number of grid cells in y-direction selected in sample
+    
+                      z_sample_size: integer, number of grid cells in z-direction selected in sample
 
-                  wgradz_samples: float, samples of w-gradient w.r.t z on coarse grid
+                      tstep_sample:  float, time step of sample
+                      
+                      xloc_sample:   float, location of sample in x-direction
 
-                  pgradx_samples: float, samples of p-gradient w.r.t x on coarse grid
+                      xhloc_sample:  float, location of sample in xh-direction
 
-                  pgrady_samples: float, samples of p-gradient w.r.t y on coarse grid
-    
-                  pgradz_samples: float, samples of p-gradient w.r.t z on coarse grid
-    
-                  unres_tau_xu_samples_upstream: float, samples of unres_tau_xu_upstream on coarse grid
-    
-                  unres_tau_xv_samples_upstream: float, samples of unres_tau_xv_upstream on coarse grid
-    
-                  unres_tau_xw_samples_upstream: float, samples of unres_tau_xw_upstream on coarse grid
-    
-                  unres_tau_yu_samples_upstream: float, samples of unres_tau_yu_upstream on coarse grid
-    
-                  unres_tau_yv_samples_upstream: float, samples of unres_tau_yv_upstream on coarse grid
-    
-                  unres_tau_yw_samples_upstream: float, samples of unres_tau_yw_upstream on coarse grid
-    
-                  unres_tau_zu_samples_upstream: float, samples of unres_tau_zu_upstream on coarse grid
-    
-                  unres_tau_zv_samples_upstream: float, samples of unres_tau_zv_upstream on coarse grid
-    
-                  unres_tau_zw_samples_upstream: float, samples of unres_tau_zw_upstream on coarse grid
-                  
-                  unres_tau_xu_samples_downstream: float, samples of unres_tau_xu_downstream on coarse grid
-    
-                  unres_tau_xv_samples_downstream: float, samples of unres_tau_xv_downstream on coarse grid
-    
-                  unres_tau_xw_samples_downstream: float, samples of unres_tau_xw_downstream on coarse grid
-    
-                  unres_tau_yu_samples_downstream: float, samples of unres_tau_yu_downstream on coarse grid
-    
-                  unres_tau_yv_samples_downstream: float, samples of unres_tau_yv_downstream on coarse grid
-    
-                  unres_tau_yw_samples_downstream: float, samples of unres_tau_yw_downstream on coarse grid
-    
-                  unres_tau_zu_samples_downstream: float, samples of unres_tau_zu_downstream on coarse grid
-    
-                  unres_tau_zv_samples_downstream: float, samples of unres_tau_zv_downstream on coarse grid
-    
-                  unres_tau_zw_samples_downstream: float, samples of unres_tau_zw_downstream on coarse grid
-    
-                  x_sample_size: integer, number of grid cells in x-direction selected in samples
-    
-                  y_sample_size: integer, number of grid cells in y-direction selected in samples
-    
-                  z_sample_size: integer, number of grid cells in z-direction selected in samples
-
-                  tstep_samples:  float, time step of sample
-                  
-                  xloc_samples:   float, location of samples in x-direction
-
-                  xhloc_samples:  float, location of samples in xh-direction
-
-                  yloc_samples:   float, location of samples in y-direction
-                  
-                  yhloc_samples:  float, location of samples in yh-direction
+                      yloc_sample:   float, location of sample in y-direction
+                      
+                      yhloc_sample:  float, location of sample in yh-direction
      
-                  zloc_samples:   float, location of samples in z-direction
+                      zloc_sample:   float, location of sample in z-direction
+                    
+                      zhloc_sample:  float, location of sample in zh-direction
+
+                      flag_topwall_sample: integer, flag indicating wheter loc is at the top wall
+
+                      flag_bottomwall_sample: integer, flag indicating wheter loc is at the bottom wall
+
+                    Returns:
+                      Example proto
+                    """
                 
-                  zhloc_samples:  float, location of samples in zh-direction
+                    example = tf.train.Example(features=tf.train.Features(feature={
+                                   'ugradx_sample': _float_feature(ugradx_sample.flatten().tolist()),
+                                   'ugrady_sample': _float_feature(ugrady_sample.flatten().tolist()),
+                                   'ugradz_sample': _float_feature(ugradz_sample.flatten().tolist()),
+                                   'vgradx_sample': _float_feature(vgradx_sample.flatten().tolist()),
+                                   'vgrady_sample': _float_feature(vgrady_sample.flatten().tolist()),
+                                   'vgradz_sample': _float_feature(vgradz_sample.flatten().tolist()),
+                                   'wgradx_sample': _float_feature(wgradx_sample.flatten().tolist()),
+                                   'wgrady_sample': _float_feature(wgrady_sample.flatten().tolist()),
+                                   'wgradz_sample': _float_feature(wgradz_sample.flatten().tolist()),
+                                   'pgradx_sample': _float_feature(pgradx_sample.flatten().tolist()),
+                                   'pgrady_sample': _float_feature(pgrady_sample.flatten().tolist()),
+                                   'pgradz_sample': _float_feature(pgradz_sample.flatten().tolist()),
+                                   'unres_tau_xu_sample_upstream': _float_feature(unres_tau_xu_sample_upstream.flatten().tolist()),
+                                   'unres_tau_xv_sample_upstream': _float_feature(unres_tau_xv_sample_upstream.flatten().tolist()),
+                                   'unres_tau_xw_sample_upstream': _float_feature(unres_tau_xw_sample_upstream.flatten().tolist()),
+                                   'unres_tau_yu_sample_upstream': _float_feature(unres_tau_yu_sample_upstream.flatten().tolist()),
+                                   'unres_tau_yv_sample_upstream': _float_feature(unres_tau_yv_sample_upstream.flatten().tolist()),
+                                   'unres_tau_yw_sample_upstream': _float_feature(unres_tau_yw_sample_upstream.flatten().tolist()),
+                                   'unres_tau_zu_sample_upstream': _float_feature(unres_tau_zu_sample_upstream.flatten().tolist()),
+                                   'unres_tau_zv_sample_upstream': _float_feature(unres_tau_zv_sample_upstream.flatten().tolist()),
+                                   'unres_tau_zw_sample_upstream': _float_feature(unres_tau_zw_sample_upstream.flatten().tolist()),
+                                   'unres_tau_xu_sample_downstream': _float_feature(unres_tau_xu_sample_downstream.flatten().tolist()),
+                                   'unres_tau_xv_sample_downstream': _float_feature(unres_tau_xv_sample_downstream.flatten().tolist()),
+                                   'unres_tau_xw_sample_downstream': _float_feature(unres_tau_xw_sample_downstream.flatten().tolist()),
+                                   'unres_tau_yu_sample_downstream': _float_feature(unres_tau_yu_sample_downstream.flatten().tolist()),
+                                   'unres_tau_yv_sample_downstream': _float_feature(unres_tau_yv_sample_downstream.flatten().tolist()),
+                                   'unres_tau_yw_sample_downstream': _float_feature(unres_tau_yw_sample_downstream.flatten().tolist()),
+                                   'unres_tau_zu_sample_downstream': _float_feature(unres_tau_zu_sample_downstream.flatten().tolist()),
+                                   'unres_tau_zv_sample_downstream': _float_feature(unres_tau_zv_sample_downstream.flatten().tolist()),
+                                   'unres_tau_zw_sample_downstream': _float_feature(unres_tau_zw_sample_downstream.flatten().tolist()),
+                                   'x_sample_size': _int64_feature(x_sample_size),
+                                   'y_sample_size': _int64_feature(y_sample_size),
+                                   'z_sample_size': _int64_feature(z_sample_size),        
+                                   'tstep_sample' : _int64_feature(tstep_sample),
+                                   'flag_topwall_sample': _int64_feature(flag_topwall_sample),
+                                   'flag_bottomwall_sample': _int64_feature(flag_bottomwall_sample),
+                                   'xloc_sample'  : _float_feature(xloc_sample),
+                                   'xhloc_sample' : _float_feature(xhloc_sample),
+                                   'yloc_sample'  : _float_feature(yloc_sample),
+                                   'yhloc_sample' : _float_feature(yhloc_sample),
+                                   'zloc_sample'  : _float_feature(zloc_sample),
+                                   'zhloc_sample' : _float_feature(zhloc_sample)}))        
 
-                  flag_topwall_samples: integer, flag indicating wheter loc is at the top wall
-
-                  flag_bottomwall_samples: integer, flag indicating wheter loc is at the bottom wall
-
-                  """
-                writer = tf.python_io.TFRecordWriter(output_file)
-    
-                for ugradx_sample, ugrady_sample, ugradz_sample, \
-                vgradx_sample, vgrady_sample, vgradz_sample, \
-                wgradx_sample, wgrady_sample, wgradz_sample, \
-                pgradx_sample, pgrady_sample, pgradz_sample, \
-                unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, \
-                unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, \
-                unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, \
-                unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, \
-                unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, \
-                unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, \
-                tstep_sample, xloc_sample, xhloc_sample, \
-                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample, \
-                flag_topwall_sample, flag_bottomwall_sample in zip(
-                        ugradx_samples, ugrady_samples, ugradz_samples, 
+                    return example
+                
+                def _process_image_files_batch_gradient(output_file,ugradx_samples, ugrady_samples, ugradz_samples, 
                         vgradx_samples, vgrady_samples, vgradz_samples, 
                         wgradx_samples, wgrady_samples, wgradz_samples, 
                         pgradx_samples, pgrady_samples, pgradz_samples, 
@@ -1107,61 +1040,182 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
                         unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
                         unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
                         unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+                        x_sample_size, y_sample_size, z_sample_size, 
                         tstep_samples, xloc_samples, xhloc_samples, 
                         yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
                         flag_topwall_samples, flag_bottomwall_samples):
+                
+                    """Processes and saves samples with gradients in TFrecord format.
+                
+                    The inputs are:
+                
+                      output_file: string, name of file in which the samples are stored
 
-                    example = _convert_to_example_gradients(
-                            ugradx_sample, ugrady_sample, ugradz_sample, 
-                            vgradx_sample, vgrady_sample, vgradz_sample, 
-                            wgradx_sample, wgrady_sample, wgradz_sample, 
-                            pgradx_sample, pgrady_sample, pgradz_sample, 
-                            unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
-                            unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
-                            unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, 
-                            unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
-                            unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
-                            unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
-                            x_sample_size, y_sample_size, z_sample_size, 
-                            tstep_sample, xloc_sample, xhloc_sample, 
-                            yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
-                            flag_topwall_sample, flag_bottomwall_sample)
-                    writer.write(example.SerializeToString())
-            
-                writer.close()
+                      ugradx_samples: float, samples of u-gradient w.r.t x on coarse grid
 
-            #Create training data based on absolute wind velocities
-            output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}.tfrecords'.format('training', t+1, nt))
-            _process_image_files_batch(output_file, uc_samples, vc_samples, wc_samples, pc_samples, 
-                    unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
-                    unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
-                    unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
-                    unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
-                    unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
-                    unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
-                    size_samples, size_samples, size_samples, 
-                    tstep_samples, xloc_samples, xhloc_samples, 
-                    yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
-                    flag_topwall_samples, flag_bottomwall_samples)
-            
-            print('Finished writing file: %s' % output_file)
+                      ugrady_samples: float, samples of u-gradient w.r.t y on coarse grid
 
-            ##Create training data based on gradients
-            #output_file_gradients = os.path.join(output_directory, '{}_time_step_{}_of_{}_gradients.tfrecords'.format('training', t+1,nt)) 
-            #_process_image_files_batch_gradient(output_file_gradients, ugradx_samples, ugrady_samples, ugradz_samples,
-            #        vgradx_samples, vgrady_samples, vgradz_samples, 
-            #        wgradx_samples, wgrady_samples, wgradz_samples, 
-            #        pgradx_samples, pgrady_samples, pgradz_samples, 
-            #        unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
-            #        unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
-            #        unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
-            #        unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
-            #        unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
-            #        unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
-            #        size_samples_gradients, size_samples_gradients, size_samples_gradients, 
-            #        tstep_samples, xloc_samples, xhloc_samples, 
-            #        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
-            #        flag_topwall_samples, flag_bottomwall_samples)
+                      ugradz_samples: float, samples of u-gradient w.r.t z on coarse grid
+
+                      vgradx_samples: float, samples of v-gradient w.r.t x on coarse grid
+
+                      vgrady_samples: float, samples of v-gradient w.r.t y on coarse grid
+
+                      vgradz_samples: float, samples of v-gradient w.r.t z on coarse grid
+
+                      wgradx_samples: float, samples of w-gradient w.r.t x on coarse grid
+
+                      wgrady_samples: float, samples of w-gradient w.r.t y on coarse grid
+
+                      wgradz_samples: float, samples of w-gradient w.r.t z on coarse grid
+
+                      pgradx_samples: float, samples of p-gradient w.r.t x on coarse grid
+
+                      pgrady_samples: float, samples of p-gradient w.r.t y on coarse grid
+    
+                      pgradz_samples: float, samples of p-gradient w.r.t z on coarse grid
+    
+                      unres_tau_xu_samples_upstream: float, samples of unres_tau_xu_upstream on coarse grid
+    
+                      unres_tau_xv_samples_upstream: float, samples of unres_tau_xv_upstream on coarse grid
+    
+                      unres_tau_xw_samples_upstream: float, samples of unres_tau_xw_upstream on coarse grid
+    
+                      unres_tau_yu_samples_upstream: float, samples of unres_tau_yu_upstream on coarse grid
+    
+                      unres_tau_yv_samples_upstream: float, samples of unres_tau_yv_upstream on coarse grid
+    
+                      unres_tau_yw_samples_upstream: float, samples of unres_tau_yw_upstream on coarse grid
+    
+                      unres_tau_zu_samples_upstream: float, samples of unres_tau_zu_upstream on coarse grid
+    
+                      unres_tau_zv_samples_upstream: float, samples of unres_tau_zv_upstream on coarse grid
+    
+                      unres_tau_zw_samples_upstream: float, samples of unres_tau_zw_upstream on coarse grid
+                      
+                      unres_tau_xu_samples_downstream: float, samples of unres_tau_xu_downstream on coarse grid
+    
+                      unres_tau_xv_samples_downstream: float, samples of unres_tau_xv_downstream on coarse grid
+    
+                      unres_tau_xw_samples_downstream: float, samples of unres_tau_xw_downstream on coarse grid
+    
+                      unres_tau_yu_samples_downstream: float, samples of unres_tau_yu_downstream on coarse grid
+    
+                      unres_tau_yv_samples_downstream: float, samples of unres_tau_yv_downstream on coarse grid
+    
+                      unres_tau_yw_samples_downstream: float, samples of unres_tau_yw_downstream on coarse grid
+    
+                      unres_tau_zu_samples_downstream: float, samples of unres_tau_zu_downstream on coarse grid
+    
+                      unres_tau_zv_samples_downstream: float, samples of unres_tau_zv_downstream on coarse grid
+    
+                      unres_tau_zw_samples_downstream: float, samples of unres_tau_zw_downstream on coarse grid
+    
+                      x_sample_size: integer, number of grid cells in x-direction selected in samples
+    
+                      y_sample_size: integer, number of grid cells in y-direction selected in samples
+    
+                      z_sample_size: integer, number of grid cells in z-direction selected in samples
+
+                      tstep_samples:  float, time step of sample
+                      
+                      xloc_samples:   float, location of samples in x-direction
+
+                      xhloc_samples:  float, location of samples in xh-direction
+
+                      yloc_samples:   float, location of samples in y-direction
+                      
+                      yhloc_samples:  float, location of samples in yh-direction
+     
+                      zloc_samples:   float, location of samples in z-direction
+                    
+                      zhloc_samples:  float, location of samples in zh-direction
+
+                      flag_topwall_samples: integer, flag indicating wheter loc is at the top wall
+
+                      flag_bottomwall_samples: integer, flag indicating wheter loc is at the bottom wall
+
+                      """
+                    writer = tf.python_io.TFRecordWriter(output_file)
+    
+                    for ugradx_sample, ugrady_sample, ugradz_sample, \
+                    vgradx_sample, vgrady_sample, vgradz_sample, \
+                    wgradx_sample, wgrady_sample, wgradz_sample, \
+                    pgradx_sample, pgrady_sample, pgradz_sample, \
+                    unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, \
+                    unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, \
+                    unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, \
+                    unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, \
+                    unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, \
+                    unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, \
+                    tstep_sample, xloc_sample, xhloc_sample, \
+                    yloc_sample, yhloc_sample, zloc_sample, zhloc_sample, \
+                    flag_topwall_sample, flag_bottomwall_sample in zip(
+                            ugradx_samples, ugrady_samples, ugradz_samples, 
+                            vgradx_samples, vgrady_samples, vgradz_samples, 
+                            wgradx_samples, wgrady_samples, wgradz_samples, 
+                            pgradx_samples, pgrady_samples, pgradz_samples, 
+                            unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
+                            unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
+                            unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
+                            unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
+                            unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
+                            unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+                            tstep_samples, xloc_samples, xhloc_samples, 
+                            yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                            flag_topwall_samples, flag_bottomwall_samples):
+
+                        example = _convert_to_example_gradients(
+                                ugradx_sample, ugrady_sample, ugradz_sample, 
+                                vgradx_sample, vgrady_sample, vgradz_sample, 
+                                wgradx_sample, wgrady_sample, wgradz_sample, 
+                                pgradx_sample, pgrady_sample, pgradz_sample, 
+                                unres_tau_xu_sample_upstream, unres_tau_xv_sample_upstream, unres_tau_xw_sample_upstream, 
+                                unres_tau_yu_sample_upstream, unres_tau_yv_sample_upstream, unres_tau_yw_sample_upstream, 
+                                unres_tau_zu_sample_upstream, unres_tau_zv_sample_upstream, unres_tau_zw_sample_upstream, 
+                                unres_tau_xu_sample_downstream, unres_tau_xv_sample_downstream, unres_tau_xw_sample_downstream, 
+                                unres_tau_yu_sample_downstream, unres_tau_yv_sample_downstream, unres_tau_yw_sample_downstream, 
+                                unres_tau_zu_sample_downstream, unres_tau_zv_sample_downstream, unres_tau_zw_sample_downstream, 
+                                x_sample_size, y_sample_size, z_sample_size, 
+                                tstep_sample, xloc_sample, xhloc_sample, 
+                                yloc_sample, yhloc_sample, zloc_sample, zhloc_sample,
+                                flag_topwall_sample, flag_bottomwall_sample)
+                        writer.write(example.SerializeToString())
+                
+                    writer.close()
+
+                #Create training data based on absolute wind velocities
+                output_file = os.path.join(output_directory, '{}_time_step_{}_of_{}_height_{}.tfrecords'.format('training', t+1, nt, zc[index_z_noghost]))
+                _process_image_files_batch(output_file, uc_samples, vc_samples, wc_samples, pc_samples, 
+                        unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
+                        unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
+                        unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
+                        unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
+                        unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
+                        unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+                        size_samples, size_samples, size_samples, 
+                        tstep_samples, xloc_samples, xhloc_samples, 
+                        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                        flag_topwall_samples, flag_bottomwall_samples)
+                
+                print('Finished writing file: %s' % output_file)
+
+                ##Create training data based on gradients
+                #output_file_gradients = os.path.join(output_directory, '{}_time_step_{}_of_{}_gradients.tfrecords'.format('training', t+1,nt)) 
+                #_process_image_files_batch_gradient(output_file_gradients, ugradx_samples, ugrady_samples, ugradz_samples,
+                #        vgradx_samples, vgrady_samples, vgradz_samples, 
+                #        wgradx_samples, wgrady_samples, wgradz_samples, 
+                #        pgradx_samples, pgrady_samples, pgradz_samples, 
+                #        unres_tau_xu_samples_upstream, unres_tau_xv_samples_upstream, unres_tau_xw_samples_upstream, 
+                #        unres_tau_yu_samples_upstream, unres_tau_yv_samples_upstream, unres_tau_yw_samples_upstream, 
+                #        unres_tau_zu_samples_upstream, unres_tau_zv_samples_upstream, unres_tau_zw_samples_upstream, 
+                #        unres_tau_xu_samples_downstream, unres_tau_xv_samples_downstream, unres_tau_xw_samples_downstream, 
+                #        unres_tau_yu_samples_downstream, unres_tau_yv_samples_downstream, unres_tau_yw_samples_downstream, 
+                #        unres_tau_zu_samples_downstream, unres_tau_zv_samples_downstream, unres_tau_zw_samples_downstream, 
+                #        size_samples_gradients, size_samples_gradients, size_samples_gradients, 
+                #        tstep_samples, xloc_samples, xhloc_samples, 
+                #        yloc_samples, yhloc_samples, zloc_samples, zhloc_samples,
+                #        flag_topwall_samples, flag_bottomwall_samples)
 
     #Close data file
     a.close()
@@ -1179,18 +1233,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varmeanvc            = means_stdev_file.createVariable("mean_vc","f8",("nt",))
         varmeanwc            = means_stdev_file.createVariable("mean_wc","f8",("nt",))
         varmeanpc            = means_stdev_file.createVariable("mean_pc","f8",("nt",))
-        varmeanugradx        = means_stdev_file.createVariable("mean_ugradx","f8",("nt",))
-        varmeanugrady        = means_stdev_file.createVariable("mean_ugrady","f8",("nt",))
-        varmeanugradz        = means_stdev_file.createVariable("mean_ugradz","f8",("nt",))
-        varmeanvgradx        = means_stdev_file.createVariable("mean_vgradx","f8",("nt",))
-        varmeanvgrady        = means_stdev_file.createVariable("mean_vgrady","f8",("nt",))
-        varmeanvgradz        = means_stdev_file.createVariable("mean_vgradz","f8",("nt",))
-        varmeanwgradx        = means_stdev_file.createVariable("mean_wgradx","f8",("nt",))
-        varmeanwgrady        = means_stdev_file.createVariable("mean_wgrady","f8",("nt",))
-        varmeanwgradz        = means_stdev_file.createVariable("mean_wgradz","f8",("nt",))
-        varmeanpgradx        = means_stdev_file.createVariable("mean_pgradx","f8",("nt",))
-        varmeanpgrady        = means_stdev_file.createVariable("mean_pgrady","f8",("nt",))
-        varmeanpgradz        = means_stdev_file.createVariable("mean_pgradz","f8",("nt",))
+        #varmeanugradx        = means_stdev_file.createVariable("mean_ugradx","f8",("nt",))
+        #varmeanugrady        = means_stdev_file.createVariable("mean_ugrady","f8",("nt",))
+        #varmeanugradz        = means_stdev_file.createVariable("mean_ugradz","f8",("nt",))
+        #varmeanvgradx        = means_stdev_file.createVariable("mean_vgradx","f8",("nt",))
+        #varmeanvgrady        = means_stdev_file.createVariable("mean_vgrady","f8",("nt",))
+        #varmeanvgradz        = means_stdev_file.createVariable("mean_vgradz","f8",("nt",))
+        #varmeanwgradx        = means_stdev_file.createVariable("mean_wgradx","f8",("nt",))
+        #varmeanwgrady        = means_stdev_file.createVariable("mean_wgrady","f8",("nt",))
+        #varmeanwgradz        = means_stdev_file.createVariable("mean_wgradz","f8",("nt",))
+        #varmeanpgradx        = means_stdev_file.createVariable("mean_pgradx","f8",("nt",))
+        #varmeanpgrady        = means_stdev_file.createVariable("mean_pgrady","f8",("nt",))
+        #varmeanpgradz        = means_stdev_file.createVariable("mean_pgradz","f8",("nt",))
         varmeanunrestauxu    = means_stdev_file.createVariable("mean_unres_tau_xu_sample","f8",("nt",))
         varmeanunrestauyu    = means_stdev_file.createVariable("mean_unres_tau_yu_sample","f8",("nt",))
         varmeanunrestauzu    = means_stdev_file.createVariable("mean_unres_tau_zu_sample","f8",("nt",))
@@ -1205,18 +1259,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varstdevvc           = means_stdev_file.createVariable("stdev_vc","f8",("nt",))
         varstdevwc           = means_stdev_file.createVariable("stdev_wc","f8",("nt",))
         varstdevpc           = means_stdev_file.createVariable("stdev_pc","f8",("nt",))
-        varstdevugradx       = means_stdev_file.createVariable("stdev_ugradx","f8",("nt",))
-        varstdevugrady       = means_stdev_file.createVariable("stdev_ugrady","f8",("nt",))
-        varstdevugradz       = means_stdev_file.createVariable("stdev_ugradz","f8",("nt",))
-        varstdevvgradx       = means_stdev_file.createVariable("stdev_vgradx","f8",("nt",))
-        varstdevvgrady       = means_stdev_file.createVariable("stdev_vgrady","f8",("nt",))
-        varstdevvgradz       = means_stdev_file.createVariable("stdev_vgradz","f8",("nt",))
-        varstdevwgradx       = means_stdev_file.createVariable("stdev_wgradx","f8",("nt",))
-        varstdevwgrady       = means_stdev_file.createVariable("stdev_wgrady","f8",("nt",))
-        varstdevwgradz       = means_stdev_file.createVariable("stdev_wgradz","f8",("nt",))
-        varstdevpgradx       = means_stdev_file.createVariable("stdev_pgradx","f8",("nt",))
-        varstdevpgrady       = means_stdev_file.createVariable("stdev_pgrady","f8",("nt",))
-        varstdevpgradz       = means_stdev_file.createVariable("stdev_pgradz","f8",("nt",))
+        #varstdevugradx       = means_stdev_file.createVariable("stdev_ugradx","f8",("nt",))
+        #varstdevugrady       = means_stdev_file.createVariable("stdev_ugrady","f8",("nt",))
+        #varstdevugradz       = means_stdev_file.createVariable("stdev_ugradz","f8",("nt",))
+        #varstdevvgradx       = means_stdev_file.createVariable("stdev_vgradx","f8",("nt",))
+        #varstdevvgrady       = means_stdev_file.createVariable("stdev_vgrady","f8",("nt",))
+        #varstdevvgradz       = means_stdev_file.createVariable("stdev_vgradz","f8",("nt",))
+        #varstdevwgradx       = means_stdev_file.createVariable("stdev_wgradx","f8",("nt",))
+        #varstdevwgrady       = means_stdev_file.createVariable("stdev_wgrady","f8",("nt",))
+        #varstdevwgradz       = means_stdev_file.createVariable("stdev_wgradz","f8",("nt",))
+        #varstdevpgradx       = means_stdev_file.createVariable("stdev_pgradx","f8",("nt",))
+        #varstdevpgrady       = means_stdev_file.createVariable("stdev_pgrady","f8",("nt",))
+        #varstdevpgradz       = means_stdev_file.createVariable("stdev_pgradz","f8",("nt",))
         varstdevunrestauxu   = means_stdev_file.createVariable("stdev_unres_tau_xu_sample","f8",("nt",))
         varstdevunrestauyu   = means_stdev_file.createVariable("stdev_unres_tau_yu_sample","f8",("nt",))
         varstdevunrestauzu   = means_stdev_file.createVariable("stdev_unres_tau_zu_sample","f8",("nt",))
@@ -1232,18 +1286,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varmeanvc[:]         = mean_vc[:]
         varmeanwc[:]         = mean_wc[:]
         varmeanpc[:]         = mean_pc[:]
-        varmeanugradx[:]     = mean_ugradx[:]
-        varmeanugrady[:]     = mean_ugrady[:]
-        varmeanugradz[:]     = mean_ugradz[:]
-        varmeanvgradx[:]     = mean_vgradx[:]
-        varmeanvgrady[:]     = mean_vgrady[:]
-        varmeanvgradz[:]     = mean_vgradz[:]
-        varmeanwgradx[:]     = mean_wgradx[:]
-        varmeanwgrady[:]     = mean_wgrady[:]
-        varmeanwgradz[:]     = mean_wgradz[:]
-        varmeanpgradx[:]     = mean_pgradx[:]
-        varmeanpgrady[:]     = mean_pgrady[:]
-        varmeanpgradz[:]     = mean_pgradz[:]
+        #varmeanugradx[:]     = mean_ugradx[:]
+        #varmeanugrady[:]     = mean_ugrady[:]
+        #varmeanugradz[:]     = mean_ugradz[:]
+        #varmeanvgradx[:]     = mean_vgradx[:]
+        #varmeanvgrady[:]     = mean_vgrady[:]
+        #varmeanvgradz[:]     = mean_vgradz[:]
+        #varmeanwgradx[:]     = mean_wgradx[:]
+        #varmeanwgrady[:]     = mean_wgrady[:]
+        #varmeanwgradz[:]     = mean_wgradz[:]
+        #varmeanpgradx[:]     = mean_pgradx[:]
+        #varmeanpgrady[:]     = mean_pgrady[:]
+        #varmeanpgradz[:]     = mean_pgradz[:]
         varmeanunrestauxu[:] = mean_unres_tau_xu[:]
         varmeanunrestauyu[:] = mean_unres_tau_yu[:]
         varmeanunrestauzu[:] = mean_unres_tau_zu[:]
@@ -1258,18 +1312,18 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         varstdevvc[:]         = stdev_vc[:]
         varstdevwc[:]         = stdev_wc[:]
         varstdevpc[:]         = stdev_pc[:]
-        varstdevugradx[:]     = stdev_ugradx[:]
-        varstdevugrady[:]     = stdev_ugrady[:]
-        varstdevugradz[:]     = stdev_ugradz[:]
-        varstdevvgradx[:]     = stdev_vgradx[:]
-        varstdevvgrady[:]     = stdev_vgrady[:]
-        varstdevvgradz[:]     = stdev_vgradz[:]
-        varstdevwgradx[:]     = stdev_wgradx[:]
-        varstdevwgrady[:]     = stdev_wgrady[:]
-        varstdevwgradz[:]     = stdev_wgradz[:]
-        varstdevpgradx[:]     = stdev_pgradx[:]
-        varstdevpgrady[:]     = stdev_pgrady[:]
-        varstdevpgradz[:]     = stdev_pgradz[:]
+        #varstdevugradx[:]     = stdev_ugradx[:]
+        #varstdevugrady[:]     = stdev_ugrady[:]
+        #varstdevugradz[:]     = stdev_ugradz[:]
+        #varstdevvgradx[:]     = stdev_vgradx[:]
+        #varstdevvgrady[:]     = stdev_vgrady[:]
+        #varstdevvgradz[:]     = stdev_vgradz[:]
+        #varstdevwgradx[:]     = stdev_wgradx[:]
+        #varstdevwgrady[:]     = stdev_wgrady[:]
+        #varstdevwgradz[:]     = stdev_wgradz[:]
+        #varstdevpgradx[:]     = stdev_pgradx[:]
+        #varstdevpgrady[:]     = stdev_pgrady[:]
+        #varstdevpgradz[:]     = stdev_pgradz[:]
         varstdevunrestauxu[:] = stdev_unres_tau_xu[:]
         varstdevunrestauyu[:] = stdev_unres_tau_yu[:]
         varstdevunrestauzu[:] = stdev_unres_tau_zu[:]
