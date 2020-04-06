@@ -154,7 +154,7 @@ if __name__ == '__main__':
     n_hidden_list = [1,2,4,8,16,32,64,128,256,512]; #Number of hidden neurons in each trained MLP, ordered according to the numbering of the MLPs
 
     for i in range(0,10): #Ensure ordering of trained MLPs is according to their numbering, which should be consistent with n_hidden_list
-        log_files_training += glob.glob("../CNN_checkpoints/real_data_MLP2" + str(i) + "/*tfevents*")
-        log_files_validation += glob.glob("../CNN_checkpoints/real_data_MLP2" + str(i) + "/eval_MLP1/*tfevents*")
-    save_path = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP20"
+        log_files_training += glob.glob("../CNN_checkpoints/real_data_MLP3" + str(i) + "/*tfevents*")
+        log_files_validation += glob.glob("../CNN_checkpoints/real_data_MLP3" + str(i) + "/eval_MLP1/*tfevents*")
+    save_path = "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP30"
     plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list, save_path)

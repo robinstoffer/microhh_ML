@@ -698,7 +698,8 @@ def model_fn(features, labels, mode, params):
                 'pred_tau_zw_downstream':output_denorm[:,17]}) 
     
     #Compute loss
-    mse_tau_total = tf.losses.mean_squared_error(labels_mask, output_layer_mask)
+    weights = tf.constant([[1,1,1,1,10,10,1,1,1,1,1,1,10,10,1,1,1,1]])
+    mse_tau_total = tf.losses.mean_squared_error(labels_mask, output_layer_mask, weights=weights)
     loss = tf.reduce_mean(mse_tau_total)
         
     #Define function to calculate the logarithm

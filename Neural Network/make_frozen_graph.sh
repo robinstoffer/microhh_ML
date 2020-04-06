@@ -1,5 +1,5 @@
 #!/bin/bash
-export MLPNUM=30
+export MLPNUM=36
 #Command used to create frozen graph:
 cd ~/microhh/cases/moser600/git_repository/Neural\ Network/
 python3 optimize_for_inference.py --input /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/inference_graph.pbtxt --output /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/optimized_inference_graph.pb --input_names input_u,input_v,input_w --placeholder_type_enum 1,1,1 --output_names output_layer_denorm,save/restore_all --frozen_graph=False #integers refer to data types in DataType enum; 1 is tf.float32, 9 is tf.int64

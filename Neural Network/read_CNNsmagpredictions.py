@@ -1003,7 +1003,7 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0, del
 
         #Make horizontal cross-sections of the values
         plt.figure()
-        plt.pcolormesh(x * delta/1000., y * delta/1000., values_height, vmin=-0.15, vmax=0.15)
+        plt.pcolormesh(x, y, values_height, vmin=-0.15, vmax=0.15)
         #plt.pcolormesh(x * delta, y * delta, values_height, vmin=-0.00015, vmax=0.00015)
         ax = plt.gca() 
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -1011,8 +1011,8 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0, del
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize=16)
         cbar.set_label(r'$\rm Subgrid\ transport\ {[m^{2}\ s^{-2}}]$',rotation=270,fontsize=20,labelpad=30)
-        plt.xlabel(r'$\rm x\ [km]$',fontsize=20)
-        plt.ylabel(r'$\rm y\ [km]$',fontsize=20)
+        plt.xlabel(r'$\rm x\ [-]$',fontsize=20)
+        plt.ylabel(r'$\rm y\ [-]$',fontsize=20)
         #plt.xticks(fontsize=16, rotation=90)
         plt.xticks(fontsize=16, rotation=0)
         plt.yticks(fontsize=16, rotation=0)
@@ -1125,12 +1125,12 @@ if args.make_table:
     
     with open(args.table_file, mode='w', newline='') as corrtab:
         corrtab_writer = csv.writer(corrtab, dialect='excel')
-        corrtab_writer.writerow(['height','tau_uu_ANN','tau_uv_ANN','tau_uw_ANN',
-            'tau_vu_ANN','tau_vv_ANN','tau_vw_ANN',
-            'tau_wu_ANN','tau_wv_ANN','tau_ww_ANN',
-            'tau_uu_smag','tau_uv_smag','tau_uw_smag',
-            'tau_vu_smag','tau_vv_smag','tau_vw_smag',
-            'tau_wu_smag','tau_wv_smag','tau_ww_smag'])
+        corrtab_writer.writerow(['height','tau_uu_ANN','tau_vu_ANN','tau_wu_ANN',
+            'tau_uv_ANN','tau_vv_ANN','tau_wv_ANN',
+            'tau_uw_ANN','tau_vw_ANN','tau_ww_ANN',
+            'tau_uu_smag','tau_vu_smag','tau_wu_smag',
+            'tau_uv_smag','tau_vv_smag','tau_wv_smag',
+            'tau_uw_smag','tau_vw_smag','tau_ww_smag'])
 
         #Consider all heights over all time steps
         corrcoef_xu_zall = np.round(np.corrcoef(unres_tau_xu_CNN.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
@@ -1199,6 +1199,81 @@ if args.make_table:
 
             corrtab_writer.writerow([zc[k],corrcoef_xu_z,corrcoef_yu_z,corrcoef_zu_z,corrcoef_xv_z,corrcoef_yv_z,corrcoef_zv_z,corrcoef_xw_z,corrcoef_yw_z,corrcoef_zw_z,corrcoef_xu_z_smag,corrcoef_yu_z_smag,corrcoef_zu_z_smag,corrcoef_xv_z_smag,corrcoef_yv_z_smag,corrcoef_zv_z_smag,corrcoef_xw_z_smag,corrcoef_yw_z_smag,corrcoef_zw_z_smag])
 
+        #Add entries for relative error
+        corrtab_writer.writerow([])
+        corrtab_writer.writerow(['height','re_uu_ANN','re_vu_ANN','re_wu_ANN',
+                're_uv_ANN','re_vv_ANN','re_wv_ANN',
+                're_uw_ANN','re_vw_ANN','re_ww_ANN',
+                're_uu_smag','re_vu_smag','re_wu_smag',
+                're_uv_smag','re_vv_smag','re_wv_smag',
+                're_uw_smag','re_vw_smag','re_ww_smag'])
+        
+        #Consider all heights over all time steps
+        re_xu_zall = np.round(np.mean((unres_tau_xu_CNN.flatten() - unres_tau_xu.flatten()) / unres_tau_xu.flatten()),3)
+        re_yu_zall = np.round(np.mean((unres_tau_yu_CNN.flatten() - unres_tau_yu.flatten()) / unres_tau_yu.flatten()),3)
+        re_zu_zall = np.round(np.mean((unres_tau_zu_CNN.flatten() - unres_tau_zu.flatten()) / unres_tau_zu.flatten()),3)
+        re_xv_zall = np.round(np.mean((unres_tau_xv_CNN.flatten() - unres_tau_xv.flatten()) / unres_tau_xv.flatten()),3)
+        re_yv_zall = np.round(np.mean((unres_tau_yv_CNN.flatten() - unres_tau_yv.flatten()) / unres_tau_yv.flatten()),3)
+        re_zv_zall = np.round(np.mean((unres_tau_zv_CNN.flatten() - unres_tau_zv.flatten()) / unres_tau_zv.flatten()),3)
+        re_xw_zall = np.round(np.mean((unres_tau_xw_CNN.flatten() - unres_tau_xw.flatten()) / unres_tau_xw.flatten()),3)
+        re_yw_zall = np.round(np.mean((unres_tau_yw_CNN.flatten() - unres_tau_yw.flatten()) / unres_tau_yw.flatten()),3)
+        re_zw_zall = np.round(np.mean((unres_tau_zw_CNN.flatten() - unres_tau_zw.flatten()) / unres_tau_zw.flatten()),3)
+        re_xu_zall_smag = np.round(np.mean((unres_tau_xu_smag.flatten() - unres_tau_xu.flatten()) / unres_tau_xu.flatten()),3)
+        re_yu_zall_smag = np.round(np.mean((unres_tau_yu_smag.flatten() - unres_tau_yu.flatten()) / unres_tau_yu.flatten()),3)
+        re_zu_zall_smag = np.round(np.mean((unres_tau_zu_smag.flatten() - unres_tau_zu.flatten()) / unres_tau_zu.flatten()),3)
+        re_xv_zall_smag = np.round(np.mean((unres_tau_xv_smag.flatten() - unres_tau_xv.flatten()) / unres_tau_xv.flatten()),3)
+        re_yv_zall_smag = np.round(np.mean((unres_tau_yv_smag.flatten() - unres_tau_yv.flatten()) / unres_tau_yv.flatten()),3)
+        re_zv_zall_smag = np.round(np.mean((unres_tau_zv_smag.flatten() - unres_tau_zv.flatten()) / unres_tau_zv.flatten()),3)
+        re_xw_zall_smag = np.round(np.mean((unres_tau_xw_smag.flatten() - unres_tau_xw.flatten()) / unres_tau_xw.flatten()),3)
+        re_yw_zall_smag = np.round(np.mean((unres_tau_yw_smag.flatten() - unres_tau_yw.flatten()) / unres_tau_yw.flatten()),3)
+        re_zw_zall_smag = np.round(np.mean((unres_tau_zw_smag.flatten() - unres_tau_zw.flatten()) / unres_tau_zw.flatten()),3)
+
+        corrtab_writer.writerow(['zall',re_xu_zall,re_yu_zall,re_zu_zall,re_xv_zall,re_yv_zall,re_zv_zall,re_xw_zall,re_yw_zall,re_zw_zall,re_xu_zall_smag,re_yu_zall_smag,re_zu_zall_smag,re_xv_zall_smag,re_yv_zall_smag,re_zv_zall_smag,re_xw_zall_smag,re_yw_zall_smag,re_zw_zall_smag])
+        
+        #Consider all heigts over all time steps, horizontally averaged
+        re_xu_zall_horavg = np.round(np.mean((unres_tau_xu_CNN_horavg.flatten() - unres_tau_xu_horavg.flatten()) / unres_tau_xu_horavg.flatten()),3)
+        re_yu_zall_horavg = np.round(np.mean((unres_tau_yu_CNN_horavg.flatten() - unres_tau_yu_horavg.flatten()) / unres_tau_yu_horavg.flatten()),3)
+        re_zu_zall_horavg = np.round(np.mean((unres_tau_zu_CNN_horavg.flatten() - unres_tau_zu_horavg.flatten()) / unres_tau_zu_horavg.flatten()),3)
+        re_xv_zall_horavg = np.round(np.mean((unres_tau_xv_CNN_horavg.flatten() - unres_tau_xv_horavg.flatten()) / unres_tau_xv_horavg.flatten()),3)
+        re_yv_zall_horavg = np.round(np.mean((unres_tau_yv_CNN_horavg.flatten() - unres_tau_yv_horavg.flatten()) / unres_tau_yv_horavg.flatten()),3)
+        re_zv_zall_horavg = np.round(np.mean((unres_tau_zv_CNN_horavg.flatten() - unres_tau_zv_horavg.flatten()) / unres_tau_zv_horavg.flatten()),3)
+        re_xw_zall_horavg = np.round(np.mean((unres_tau_xw_CNN_horavg.flatten() - unres_tau_xw_horavg.flatten()) / unres_tau_xw_horavg.flatten()),3)
+        re_yw_zall_horavg = np.round(np.mean((unres_tau_yw_CNN_horavg.flatten() - unres_tau_yw_horavg.flatten()) / unres_tau_yw_horavg.flatten()),3)
+        re_zw_zall_horavg = np.round(np.mean((unres_tau_zw_CNN_horavg.flatten() - unres_tau_zw_horavg.flatten()) / unres_tau_zw_horavg.flatten()),3)
+        re_xu_zall_horavg_smag = np.round(np.mean((unres_tau_xu_smag_horavg.flatten() - unres_tau_xu_horavg.flatten()) / unres_tau_xu_horavg.flatten()),3)
+        re_yu_zall_horavg_smag = np.round(np.mean((unres_tau_yu_smag_horavg.flatten() - unres_tau_yu_horavg.flatten()) / unres_tau_yu_horavg.flatten()),3)
+        re_zu_zall_horavg_smag = np.round(np.mean((unres_tau_zu_smag_horavg.flatten() - unres_tau_zu_horavg.flatten()) / unres_tau_zu_horavg.flatten()),3)
+        re_xv_zall_horavg_smag = np.round(np.mean((unres_tau_xv_smag_horavg.flatten() - unres_tau_xv_horavg.flatten()) / unres_tau_xv_horavg.flatten()),3)
+        re_yv_zall_horavg_smag = np.round(np.mean((unres_tau_yv_smag_horavg.flatten() - unres_tau_yv_horavg.flatten()) / unres_tau_yv_horavg.flatten()),3)
+        re_zv_zall_horavg_smag = np.round(np.mean((unres_tau_zv_smag_horavg.flatten() - unres_tau_zv_horavg.flatten()) / unres_tau_zv_horavg.flatten()),3)
+        re_xw_zall_horavg_smag = np.round(np.mean((unres_tau_xw_smag_horavg.flatten() - unres_tau_xw_horavg.flatten()) / unres_tau_xw_horavg.flatten()),3)
+        re_yw_zall_horavg_smag = np.round(np.mean((unres_tau_yw_smag_horavg.flatten() - unres_tau_yw_horavg.flatten()) / unres_tau_yw_horavg.flatten()),3)
+        re_zw_zall_horavg_smag = np.round(np.mean((unres_tau_zw_smag_horavg.flatten() - unres_tau_zw_horavg.flatten()) / unres_tau_zw_horavg.flatten()),3)
+
+        corrtab_writer.writerow(['zall_horavg',re_xu_zall_horavg,re_yu_zall_horavg,re_zu_zall_horavg,re_xv_zall_horavg,re_yv_zall_horavg,re_zv_zall_horavg,re_xw_zall_horavg,re_yw_zall_horavg,re_zw_zall_horavg,re_xu_zall_horavg_smag,re_yu_zall_horavg_smag,re_zu_zall_horavg_smag,re_xv_zall_horavg_smag,re_yv_zall_horavg_smag,re_zv_zall_horavg_smag,re_xw_zall_horavg_smag,re_yw_zall_horavg_smag,re_zw_zall_horavg_smag])
+            
+        #Consider each individual height
+        for k in range(nz):
+            re_xu_z = np.round(np.mean((unres_tau_xu_CNN[:,k,:,:].flatten() - unres_tau_xu[:,k,:,:].flatten()) / unres_tau_xu[:,k,:,:].flatten()),3)
+            re_yu_z = np.round(np.mean((unres_tau_yu_CNN[:,k,:,:].flatten() - unres_tau_yu[:,k,:,:].flatten()) / unres_tau_yu[:,k,:,:].flatten()),3)
+            re_zu_z = np.round(np.mean((unres_tau_zu_CNN[:,k,:,:].flatten() - unres_tau_zu[:,k,:,:].flatten()) / unres_tau_zu[:,k,:,:].flatten()),3)
+            re_xv_z = np.round(np.mean((unres_tau_xv_CNN[:,k,:,:].flatten() - unres_tau_xv[:,k,:,:].flatten()) / unres_tau_xv[:,k,:,:].flatten()),3)
+            re_yv_z = np.round(np.mean((unres_tau_yv_CNN[:,k,:,:].flatten() - unres_tau_yv[:,k,:,:].flatten()) / unres_tau_yv[:,k,:,:].flatten()),3)
+            re_zv_z = np.round(np.mean((unres_tau_zv_CNN[:,k,:,:].flatten() - unres_tau_zv[:,k,:,:].flatten()) / unres_tau_zv[:,k,:,:].flatten()),3)
+            re_xw_z = np.round(np.mean((unres_tau_xw_CNN[:,k,:,:].flatten() - unres_tau_xw[:,k,:,:].flatten()) / unres_tau_xw[:,k,:,:].flatten()),3)
+            re_yw_z = np.round(np.mean((unres_tau_yw_CNN[:,k,:,:].flatten() - unres_tau_yw[:,k,:,:].flatten()) / unres_tau_yw[:,k,:,:].flatten()),3)
+            re_zw_z = np.round(np.mean((unres_tau_zw_CNN[:,k,:,:].flatten() - unres_tau_zw[:,k,:,:].flatten()) / unres_tau_zw[:,k,:,:].flatten()),3)
+            re_xu_z_smag = np.round(np.mean((unres_tau_xu_smag[:,k,:,:].flatten() - unres_tau_xu[:,k,:,:].flatten()) / unres_tau_xu[:,k,:,:].flatten()),3)
+            re_yu_z_smag = np.round(np.mean((unres_tau_yu_smag[:,k,:,:].flatten() - unres_tau_yu[:,k,:,:].flatten()) / unres_tau_yu[:,k,:,:].flatten()),3)
+            re_zu_z_smag = np.round(np.mean((unres_tau_zu_smag[:,k,:,:].flatten() - unres_tau_zu[:,k,:,:].flatten()) / unres_tau_zu[:,k,:,:].flatten()),3)
+            re_xv_z_smag = np.round(np.mean((unres_tau_xv_smag[:,k,:,:].flatten() - unres_tau_xv[:,k,:,:].flatten()) / unres_tau_xv[:,k,:,:].flatten()),3)
+            re_yv_z_smag = np.round(np.mean((unres_tau_yv_smag[:,k,:,:].flatten() - unres_tau_yv[:,k,:,:].flatten()) / unres_tau_yv[:,k,:,:].flatten()),3)
+            re_zv_z_smag = np.round(np.mean((unres_tau_zv_smag[:,k,:,:].flatten() - unres_tau_zv[:,k,:,:].flatten()) / unres_tau_zv[:,k,:,:].flatten()),3)
+            re_xw_z_smag = np.round(np.mean((unres_tau_xw_smag[:,k,:,:].flatten() - unres_tau_xw[:,k,:,:].flatten()) / unres_tau_xw[:,k,:,:].flatten()),3)
+            re_yw_z_smag = np.round(np.mean((unres_tau_yw_smag[:,k,:,:].flatten() - unres_tau_yw[:,k,:,:].flatten()) / unres_tau_yw[:,k,:,:].flatten()),3)
+            re_zw_z_smag = np.round(np.mean((unres_tau_zw_smag[:,k,:,:].flatten() - unres_tau_zw[:,k,:,:].flatten()) / unres_tau_zw[:,k,:,:].flatten()),3)
+    
+            corrtab_writer.writerow([zc[k],re_xu_z,re_yu_z,re_zu_z,re_xv_z,re_yv_z,re_zv_z,re_xw_z,re_yw_z,re_zw_z,re_xu_z_smag,re_yu_z_smag,re_zu_z_smag,re_xv_z_smag,re_yv_z_smag,re_zv_z_smag,re_xw_z_smag,re_yw_z_smag,re_zw_z_smag])
     
     print('Finished making table')
 
@@ -1207,37 +1282,37 @@ if args.make_table:
 if args.make_plots:
     print('start making plots')
     
-    ##Make PDFs of labels and MLP predictions
-    #make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
-    #make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta_height)
-    #
-    ##Make horizontal cross-sections
-    ##NOTE1: some transport components are adjusted to convert them in a consistent way to equal shapes.
-    #make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu, zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xu_CNN, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu_CNN, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu_CNN, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv_CNN, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv_CNN, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv_CNN, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta_height)
+    #Make PDFs of labels and MLP predictions
+    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta_height)
+    
+    #Make horizontal cross-sections
+    #NOTE1: some transport components are adjusted to convert them in a consistent way to equal shapes.
+    make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu, zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xu_CNN, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu_CNN, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu_CNN, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv_CNN, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv_CNN, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv_CNN, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta_height)
     #Make scatterplots
     #NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
     make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
