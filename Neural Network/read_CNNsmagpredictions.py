@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import netCDF4 as nc
 #import tensorflow as tf
 import matplotlib as mpl
@@ -1122,158 +1123,225 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 #Write all relevant correlation coefficients to a table
 if args.make_table:
     print('start making table')
-    
-    with open(args.table_file, mode='w', newline='') as corrtab:
-        corrtab_writer = csv.writer(corrtab, dialect='excel')
-        corrtab_writer.writerow(['height','tau_uu_ANN','tau_vu_ANN','tau_wu_ANN',
-            'tau_uv_ANN','tau_vv_ANN','tau_wv_ANN',
-            'tau_uw_ANN','tau_vw_ANN','tau_ww_ANN',
-            'tau_uu_smag','tau_vu_smag','tau_wu_smag',
-            'tau_uv_smag','tau_vv_smag','tau_wv_smag',
-            'tau_uw_smag','tau_vw_smag','tau_ww_smag'])
+    heights = np.array(zc, dtype=object)
+    heights = np.insert(heights,0,'zall_horavg')
+    heights = np.insert(heights,0,'zall')
+    components = np.array(
+                ['tau_uu_ANN','tau_vu_ANN','tau_wu_ANN',
+                'tau_uv_ANN','tau_vv_ANN','tau_wv_ANN',
+                'tau_uw_ANN','tau_vw_ANN','tau_ww_ANN',
+                'tau_uu_smag','tau_vu_smag','tau_wu_smag',
+                'tau_uv_smag','tau_vv_smag','tau_wv_smag',
+                'tau_uw_smag','tau_vw_smag','tau_ww_smag'])
 
-        #Consider all heights over all time steps
-        corrcoef_xu_zall = np.round(np.corrcoef(unres_tau_xu_CNN.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yu_zall = np.round(np.corrcoef(unres_tau_yu_CNN.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zu_zall = np.round(np.corrcoef(unres_tau_zu_CNN.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xv_zall = np.round(np.corrcoef(unres_tau_xv_CNN.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yv_zall = np.round(np.corrcoef(unres_tau_yv_CNN.flatten(), unres_tau_yv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zv_zall = np.round(np.corrcoef(unres_tau_zv_CNN.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xw_zall = np.round(np.corrcoef(unres_tau_xw_CNN.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yw_zall = np.round(np.corrcoef(unres_tau_yw_CNN.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zw_zall = np.round(np.corrcoef(unres_tau_zw_CNN.flatten(), unres_tau_zw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xu_zall_smag = np.round(np.corrcoef(unres_tau_xu_smag.flatten(), unres_tau_xu_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yu_zall_smag = np.round(np.corrcoef(unres_tau_yu_smag.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zu_zall_smag = np.round(np.corrcoef(unres_tau_zu_smag.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xv_zall_smag = np.round(np.corrcoef(unres_tau_xv_smag.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yv_zall_smag = np.round(np.corrcoef(unres_tau_yv_smag.flatten(), unres_tau_yv_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zv_zall_smag = np.round(np.corrcoef(unres_tau_zv_smag.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xw_zall_smag = np.round(np.corrcoef(unres_tau_xw_smag.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yw_zall_smag = np.round(np.corrcoef(unres_tau_yw_smag.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zw_zall_smag = np.round(np.corrcoef(unres_tau_zw_smag.flatten(), unres_tau_zw_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    #Define arrays for storage
+    corrcoef_xu = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_yu = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_zu = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_xv = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_yv = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_zv = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_xw = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_yw = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_zw = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_xu_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_yu_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_zu_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_xv_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_yv_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_zv_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_xw_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_yw_smag = np.zeros((nz+2,),dtype=np.float32)
+    corrcoef_zw_smag = np.zeros((nz+2,),dtype=np.float32)
 
-        corrtab_writer.writerow(['zall',corrcoef_xu_zall,corrcoef_yu_zall,corrcoef_zu_zall,corrcoef_xv_zall,corrcoef_yv_zall,corrcoef_zv_zall,corrcoef_xw_zall,corrcoef_yw_zall,corrcoef_zw_zall,corrcoef_xu_zall_smag,corrcoef_yu_zall_smag,corrcoef_zu_zall_smag,corrcoef_xv_zall_smag,corrcoef_yv_zall_smag,corrcoef_zv_zall_smag,corrcoef_xw_zall_smag,corrcoef_yw_zall_smag,corrcoef_zw_zall_smag])
+    #Consider all heights over all time steps
+    corrcoef_xu[0] = np.round(np.corrcoef(unres_tau_xu_CNN.flatten(), unres_tau_xu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yu[0] = np.round(np.corrcoef(unres_tau_yu_CNN.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zu[0] = np.round(np.corrcoef(unres_tau_zu_CNN.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xv[0] = np.round(np.corrcoef(unres_tau_xv_CNN.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yv[0] = np.round(np.corrcoef(unres_tau_yv_CNN.flatten(), unres_tau_yv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zv[0] = np.round(np.corrcoef(unres_tau_zv_CNN.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xw[0] = np.round(np.corrcoef(unres_tau_xw_CNN.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yw[0] = np.round(np.corrcoef(unres_tau_yw_CNN.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zw[0] = np.round(np.corrcoef(unres_tau_zw_CNN.flatten(), unres_tau_zw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xu_smag[0] = np.round(np.corrcoef(unres_tau_xu_smag.flatten(), unres_tau_xu_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yu_smag[0] = np.round(np.corrcoef(unres_tau_yu_smag.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zu_smag[0] = np.round(np.corrcoef(unres_tau_zu_smag.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xv_smag[0] = np.round(np.corrcoef(unres_tau_xv_smag.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yv_smag[0] = np.round(np.corrcoef(unres_tau_yv_smag.flatten(), unres_tau_yv_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zv_smag[0] = np.round(np.corrcoef(unres_tau_zv_smag.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xw_smag[0] = np.round(np.corrcoef(unres_tau_xw_smag.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yw_smag[0] = np.round(np.corrcoef(unres_tau_yw_smag.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zw_smag[0] = np.round(np.corrcoef(unres_tau_zw_smag.flatten(), unres_tau_zw_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
  
-        #Consider all heights, horizontally averaged over all time steps
-        corrcoef_xu_zall_horavg      = np.round(np.corrcoef(unres_tau_xu_CNN_horavg.flatten(), unres_tau_xu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yu_zall_horavg      = np.round(np.corrcoef(unres_tau_yu_CNN_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zu_zall_horavg      = np.round(np.corrcoef(unres_tau_zu_CNN_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xv_zall_horavg      = np.round(np.corrcoef(unres_tau_xv_CNN_horavg.flatten(), unres_tau_xv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yv_zall_horavg      = np.round(np.corrcoef(unres_tau_yv_CNN_horavg.flatten(), unres_tau_yv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zv_zall_horavg      = np.round(np.corrcoef(unres_tau_zv_CNN_horavg.flatten(), unres_tau_zv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xw_zall_horavg      = np.round(np.corrcoef(unres_tau_xw_CNN_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yw_zall_horavg      = np.round(np.corrcoef(unres_tau_yw_CNN_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zw_zall_horavg      = np.round(np.corrcoef(unres_tau_zw_CNN_horavg.flatten(), unres_tau_zw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xu_zall_horavg_smag = np.round(np.corrcoef(unres_tau_xu_smag_horavg.flatten(), unres_tau_xu_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yu_zall_horavg_smag = np.round(np.corrcoef(unres_tau_yu_smag_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zu_zall_horavg_smag = np.round(np.corrcoef(unres_tau_zu_smag_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xv_zall_horavg_smag = np.round(np.corrcoef(unres_tau_xv_smag_horavg.flatten(), unres_tau_xv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yv_zall_horavg_smag = np.round(np.corrcoef(unres_tau_yv_smag_horavg.flatten(), unres_tau_yv_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zv_zall_horavg_smag = np.round(np.corrcoef(unres_tau_zv_smag_horavg.flatten(), unres_tau_zv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_xw_zall_horavg_smag = np.round(np.corrcoef(unres_tau_xw_smag_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_yw_zall_horavg_smag = np.round(np.corrcoef(unres_tau_yw_smag_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        corrcoef_zw_zall_horavg_smag = np.round(np.corrcoef(unres_tau_zw_smag_horavg.flatten(), unres_tau_zw_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    #Consider all heights, horizontally averaged over all time steps
+    corrcoef_xu[1]      = np.round(np.corrcoef(unres_tau_xu_CNN_horavg.flatten(), unres_tau_xu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yu[1]      = np.round(np.corrcoef(unres_tau_yu_CNN_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zu[1]      = np.round(np.corrcoef(unres_tau_zu_CNN_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xv[1]      = np.round(np.corrcoef(unres_tau_xv_CNN_horavg.flatten(), unres_tau_xv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yv[1]      = np.round(np.corrcoef(unres_tau_yv_CNN_horavg.flatten(), unres_tau_yv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zv[1]      = np.round(np.corrcoef(unres_tau_zv_CNN_horavg.flatten(), unres_tau_zv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xw[1]      = np.round(np.corrcoef(unres_tau_xw_CNN_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yw[1]      = np.round(np.corrcoef(unres_tau_yw_CNN_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zw[1]      = np.round(np.corrcoef(unres_tau_zw_CNN_horavg.flatten(), unres_tau_zw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xu_smag[1] = np.round(np.corrcoef(unres_tau_xu_smag_horavg.flatten(), unres_tau_xu_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yu_smag[1] = np.round(np.corrcoef(unres_tau_yu_smag_horavg.flatten(), unres_tau_yu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zu_smag[1] = np.round(np.corrcoef(unres_tau_zu_smag_horavg.flatten(), unres_tau_zu_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xv_smag[1] = np.round(np.corrcoef(unres_tau_xv_smag_horavg.flatten(), unres_tau_xv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yv_smag[1] = np.round(np.corrcoef(unres_tau_yv_smag_horavg.flatten(), unres_tau_yv_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zv_smag[1] = np.round(np.corrcoef(unres_tau_zv_smag_horavg.flatten(), unres_tau_zv_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_xw_smag[1] = np.round(np.corrcoef(unres_tau_xw_smag_horavg.flatten(), unres_tau_xw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_yw_smag[1] = np.round(np.corrcoef(unres_tau_yw_smag_horavg.flatten(), unres_tau_yw_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    corrcoef_zw_smag[1] = np.round(np.corrcoef(unres_tau_zw_smag_horavg.flatten(), unres_tau_zw_traceless_horavg.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
 
-        corrtab_writer.writerow(['zall_horavg',corrcoef_xu_zall_horavg,corrcoef_yu_zall_horavg,corrcoef_zu_zall_horavg,corrcoef_xv_zall_horavg,corrcoef_yv_zall_horavg,corrcoef_zv_zall_horavg,corrcoef_xw_zall_horavg,corrcoef_yw_zall_horavg,corrcoef_zw_zall_horavg,corrcoef_xu_zall_horavg_smag,corrcoef_yu_zall_horavg_smag,corrcoef_zu_zall_horavg_smag,corrcoef_xv_zall_horavg_smag,corrcoef_yv_zall_horavg_smag,corrcoef_zv_zall_horavg_smag,corrcoef_xw_zall_horavg_smag,corrcoef_yw_zall_horavg_smag,corrcoef_zw_zall_horavg_smag])
-        
-        #Consider each individual height
-        for k in range(nz):
-            corrcoef_xu_z = np.round(np.corrcoef(unres_tau_xu_CNN[:,k,:,:].flatten(), unres_tau_xu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yu_z = np.round(np.corrcoef(unres_tau_yu_CNN[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zu_z = np.round(np.corrcoef(unres_tau_zu_CNN[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xv_z = np.round(np.corrcoef(unres_tau_xv_CNN[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yv_z = np.round(np.corrcoef(unres_tau_yv_CNN[:,k,:,:].flatten(), unres_tau_yv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zv_z = np.round(np.corrcoef(unres_tau_zv_CNN[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xw_z = np.round(np.corrcoef(unres_tau_xw_CNN[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yw_z = np.round(np.corrcoef(unres_tau_yw_CNN[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zw_z = np.round(np.corrcoef(unres_tau_zw_CNN[:,k,:,:].flatten(), unres_tau_zw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xu_z_smag = np.round(np.corrcoef(unres_tau_xu_smag[:,k,:,:].flatten(), unres_tau_xu_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yu_z_smag = np.round(np.corrcoef(unres_tau_yu_smag[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zu_z_smag = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xv_z_smag = np.round(np.corrcoef(unres_tau_xv_smag[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yv_z_smag = np.round(np.corrcoef(unres_tau_yv_smag[:,k,:,:].flatten(), unres_tau_yv_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zv_z_smag = np.round(np.corrcoef(unres_tau_zv_smag[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xw_z_smag = np.round(np.corrcoef(unres_tau_xw_smag[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yw_z_smag = np.round(np.corrcoef(unres_tau_yw_smag[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zw_z_smag = np.round(np.corrcoef(unres_tau_zw_smag[:,k,:,:].flatten(), unres_tau_zw_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    #Consider each individual height
+    for k in range( nz):
+        corrcoef_xu[k+2] = np.round(np.corrcoef(unres_tau_xu_CNN[:,k,:,:].flatten(), unres_tau_xu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_yu[k+2] = np.round(np.corrcoef(unres_tau_yu_CNN[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_zu[k+2] = np.round(np.corrcoef(unres_tau_zu_CNN[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_xv[k+2] = np.round(np.corrcoef(unres_tau_xv_CNN[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_yv[k+2] = np.round(np.corrcoef(unres_tau_yv_CNN[:,k,:,:].flatten(), unres_tau_yv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_zv[k+2] = np.round(np.corrcoef(unres_tau_zv_CNN[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_xw[k+2] = np.round(np.corrcoef(unres_tau_xw_CNN[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_yw[k+2] = np.round(np.corrcoef(unres_tau_yw_CNN[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_zw[k+2] = np.round(np.corrcoef(unres_tau_zw_CNN[:,k,:,:].flatten(), unres_tau_zw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_xu_smag[k+2] = np.round(np.corrcoef(unres_tau_xu_smag[:,k,:,:].flatten(), unres_tau_xu_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_yu_smag[k+2] = np.round(np.corrcoef(unres_tau_yu_smag[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_zu_smag[k+2] = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_xv_smag[k+2] = np.round(np.corrcoef(unres_tau_xv_smag[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_yv_smag[k+2] = np.round(np.corrcoef(unres_tau_yv_smag[:,k,:,:].flatten(), unres_tau_yv_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_zv_smag[k+2] = np.round(np.corrcoef(unres_tau_zv_smag[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_xw_smag[k+2] = np.round(np.corrcoef(unres_tau_xw_smag[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_yw_smag[k+2] = np.round(np.corrcoef(unres_tau_yw_smag[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef_zw_smag[k+2] = np.round(np.corrcoef(unres_tau_zw_smag[:,k,:,:].flatten(), unres_tau_zw_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
 
-            corrtab_writer.writerow([zc[k],corrcoef_xu_z,corrcoef_yu_z,corrcoef_zu_z,corrcoef_xv_z,corrcoef_yv_z,corrcoef_zv_z,corrcoef_xw_z,corrcoef_yw_z,corrcoef_zw_z,corrcoef_xu_z_smag,corrcoef_yu_z_smag,corrcoef_zu_z_smag,corrcoef_xv_z_smag,corrcoef_yv_z_smag,corrcoef_zv_z_smag,corrcoef_xw_z_smag,corrcoef_yw_z_smag,corrcoef_zw_z_smag])
-
-        #Add entries for relative error
-        corrtab_writer.writerow([])
-        corrtab_writer.writerow(['height','re_uu_ANN','re_vu_ANN','re_wu_ANN',
-                're_uv_ANN','re_vv_ANN','re_wv_ANN',
-                're_uw_ANN','re_vw_ANN','re_ww_ANN',
-                're_uu_smag','re_vu_smag','re_wu_smag',
-                're_uv_smag','re_vv_smag','re_wv_smag',
-                're_uw_smag','re_vw_smag','re_ww_smag'])
-        
-        #Consider all heights over all time steps
-        re_xu_zall = np.round(np.mean((unres_tau_xu_CNN.flatten() - unres_tau_xu.flatten()) / unres_tau_xu.flatten()),3)
-        re_yu_zall = np.round(np.mean((unres_tau_yu_CNN.flatten() - unres_tau_yu.flatten()) / unres_tau_yu.flatten()),3)
-        re_zu_zall = np.round(np.mean((unres_tau_zu_CNN.flatten() - unres_tau_zu.flatten()) / unres_tau_zu.flatten()),3)
-        re_xv_zall = np.round(np.mean((unres_tau_xv_CNN.flatten() - unres_tau_xv.flatten()) / unres_tau_xv.flatten()),3)
-        re_yv_zall = np.round(np.mean((unres_tau_yv_CNN.flatten() - unres_tau_yv.flatten()) / unres_tau_yv.flatten()),3)
-        re_zv_zall = np.round(np.mean((unres_tau_zv_CNN.flatten() - unres_tau_zv.flatten()) / unres_tau_zv.flatten()),3)
-        re_xw_zall = np.round(np.mean((unres_tau_xw_CNN.flatten() - unres_tau_xw.flatten()) / unres_tau_xw.flatten()),3)
-        re_yw_zall = np.round(np.mean((unres_tau_yw_CNN.flatten() - unres_tau_yw.flatten()) / unres_tau_yw.flatten()),3)
-        re_zw_zall = np.round(np.mean((unres_tau_zw_CNN.flatten() - unres_tau_zw.flatten()) / unres_tau_zw.flatten()),3)
-        re_xu_zall_smag = np.round(np.mean((unres_tau_xu_smag.flatten() - unres_tau_xu.flatten()) / unres_tau_xu.flatten()),3)
-        re_yu_zall_smag = np.round(np.mean((unres_tau_yu_smag.flatten() - unres_tau_yu.flatten()) / unres_tau_yu.flatten()),3)
-        re_zu_zall_smag = np.round(np.mean((unres_tau_zu_smag.flatten() - unres_tau_zu.flatten()) / unres_tau_zu.flatten()),3)
-        re_xv_zall_smag = np.round(np.mean((unres_tau_xv_smag.flatten() - unres_tau_xv.flatten()) / unres_tau_xv.flatten()),3)
-        re_yv_zall_smag = np.round(np.mean((unres_tau_yv_smag.flatten() - unres_tau_yv.flatten()) / unres_tau_yv.flatten()),3)
-        re_zv_zall_smag = np.round(np.mean((unres_tau_zv_smag.flatten() - unres_tau_zv.flatten()) / unres_tau_zv.flatten()),3)
-        re_xw_zall_smag = np.round(np.mean((unres_tau_xw_smag.flatten() - unres_tau_xw.flatten()) / unres_tau_xw.flatten()),3)
-        re_yw_zall_smag = np.round(np.mean((unres_tau_yw_smag.flatten() - unres_tau_yw.flatten()) / unres_tau_yw.flatten()),3)
-        re_zw_zall_smag = np.round(np.mean((unres_tau_zw_smag.flatten() - unres_tau_zw.flatten()) / unres_tau_zw.flatten()),3)
-
-        corrtab_writer.writerow(['zall',re_xu_zall,re_yu_zall,re_zu_zall,re_xv_zall,re_yv_zall,re_zv_zall,re_xw_zall,re_yw_zall,re_zw_zall,re_xu_zall_smag,re_yu_zall_smag,re_zu_zall_smag,re_xv_zall_smag,re_yv_zall_smag,re_zv_zall_smag,re_xw_zall_smag,re_yw_zall_smag,re_zw_zall_smag])
-        
-        #Consider all heigts over all time steps, horizontally averaged
-        re_xu_zall_horavg = np.round(np.mean((unres_tau_xu_CNN_horavg.flatten() - unres_tau_xu_horavg.flatten()) / unres_tau_xu_horavg.flatten()),3)
-        re_yu_zall_horavg = np.round(np.mean((unres_tau_yu_CNN_horavg.flatten() - unres_tau_yu_horavg.flatten()) / unres_tau_yu_horavg.flatten()),3)
-        re_zu_zall_horavg = np.round(np.mean((unres_tau_zu_CNN_horavg.flatten() - unres_tau_zu_horavg.flatten()) / unres_tau_zu_horavg.flatten()),3)
-        re_xv_zall_horavg = np.round(np.mean((unres_tau_xv_CNN_horavg.flatten() - unres_tau_xv_horavg.flatten()) / unres_tau_xv_horavg.flatten()),3)
-        re_yv_zall_horavg = np.round(np.mean((unres_tau_yv_CNN_horavg.flatten() - unres_tau_yv_horavg.flatten()) / unres_tau_yv_horavg.flatten()),3)
-        re_zv_zall_horavg = np.round(np.mean((unres_tau_zv_CNN_horavg.flatten() - unres_tau_zv_horavg.flatten()) / unres_tau_zv_horavg.flatten()),3)
-        re_xw_zall_horavg = np.round(np.mean((unres_tau_xw_CNN_horavg.flatten() - unres_tau_xw_horavg.flatten()) / unres_tau_xw_horavg.flatten()),3)
-        re_yw_zall_horavg = np.round(np.mean((unres_tau_yw_CNN_horavg.flatten() - unres_tau_yw_horavg.flatten()) / unres_tau_yw_horavg.flatten()),3)
-        re_zw_zall_horavg = np.round(np.mean((unres_tau_zw_CNN_horavg.flatten() - unres_tau_zw_horavg.flatten()) / unres_tau_zw_horavg.flatten()),3)
-        re_xu_zall_horavg_smag = np.round(np.mean((unres_tau_xu_smag_horavg.flatten() - unres_tau_xu_horavg.flatten()) / unres_tau_xu_horavg.flatten()),3)
-        re_yu_zall_horavg_smag = np.round(np.mean((unres_tau_yu_smag_horavg.flatten() - unres_tau_yu_horavg.flatten()) / unres_tau_yu_horavg.flatten()),3)
-        re_zu_zall_horavg_smag = np.round(np.mean((unres_tau_zu_smag_horavg.flatten() - unres_tau_zu_horavg.flatten()) / unres_tau_zu_horavg.flatten()),3)
-        re_xv_zall_horavg_smag = np.round(np.mean((unres_tau_xv_smag_horavg.flatten() - unres_tau_xv_horavg.flatten()) / unres_tau_xv_horavg.flatten()),3)
-        re_yv_zall_horavg_smag = np.round(np.mean((unres_tau_yv_smag_horavg.flatten() - unres_tau_yv_horavg.flatten()) / unres_tau_yv_horavg.flatten()),3)
-        re_zv_zall_horavg_smag = np.round(np.mean((unres_tau_zv_smag_horavg.flatten() - unres_tau_zv_horavg.flatten()) / unres_tau_zv_horavg.flatten()),3)
-        re_xw_zall_horavg_smag = np.round(np.mean((unres_tau_xw_smag_horavg.flatten() - unres_tau_xw_horavg.flatten()) / unres_tau_xw_horavg.flatten()),3)
-        re_yw_zall_horavg_smag = np.round(np.mean((unres_tau_yw_smag_horavg.flatten() - unres_tau_yw_horavg.flatten()) / unres_tau_yw_horavg.flatten()),3)
-        re_zw_zall_horavg_smag = np.round(np.mean((unres_tau_zw_smag_horavg.flatten() - unres_tau_zw_horavg.flatten()) / unres_tau_zw_horavg.flatten()),3)
-
-        corrtab_writer.writerow(['zall_horavg',re_xu_zall_horavg,re_yu_zall_horavg,re_zu_zall_horavg,re_xv_zall_horavg,re_yv_zall_horavg,re_zv_zall_horavg,re_xw_zall_horavg,re_yw_zall_horavg,re_zw_zall_horavg,re_xu_zall_horavg_smag,re_yu_zall_horavg_smag,re_zu_zall_horavg_smag,re_xv_zall_horavg_smag,re_yv_zall_horavg_smag,re_zv_zall_horavg_smag,re_xw_zall_horavg_smag,re_yw_zall_horavg_smag,re_zw_zall_horavg_smag])
-            
-        #Consider each individual height
-        for k in range(nz):
-            re_xu_z = np.round(np.mean((unres_tau_xu_CNN[:,k,:,:].flatten() - unres_tau_xu[:,k,:,:].flatten()) / unres_tau_xu[:,k,:,:].flatten()),3)
-            re_yu_z = np.round(np.mean((unres_tau_yu_CNN[:,k,:,:].flatten() - unres_tau_yu[:,k,:,:].flatten()) / unres_tau_yu[:,k,:,:].flatten()),3)
-            re_zu_z = np.round(np.mean((unres_tau_zu_CNN[:,k,:,:].flatten() - unres_tau_zu[:,k,:,:].flatten()) / unres_tau_zu[:,k,:,:].flatten()),3)
-            re_xv_z = np.round(np.mean((unres_tau_xv_CNN[:,k,:,:].flatten() - unres_tau_xv[:,k,:,:].flatten()) / unres_tau_xv[:,k,:,:].flatten()),3)
-            re_yv_z = np.round(np.mean((unres_tau_yv_CNN[:,k,:,:].flatten() - unres_tau_yv[:,k,:,:].flatten()) / unres_tau_yv[:,k,:,:].flatten()),3)
-            re_zv_z = np.round(np.mean((unres_tau_zv_CNN[:,k,:,:].flatten() - unres_tau_zv[:,k,:,:].flatten()) / unres_tau_zv[:,k,:,:].flatten()),3)
-            re_xw_z = np.round(np.mean((unres_tau_xw_CNN[:,k,:,:].flatten() - unres_tau_xw[:,k,:,:].flatten()) / unres_tau_xw[:,k,:,:].flatten()),3)
-            re_yw_z = np.round(np.mean((unres_tau_yw_CNN[:,k,:,:].flatten() - unres_tau_yw[:,k,:,:].flatten()) / unres_tau_yw[:,k,:,:].flatten()),3)
-            re_zw_z = np.round(np.mean((unres_tau_zw_CNN[:,k,:,:].flatten() - unres_tau_zw[:,k,:,:].flatten()) / unres_tau_zw[:,k,:,:].flatten()),3)
-            re_xu_z_smag = np.round(np.mean((unres_tau_xu_smag[:,k,:,:].flatten() - unres_tau_xu[:,k,:,:].flatten()) / unres_tau_xu[:,k,:,:].flatten()),3)
-            re_yu_z_smag = np.round(np.mean((unres_tau_yu_smag[:,k,:,:].flatten() - unres_tau_yu[:,k,:,:].flatten()) / unres_tau_yu[:,k,:,:].flatten()),3)
-            re_zu_z_smag = np.round(np.mean((unres_tau_zu_smag[:,k,:,:].flatten() - unres_tau_zu[:,k,:,:].flatten()) / unres_tau_zu[:,k,:,:].flatten()),3)
-            re_xv_z_smag = np.round(np.mean((unres_tau_xv_smag[:,k,:,:].flatten() - unres_tau_xv[:,k,:,:].flatten()) / unres_tau_xv[:,k,:,:].flatten()),3)
-            re_yv_z_smag = np.round(np.mean((unres_tau_yv_smag[:,k,:,:].flatten() - unres_tau_yv[:,k,:,:].flatten()) / unres_tau_yv[:,k,:,:].flatten()),3)
-            re_zv_z_smag = np.round(np.mean((unres_tau_zv_smag[:,k,:,:].flatten() - unres_tau_zv[:,k,:,:].flatten()) / unres_tau_zv[:,k,:,:].flatten()),3)
-            re_xw_z_smag = np.round(np.mean((unres_tau_xw_smag[:,k,:,:].flatten() - unres_tau_xw[:,k,:,:].flatten()) / unres_tau_xw[:,k,:,:].flatten()),3)
-            re_yw_z_smag = np.round(np.mean((unres_tau_yw_smag[:,k,:,:].flatten() - unres_tau_yw[:,k,:,:].flatten()) / unres_tau_yw[:,k,:,:].flatten()),3)
-            re_zw_z_smag = np.round(np.mean((unres_tau_zw_smag[:,k,:,:].flatten() - unres_tau_zw[:,k,:,:].flatten()) / unres_tau_zw[:,k,:,:].flatten()),3)
+    #Add correlation coefficients to DataFrame
+    corr_coef = np.array(
+               [corrcoef_xu,corrcoef_yu,corrcoef_zu,
+                corrcoef_xv,corrcoef_yv,corrcoef_zv,
+                corrcoef_xw,corrcoef_yw,corrcoef_zw,
+                corrcoef_xu_smag,corrcoef_yu_smag,corrcoef_zu_smag,
+                corrcoef_xv_smag,corrcoef_yv_smag,corrcoef_zv_smag,
+                corrcoef_xw_smag,corrcoef_yw_smag,corrcoef_zw_smag]
+               ,dtype=np.float32)
     
-            corrtab_writer.writerow([zc[k],re_xu_z,re_yu_z,re_zu_z,re_xv_z,re_yv_z,re_zv_z,re_xw_z,re_yw_z,re_zw_z,re_xu_z_smag,re_yu_z_smag,re_zu_z_smag,re_xv_z_smag,re_yv_z_smag,re_zv_z_smag,re_xw_z_smag,re_yw_z_smag,re_zw_z_smag])
+    corr_table = pd.DataFrame(np.swapaxes(corr_coef,0,1), index = heights, columns = components)
+
+    def conditional_formatting(val):
+        if val < 0.5:
+            color='red'
+        else:
+            color='black'
+        return 'color: %s ' %color
+        
+    style_corr_table = corr_table.style.applymap(conditional_formatting)
+
+    #Save table to figure (code taken from StackOverflow)
+    def render_mpl_table(data, col_width=3.0, row_height=0.625, font_size=14,header_color='#40466e', row_colors=['#f1f1f2', 'w'], edge_color='w',bbox=[0, 0, 1, 1], header_columns=0,ax=None, row_color_map=None, **kwargs):
+
+        if ax is None:
+            size = (np.array(data.shape[::-1]) + np.array([1, 1])) * np.array([col_width, row_height]) #second numpy array found by trial and error: chosen such that the figure exactly fits the table
+            fig = plt.figure(figsize=size)
+            ax = plt.gca()
+            ax.axis('off')
+
+        #mpl_table = ax.table(cellText=data.values, bbox=bbox, colLabels=data.columns, rowLabels=data.index, **kwargs) #Uncomment when no conditional formatting should be applied
+        #Uncomment two lines below when conditional formatting should be applied
+        normal = np.minimum(np.maximum(data, 0.),1.) #Scale colors in range 0-1
+        mpl_table = ax.table(cellText=data.values, bbox=bbox, colLabels=data.columns, rowLabels=data.index, cellColours=plt.cm.jet(normal), **kwargs)
+        mpl_table.auto_set_font_size(False)
+        mpl_table.set_fontsize(font_size)
+
+        for k, cell in  mpl_table._cells.items():
+            cell.set_edgecolor(edge_color)
+            if k[0] == 0 or k[1] < header_columns:
+                cell.set_text_props(weight='bold', color='w')
+                cell.set_facecolor(header_color)
+            else:
+            #    cell.set_facecolor(row_colors[k[0]%len(row_colors)]) #Uncomment to make polished table for paper
+                #Do conditional formatting at line 1248
+                pass
+
+        #Save figure
+        fig.savefig('corr_table.png', bbox_inches='tight')
+
+    render_mpl_table(corr_table, header_columns=0, col_width=2.0, bbox=[0.02, 0, 1, 1])
+
+    ##Add entries for relative error
+    #corrtab_writer.writerow([])
+    #corrtab_writer.writerow(['height','re_uu_ANN','re_vu_ANN','re_wu_ANN',
+    #        're_uv_ANN','re_vv_ANN','re_wv_ANN',
+    #        're_uw_ANN','re_vw_ANN','re_ww_ANN',
+    #        're_uu_smag','re_vu_smag','re_wu_smag',
+    #        're_uv_smag','re_vv_smag','re_wv_smag',
+    #        're_uw_smag','re_vw_smag','re_ww_smag'])
+    #
+    ##Consider all heights over all time steps
+    #re_xu_zall = np.round(np.mean((unres_tau_xu_CNN.flatten() - unres_tau_xu.flatten()) / unres_tau_xu.flatten()),3)
+    #re_yu_zall = np.round(np.mean((unres_tau_yu_CNN.flatten() - unres_tau_yu.flatten()) / unres_tau_yu.flatten()),3)
+    #re_zu_zall = np.round(np.mean((unres_tau_zu_CNN.flatten() - unres_tau_zu.flatten()) / unres_tau_zu.flatten()),3)
+    #re_xv_zall = np.round(np.mean((unres_tau_xv_CNN.flatten() - unres_tau_xv.flatten()) / unres_tau_xv.flatten()),3)
+    #re_yv_zall = np.round(np.mean((unres_tau_yv_CNN.flatten() - unres_tau_yv.flatten()) / unres_tau_yv.flatten()),3)
+    #re_zv_zall = np.round(np.mean((unres_tau_zv_CNN.flatten() - unres_tau_zv.flatten()) / unres_tau_zv.flatten()),3)
+    #re_xw_zall = np.round(np.mean((unres_tau_xw_CNN.flatten() - unres_tau_xw.flatten()) / unres_tau_xw.flatten()),3)
+    #re_yw_zall = np.round(np.mean((unres_tau_yw_CNN.flatten() - unres_tau_yw.flatten()) / unres_tau_yw.flatten()),3)
+    #re_zw_zall = np.round(np.mean((unres_tau_zw_CNN.flatten() - unres_tau_zw.flatten()) / unres_tau_zw.flatten()),3)
+    #re_xu_zall_smag = np.round(np.mean((unres_tau_xu_smag.flatten() - unres_tau_xu.flatten()) / unres_tau_xu.flatten()),3)
+    #re_yu_zall_smag = np.round(np.mean((unres_tau_yu_smag.flatten() - unres_tau_yu.flatten()) / unres_tau_yu.flatten()),3)
+    #re_zu_zall_smag = np.round(np.mean((unres_tau_zu_smag.flatten() - unres_tau_zu.flatten()) / unres_tau_zu.flatten()),3)
+    #re_xv_zall_smag = np.round(np.mean((unres_tau_xv_smag.flatten() - unres_tau_xv.flatten()) / unres_tau_xv.flatten()),3)
+    #re_yv_zall_smag = np.round(np.mean((unres_tau_yv_smag.flatten() - unres_tau_yv.flatten()) / unres_tau_yv.flatten()),3)
+    #re_zv_zall_smag = np.round(np.mean((unres_tau_zv_smag.flatten() - unres_tau_zv.flatten()) / unres_tau_zv.flatten()),3)
+    #re_xw_zall_smag = np.round(np.mean((unres_tau_xw_smag.flatten() - unres_tau_xw.flatten()) / unres_tau_xw.flatten()),3)
+    #re_yw_zall_smag = np.round(np.mean((unres_tau_yw_smag.flatten() - unres_tau_yw.flatten()) / unres_tau_yw.flatten()),3)
+    #re_zw_zall_smag = np.round(np.mean((unres_tau_zw_smag.flatten() - unres_tau_zw.flatten()) / unres_tau_zw.flatten()),3)
+
+    #corrtab_writer.writerow(['zall',re_xu_zall,re_yu_zall,re_zu_zall,re_xv_zall,re_yv_zall,re_zv_zall,re_xw_zall,re_yw_zall,re_zw_zall,re_xu_zall_smag,re_yu_zall_smag,re_zu_zall_smag,re_xv_zall_smag,re_yv_zall_smag,re_zv_zall_smag,re_xw_zall_smag,re_yw_zall_smag,re_zw_zall_smag])
+    #
+    ##Consider all heigts over all time steps, horizontally averaged
+    #re_xu_zall_horavg = np.round(np.mean((unres_tau_xu_CNN_horavg.flatten() - unres_tau_xu_horavg.flatten()) / unres_tau_xu_horavg.flatten()),3)
+    #re_yu_zall_horavg = np.round(np.mean((unres_tau_yu_CNN_horavg.flatten() - unres_tau_yu_horavg.flatten()) / unres_tau_yu_horavg.flatten()),3)
+    #re_zu_zall_horavg = np.round(np.mean((unres_tau_zu_CNN_horavg.flatten() - unres_tau_zu_horavg.flatten()) / unres_tau_zu_horavg.flatten()),3)
+    #re_xv_zall_horavg = np.round(np.mean((unres_tau_xv_CNN_horavg.flatten() - unres_tau_xv_horavg.flatten()) / unres_tau_xv_horavg.flatten()),3)
+    #re_yv_zall_horavg = np.round(np.mean((unres_tau_yv_CNN_horavg.flatten() - unres_tau_yv_horavg.flatten()) / unres_tau_yv_horavg.flatten()),3)
+    #re_zv_zall_horavg = np.round(np.mean((unres_tau_zv_CNN_horavg.flatten() - unres_tau_zv_horavg.flatten()) / unres_tau_zv_horavg.flatten()),3)
+    #re_xw_zall_horavg = np.round(np.mean((unres_tau_xw_CNN_horavg.flatten() - unres_tau_xw_horavg.flatten()) / unres_tau_xw_horavg.flatten()),3)
+    #re_yw_zall_horavg = np.round(np.mean((unres_tau_yw_CNN_horavg.flatten() - unres_tau_yw_horavg.flatten()) / unres_tau_yw_horavg.flatten()),3)
+    #re_zw_zall_horavg = np.round(np.mean((unres_tau_zw_CNN_horavg.flatten() - unres_tau_zw_horavg.flatten()) / unres_tau_zw_horavg.flatten()),3)
+    #re_xu_zall_horavg_smag = np.round(np.mean((unres_tau_xu_smag_horavg.flatten() - unres_tau_xu_horavg.flatten()) / unres_tau_xu_horavg.flatten()),3)
+    #re_yu_zall_horavg_smag = np.round(np.mean((unres_tau_yu_smag_horavg.flatten() - unres_tau_yu_horavg.flatten()) / unres_tau_yu_horavg.flatten()),3)
+    #re_zu_zall_horavg_smag = np.round(np.mean((unres_tau_zu_smag_horavg.flatten() - unres_tau_zu_horavg.flatten()) / unres_tau_zu_horavg.flatten()),3)
+    #re_xv_zall_horavg_smag = np.round(np.mean((unres_tau_xv_smag_horavg.flatten() - unres_tau_xv_horavg.flatten()) / unres_tau_xv_horavg.flatten()),3)
+    #re_yv_zall_horavg_smag = np.round(np.mean((unres_tau_yv_smag_horavg.flatten() - unres_tau_yv_horavg.flatten()) / unres_tau_yv_horavg.flatten()),3)
+    #re_zv_zall_horavg_smag = np.round(np.mean((unres_tau_zv_smag_horavg.flatten() - unres_tau_zv_horavg.flatten()) / unres_tau_zv_horavg.flatten()),3)
+    #re_xw_zall_horavg_smag = np.round(np.mean((unres_tau_xw_smag_horavg.flatten() - unres_tau_xw_horavg.flatten()) / unres_tau_xw_horavg.flatten()),3)
+    #re_yw_zall_horavg_smag = np.round(np.mean((unres_tau_yw_smag_horavg.flatten() - unres_tau_yw_horavg.flatten()) / unres_tau_yw_horavg.flatten()),3)
+    #re_zw_zall_horavg_smag = np.round(np.mean((unres_tau_zw_smag_horavg.flatten() - unres_tau_zw_horavg.flatten()) / unres_tau_zw_horavg.flatten()),3)
+
+    #corrtab_writer.writerow(['zall_horavg',re_xu_zall_horavg,re_yu_zall_horavg,re_zu_zall_horavg,re_xv_zall_horavg,re_yv_zall_horavg,re_zv_zall_horavg,re_xw_zall_horavg,re_yw_zall_horavg,re_zw_zall_horavg,re_xu_zall_horavg_smag,re_yu_zall_horavg_smag,re_zu_zall_horavg_smag,re_xv_zall_horavg_smag,re_yv_zall_horavg_smag,re_zv_zall_horavg_smag,re_xw_zall_horavg_smag,re_yw_zall_horavg_smag,re_zw_zall_horavg_smag])
+    #    
+    ##Consider each individual height
+    #for k in range(nz):
+    #    re_xu_z = np.round(np.mean((unres_tau_xu_CNN[:,k,:,:].flatten() - unres_tau_xu[:,k,:,:].flatten()) / unres_tau_xu[:,k,:,:].flatten()),3)
+    #    re_yu_z = np.round(np.mean((unres_tau_yu_CNN[:,k,:,:].flatten() - unres_tau_yu[:,k,:,:].flatten()) / unres_tau_yu[:,k,:,:].flatten()),3)
+    #    re_zu_z = np.round(np.mean((unres_tau_zu_CNN[:,k,:,:].flatten() - unres_tau_zu[:,k,:,:].flatten()) / unres_tau_zu[:,k,:,:].flatten()),3)
+    #    re_xv_z = np.round(np.mean((unres_tau_xv_CNN[:,k,:,:].flatten() - unres_tau_xv[:,k,:,:].flatten()) / unres_tau_xv[:,k,:,:].flatten()),3)
+    #    re_yv_z = np.round(np.mean((unres_tau_yv_CNN[:,k,:,:].flatten() - unres_tau_yv[:,k,:,:].flatten()) / unres_tau_yv[:,k,:,:].flatten()),3)
+    #    re_zv_z = np.round(np.mean((unres_tau_zv_CNN[:,k,:,:].flatten() - unres_tau_zv[:,k,:,:].flatten()) / unres_tau_zv[:,k,:,:].flatten()),3)
+    #    re_xw_z = np.round(np.mean((unres_tau_xw_CNN[:,k,:,:].flatten() - unres_tau_xw[:,k,:,:].flatten()) / unres_tau_xw[:,k,:,:].flatten()),3)
+    #    re_yw_z = np.round(np.mean((unres_tau_yw_CNN[:,k,:,:].flatten() - unres_tau_yw[:,k,:,:].flatten()) / unres_tau_yw[:,k,:,:].flatten()),3)
+    #    re_zw_z = np.round(np.mean((unres_tau_zw_CNN[:,k,:,:].flatten() - unres_tau_zw[:,k,:,:].flatten()) / unres_tau_zw[:,k,:,:].flatten()),3)
+    #    re_xu_z_smag = np.round(np.mean((unres_tau_xu_smag[:,k,:,:].flatten() - unres_tau_xu[:,k,:,:].flatten()) / unres_tau_xu[:,k,:,:].flatten()),3)
+    #    re_yu_z_smag = np.round(np.mean((unres_tau_yu_smag[:,k,:,:].flatten() - unres_tau_yu[:,k,:,:].flatten()) / unres_tau_yu[:,k,:,:].flatten()),3)
+    #    re_zu_z_smag = np.round(np.mean((unres_tau_zu_smag[:,k,:,:].flatten() - unres_tau_zu[:,k,:,:].flatten()) / unres_tau_zu[:,k,:,:].flatten()),3)
+    #    re_xv_z_smag = np.round(np.mean((unres_tau_xv_smag[:,k,:,:].flatten() - unres_tau_xv[:,k,:,:].flatten()) / unres_tau_xv[:,k,:,:].flatten()),3)
+    #    re_yv_z_smag = np.round(np.mean((unres_tau_yv_smag[:,k,:,:].flatten() - unres_tau_yv[:,k,:,:].flatten()) / unres_tau_yv[:,k,:,:].flatten()),3)
+    #    re_zv_z_smag = np.round(np.mean((unres_tau_zv_smag[:,k,:,:].flatten() - unres_tau_zv[:,k,:,:].flatten()) / unres_tau_zv[:,k,:,:].flatten()),3)
+    #    re_xw_z_smag = np.round(np.mean((unres_tau_xw_smag[:,k,:,:].flatten() - unres_tau_xw[:,k,:,:].flatten()) / unres_tau_xw[:,k,:,:].flatten()),3)
+    #    re_yw_z_smag = np.round(np.mean((unres_tau_yw_smag[:,k,:,:].flatten() - unres_tau_yw[:,k,:,:].flatten()) / unres_tau_yw[:,k,:,:].flatten()),3)
+    #    re_zw_z_smag = np.round(np.mean((unres_tau_zw_smag[:,k,:,:].flatten() - unres_tau_zw[:,k,:,:].flatten()) / unres_tau_zw[:,k,:,:].flatten()),3)
+    #
+    #    corrtab_writer.writerow([zc[k],re_xu_z,re_yu_z,re_zu_z,re_xv_z,re_yv_z,re_zv_z,re_xw_z,re_yw_z,re_zw_z,re_xu_z_smag,re_yu_z_smag,re_zu_z_smag,re_xv_z_smag,re_yv_z_smag,re_zv_z_smag,re_xw_z_smag,re_yw_z_smag,re_zw_z_smag])
     
     print('Finished making table')
 
