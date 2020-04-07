@@ -68,7 +68,7 @@ args = parser.parse_args()
 
 #Define parse function for tfrecord files, which gives for each component in the example_proto 
 #the output in format (dict(features),tensor(labels)) and normalizes according to specified means and variances.
-def _parse_function(example_proto,means,stdevs):
+def _parse_function(example_proto):
 
     if args.gradients is None:
 
@@ -139,8 +139,8 @@ def _parse_function(example_proto,means,stdevs):
             }
 
             
-        #parsed_features = tf.parse_single_example(example_proto, keys_to_features) #Uncomment when .batch() applied after .map()
-        parsed_features = tf.parse_example(example_proto, keys_to_features)
+        parsed_features = tf.parse_single_example(example_proto, keys_to_features) #Uncomment when .batch() applied after .map()
+        #parsed_features = tf.parse_example(example_proto, keys_to_features)
         #parsed_features['uc_sample'] = _standardization(parsed_features['uc_sample'], means['uc'], stdevs['uc'])
         #parsed_features['vc_sample'] = _standardization(parsed_features['vc_sample'], means['vc'], stdevs['vc'])
         #parsed_features['wc_sample'] = _standardization(parsed_features['wc_sample'], means['wc'], stdevs['wc'])
@@ -229,8 +229,8 @@ def _parse_function(example_proto,means,stdevs):
                 'flag_bottomwall_sample':tf.FixedLenFeature([],tf.int64)
             }
 
-        #parsed_features = tf.parse_single_example(example_proto, keys_to_features) #Uncomment when .batch() is applied after .map()
-        parsed_features = tf.parse_example(example_proto, keys_to_features)
+        parsed_features = tf.parse_single_example(example_proto, keys_to_features) #Uncomment when .batch() is applied after .map()
+        #parsed_features = tf.parse_example(example_proto, keys_to_features)
     
     #Extract labels from the features dictionary, and stack them in a new labels array.
     labels = {}
@@ -253,6 +253,7 @@ def _parse_function(example_proto,means,stdevs):
     labels['unres_tau_yw_downstream'] =  parsed_features.pop('unres_tau_yw_sample_downstream')
     labels['unres_tau_zw_downstream'] =  parsed_features.pop('unres_tau_zw_sample_downstream')
 
+    #Uncomment when parse_single_example is used
     labels = tf.stack([ 
         labels['unres_tau_xu_upstream'], labels['unres_tau_xu_downstream'], 
         labels['unres_tau_yu_upstream'], labels['unres_tau_yu_downstream'],
@@ -265,30 +266,43 @@ def _parse_function(example_proto,means,stdevs):
         labels['unres_tau_zw_upstream'], labels['unres_tau_zw_downstream']
         ], axis=0)
 
+    ##Uncomment when parse_example is used
+    #labels = tf.stack([ 
+    #    labels['unres_tau_xu_upstream'], labels['unres_tau_xu_downstream'], 
+    #    labels['unres_tau_yu_upstream'], labels['unres_tau_yu_downstream'],
+    #    labels['unres_tau_zu_upstream'], labels['unres_tau_zu_downstream'],
+    #    labels['unres_tau_xv_upstream'], labels['unres_tau_xv_downstream'],
+    #    labels['unres_tau_yv_upstream'], labels['unres_tau_yv_downstream'],
+    #    labels['unres_tau_zv_upstream'], labels['unres_tau_zv_downstream'],
+    #    labels['unres_tau_xw_upstream'], labels['unres_tau_xw_downstream'],
+    #    labels['unres_tau_yw_upstream'], labels['unres_tau_yw_downstream'],
+    #    labels['unres_tau_zw_upstream'], labels['unres_tau_zw_downstream']
+    #    ], axis=1)
     return parsed_features,labels
 
 
 #Define training input function
-def train_input_fn(filenames, batch_size, means, stdevs):
+def train_input_fn(filenames, samples_per_tfrecord):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
+    #dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
-    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
-    dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated. 
+    dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
+    dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated.    
     dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over
-    #dataset = dataset.batch(batch_size)
+    dataset = dataset.batch(samples_per_tfrecord, drop_remainder=False)
     dataset = dataset.repeat()
     dataset.prefetch(1)
 
     return dataset
 
 #Define evaluation function
-def eval_input_fn(filenames, batch_size, means, stdevs):
+def eval_input_fn(filenames, samples_per_tfrecord):
     dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
+    #dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
-    dataset = dataset.map(lambda line:_parse_function(line, means, stdevs), num_parallel_calls=ncores)
-    dataset = dataset.cache() 
+    dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores)
+    dataset = dataset.cache()
+    dataset = dataset.batch(samples_per_tfrecord, drop_remainder=False)
     #dataset = dataset.batch(batch_size)
     dataset.prefetch(1)
 
@@ -336,7 +350,7 @@ def create_MLP(inputs, name_MLP, params):
 #Define model function for MLP estimator
 def model_fn(features, labels, mode, params):
     '''Model function which calls create_MLP multiple times to build MLPs that each predict some of the labels. These separate MLPs are trained separately, but combined in validation and inference mode. \\
-            NOTE: this function accesses the global variables args.gradients, means_dict_avgt, stdevs_dict_avgt, and utau_ref.'''
+            NOTE: this function accesses the global variables args.gradients, means_dict_avgt, stdevs_dict_avgt, utau_ref, and samples_per_tfrecord.'''
 
     #Define tf.constants for storing the means and stdevs of the input variables & labels, which is needed for the normalisation and subsequent denormalisation in this graph
     #NOTE: the means and stdevs for the '_upstream' and '_downstream' labels are the same. This is why each mean and stdev is repeated twice.
@@ -431,8 +445,14 @@ def model_fn(features, labels, mode, params):
     #Define identity ops for input variables, which can be used to set-up a frozen graph for inference.
     if args.gradients is None:
         input_u      = tf.identity(features['uc_sample'], name = 'input_u')
+        a1 = tf.print("input_u: ", input_u, output_stream=tf.logging.info, summarize=-1)
+        a5 = tf.print("input_u_shape: ", tf.shape(input_u), output_stream=tf.logging.info, summarize=-1)
         input_v      = tf.identity(features['vc_sample'], name = 'input_v')
+        a2 = tf.print("input_v: ", input_u, output_stream=tf.logging.info, summarize=-1)
+        a6 = tf.print("input_v_shape: ", tf.shape(input_v), output_stream=tf.logging.info, summarize=-1)
         input_w      = tf.identity(features['wc_sample'], name = 'input_w')
+        a3 = tf.print("input_w: ", input_u, output_stream=tf.logging.info, summarize=-1)
+        a7 = tf.print("input_w_shape: ", tf.shape(input_w), output_stream=tf.logging.info, summarize=-1)
         #input_p      = tf.identity(features['pc_sample'], name = 'input_p')
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
@@ -451,7 +471,7 @@ def model_fn(features, labels, mode, params):
         #input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
         #input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
-        input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
+        input_utau_ref = tf.constant(utau_ref, name = 'utau_ref') 
 
     #Define function to make input variables non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
@@ -502,7 +522,8 @@ def model_fn(features, labels, mode, params):
     #Standardize labels
     #NOTE: the labels are already made dimensionless in the training data procedure, and thus in contrast to the inputs do not have to be multiplied by a scaling factor. 
     with tf.name_scope("standardization_labels"): #Group nodes in name scope for easier visualisation in TensorBoard
-        #a3 = tf.print("labels: ", labels[0,:], output_stream=tf.logging.info, summarize=-1)
+        a4 = tf.print("labels: ", labels, output_stream=tf.logging.info, summarize=-1)
+        a8 = tf.print("labels: ", tf.shape(labels), output_stream=tf.logging.info, summarize=-1)
         labels_means = tf.math.subtract(labels, means_labels)
         #a4 = tf.print("labels_means: ", labels_means[0,:], output_stream=tf.logging.info, summarize=-1)
         labels_stand = tf.math.divide(labels_means, stdevs_labels, name = 'labels_stand')
@@ -631,9 +652,10 @@ def model_fn(features, labels, mode, params):
     #Visualize outputs in TensorBoard
     tf.summary.histogram('output_layer_tot', output_layer_tot)
 
-    ##Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
-    #with tf.control_dependencies([a3,a4,a5,a8]):
-    #    output_layer_mask = tf.identity(output_layer_mask)
+    #Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
+    with tf.control_dependencies([a5,a6,a7,a8]):
+        #output_layer_mask = tf.identity(output_layer_mask)
+        output_layer_tot  = tf.identity(output_layer_tot)
     
     #Denormalize the output fluxes for inference/prediction
     #NOTE1: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
@@ -743,7 +765,6 @@ def model_fn(features, labels, mode, params):
 
 #Define settings
 #batch_size = int(args.batch_size)
-batch_size = 1 #Uncomment when each tfrecord file corresponds to one batch
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 num_labels = 6 #Number of predicted transport components for each sub-MLP
 random_seed = 1234
@@ -804,6 +825,14 @@ print("Training files:")
 print(train_filenames)
 print("Validation files:")
 print(val_filenames)
+
+#Calculate number of samples per tfrecord, used to ensure that each tfrecord corresponds to one batch. The calculated value is printed to check that the number of stored samples is indeed correct
+#NOTE1: this relatively complicated solution is needed because no high-level API exists to determine this
+#NOTE2: it is assumed that EACH tfrecord file contains the same number of records!!!
+samples_per_tfrecord = 0
+for record in tf.python_io.tf_record_iterator(train_filenames[0]):
+    samples_per_tfrecord += 1
+print("Samples per tfrecord: ", samples_per_tfrecord)
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
@@ -987,8 +1016,8 @@ else:
     hooks = [profiler_hook]
 
 #Train and evaluate MLP
-train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), max_steps=num_steps, hooks=hooks)
-eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size, means_dict_avgt, stdevs_dict_avgt), steps=None, name='MLP1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
+train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, samples_per_tfrecord), max_steps=num_steps, hooks=hooks)
+eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, samples_per_tfrecord), steps=None, name='MLP1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
 tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 
 #NOTE: MLP.predict appeared to be unsuitable to compare the predictions from the MLP to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
@@ -1018,7 +1047,7 @@ for val_filename in val_filenames:
     tf.reset_default_graph() #Reset the graph for each tfrecord (i.e. each flow 'snapshot')
 
     #Generate iterator to extract features and labels from tfrecords
-    iterator = eval_input_fn([val_filename], batch_size, means_dict_avgt, stdevs_dict_avgt).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
+    iterator = eval_input_fn([val_filename], samples_per_tfrecord).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
 
     #Define operation to extract features and labels from iterator
     fes, lbls = iterator.get_next()
