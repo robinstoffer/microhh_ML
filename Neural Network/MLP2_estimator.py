@@ -783,22 +783,28 @@ nt_total = 30 #Amount of time steps INCLUDING all produced tfrecord files (also 
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
 time_numbers = np.arange(nt_available)
 train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1) #Set aside 10% of files for validation.
-train_filenames = np.zeros((len(train_stepnumbers)*len(heights),), dtype=object)
+train_filenames = np.zeros((len(train_stepnumbers)*(len(heights)+50),), dtype=object)
 val_filenames   = np.zeros((len(val_stepnumbers)*len(heights),), dtype=object)
 
 i=0
 for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
 
     k=0
+    n=0
     for height in heights: #Loop over all vertical levels where samples are stored
 
-        if args.gradients is None:
-            train_filenames[i*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
-        else:
-            train_filenames[i*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
-      
-        k+=1
+        #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
+        
+        number_added = max(max(10-2*k,1),10-2*(len(heights)-1-k))
 
+        for c in range(number_added):
+
+            if args.gradients is None:
+                train_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
+            else:
+                train_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
+            n+=1
+        k+=1
     i+=1
 
 j=0
@@ -816,15 +822,17 @@ for val_stepnumber in val_stepnumbers: #Generate validation filenames from selec
 
     j+=1
 
+#Print filenames to check
+np.set_printoptions(threshold=np.inf)
+print("Training files:")
+print(train_filenames)
+print(train_filenames.shape)
+print("Validation files:")
+print(val_filenames)
+
 #Randomly shuffle filenames
 np.random.shuffle(train_filenames)
 np.random.shuffle(val_filenames)
-
-#Print filenames to check
-print("Training files:")
-print(train_filenames)
-print("Validation files:")
-print(val_filenames)
 
 #Calculate number of samples per tfrecord, used to ensure that each tfrecord corresponds to one batch. The calculated value is printed to check that the number of stored samples is indeed correct
 #NOTE1: this relatively complicated solution is needed because no high-level API exists to determine this

@@ -88,7 +88,7 @@ mkdir /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predic
 cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP$MLPNUM
 
 #Make CNN/Smag predictions and reconstruct fields
-python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --table_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/corr_ANN_smag_${MLPNUM}.csv" --make_table #--make_plots --reconstruct_fields
+python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --table_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/corr_ANN_smag_${MLPNUM}.csv" --make_table --reconstruct_fields --make_plots
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
