@@ -288,7 +288,7 @@ def train_input_fn(filenames, samples_per_tfrecord):
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated.    
-    dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over
+    #dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over, gives problems if each batch should correspond to one vertical level(shuffles also between individual tfrecords!)
     dataset = dataset.batch(samples_per_tfrecord, drop_remainder=False)
     dataset = dataset.repeat()
     dataset.prefetch(1)
@@ -456,6 +456,9 @@ def model_fn(features, labels, mode, params):
         #input_p      = tf.identity(features['pc_sample'], name = 'input_p')
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
+        input_z        = tf.expand_dims(tf.identity(np.absolute(features['zloc_sample'] - 1.0), name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
+        a8 = tf.print("input_z: ", input_z, output_stream=tf.logging.info, summarize=-1)
+        a9 = tf.print("input_z_shape: ", input_z.shape, output_stream=tf.logging.info, summarize=-1)
 
     else:   
         input_ugradx = tf.identity(features['ugradx_sample'], name = 'input_ugradx')
@@ -471,7 +474,8 @@ def model_fn(features, labels, mode, params):
         #input_pgrady = tf.identity(features['pgrady_sample'], name = 'input_pgrady')
         #input_pgradz = tf.identity(features['pgradz_sample'], name = 'input_pgradz')
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
-        input_utau_ref = tf.constant(utau_ref, name = 'utau_ref') 
+        input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
+        input_z        = tf.expand_dims(tf.identity(np.absolute(features['zloc_sample'][0] - 1.0), name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
 
     #Define function to make input variables non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
@@ -523,7 +527,7 @@ def model_fn(features, labels, mode, params):
     #NOTE: the labels are already made dimensionless in the training data procedure, and thus in contrast to the inputs do not have to be multiplied by a scaling factor. 
     with tf.name_scope("standardization_labels"): #Group nodes in name scope for easier visualisation in TensorBoard
         a4 = tf.print("labels: ", labels, output_stream=tf.logging.info, summarize=-1)
-        a8 = tf.print("labels: ", tf.shape(labels), output_stream=tf.logging.info, summarize=-1)
+        #a8 = tf.print("labels: ", tf.shape(labels), output_stream=tf.logging.info, summarize=-1)
         labels_means = tf.math.subtract(labels, means_labels)
         #a4 = tf.print("labels_means: ", labels_means[0,:], output_stream=tf.logging.info, summarize=-1)
         labels_stand = tf.math.divide(labels_means, stdevs_labels, name = 'labels_stand')
@@ -598,22 +602,25 @@ def model_fn(features, labels, mode, params):
            [
                input_u_stand, 
                _adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
-               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1])],
+               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1]),
                #_adjust_sizeinput(input_p_stand, np.s_[:,:,:,:-1])],
+               input_z],
            'u', params)
         output_layer_v = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:,:-1,1:]), 
                input_v_stand, 
-               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:])],
+               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:]),
                #_adjust_sizeinput(input_p_stand, np.s_[:,:,:-1,:])],
+               input_z],
            'v', params)
         output_layer_w = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:-1,:,1:]), 
                _adjust_sizeinput(input_v_stand, np.s_[:,:-1,1:,:]), 
-               input_w_stand],
+               input_w_stand,
                #_adjust_sizeinput(input_p_stand, np.s_[:,:-1,:,:])],
+               input_z],
           'w', params)
 
     else:
@@ -622,22 +629,25 @@ def model_fn(features, labels, mode, params):
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],
+               input_z],
           'u', params)
         output_layer_v = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],    
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,    
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],    
+               input_z],
           'v', params)
         output_layer_w = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],    
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],     
+               input_z],
           'w', params)
 
     #Concatenate output layers
@@ -652,10 +662,10 @@ def model_fn(features, labels, mode, params):
     #Visualize outputs in TensorBoard
     tf.summary.histogram('output_layer_tot', output_layer_tot)
 
-    #Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
-    with tf.control_dependencies([a5,a6,a7,a8]):
-        #output_layer_mask = tf.identity(output_layer_mask)
-        output_layer_tot  = tf.identity(output_layer_tot)
+    ##Trick to execute tf.print ops defined in this script. For these ops, set output_stream to tf.logging.info and summarize to -1.
+    #with tf.control_dependencies([a8,a9]):
+    #    output_layer_mask = tf.identity(output_layer_mask)
+    #    #output_layer_tot  = tf.identity(output_layer_tot)
     
     #Denormalize the output fluxes for inference/prediction
     #NOTE1: In addition to undoing the standardization, the normalisation includes a multiplication with utau_ref. Earlier in the training data generation procedure, all data was made dimensionless by utau_ref. Therefore, the utau_ref is taken into account in the denormalisation below.
@@ -783,6 +793,7 @@ nt_total = 30 #Amount of time steps INCLUDING all produced tfrecord files (also 
 #nt_available = 2 #FOR TESTING PURPOSES ONLY!
 #nt_total = 3 #FOR TESTING PURPOSES ONLY!
 #Preferential sampling: still use same three validation files as before (i.e. time steps 27-29)
+#train_stepnumbers = np.array([0,1,2,3,4],dtype=np.int32) #Test performance when only five snapshots are used for training
 train_stepnumbers = np.arange(nt_available)
 val_stepnumbers = np.array([27,28,29],dtype=np.int32)
 #Uncomment two lines below when preferential sampling is not used

@@ -47,25 +47,25 @@ uc_tstdfields = np.std(np.array(a['uc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3
 vc_tstdfields = np.std(np.array(a['vc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
 wc_tstdfields = np.std(np.array(a['wc'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
 #
-unres_tau_xu_tavgfields = np.mean(np.array(a['unres_tau_xu_turb'][tstart:tend,:,:,:-1]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data
-unres_tau_yu_tavgfields = np.mean(np.array(a['unres_tau_yu_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_zu_tavgfields = np.mean(np.array(a['unres_tau_zu_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_xv_tavgfields = np.mean(np.array(a['unres_tau_xv_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_yv_tavgfields = np.mean(np.array(a['unres_tau_yv_turb'][tstart:tend,:,:-1,:]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data
-unres_tau_zv_tavgfields = np.mean(np.array(a['unres_tau_zv_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_xw_tavgfields = np.mean(np.array(a['unres_tau_xw_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_yw_tavgfields = np.mean(np.array(a['unres_tau_yw_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_zw_tavgfields = np.mean(np.array(a['unres_tau_zw_turb'][tstart:tend,1:,:,:]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data, which should be the first one to keep the fluxes consistent with the defined heights
+unres_tau_xu_tavgfields = np.mean(np.array(a['unres_tau_xu_tot'][tstart:tend,:,:,:-1]) * (ustar ** 2.), axis=(0,2,3))#Remove extra grid cell in training data
+unres_tau_yu_tavgfields = np.mean(np.array(a['unres_tau_yu_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_zu_tavgfields = np.mean(np.array(a['unres_tau_zu_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_xv_tavgfields = np.mean(np.array(a['unres_tau_xv_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_yv_tavgfields = np.mean(np.array(a['unres_tau_yv_tot'][tstart:tend,:,:-1,:]) * (ustar ** 2.), axis=(0,2,3))#Remove extra grid cell in training data
+unres_tau_zv_tavgfields = np.mean(np.array(a['unres_tau_zv_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_xw_tavgfields = np.mean(np.array(a['unres_tau_xw_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_yw_tavgfields = np.mean(np.array(a['unres_tau_yw_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_zw_tavgfields = np.mean(np.array(a['unres_tau_zw_tot'][tstart:tend,1:,:,:]) * (ustar ** 2.), axis=(0,2,3))#Remove extra grid cell in training data, which should be the first one to keep the fluxes consistent with the defined heights
 #
-unres_tau_xu_tstdfields = np.std(np.array(a['unres_tau_xu_turb'][tstart:tend,:,:,:-1]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data
-unres_tau_yu_tstdfields = np.std(np.array(a['unres_tau_yu_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_zu_tstdfields = np.std(np.array(a['unres_tau_zu_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_xv_tstdfields = np.std(np.array(a['unres_tau_xv_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_yv_tstdfields = np.std(np.array(a['unres_tau_yv_turb'][tstart:tend,:,:-1,:]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data
-unres_tau_zv_tstdfields = np.std(np.array(a['unres_tau_zv_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_xw_tstdfields = np.std(np.array(a['unres_tau_xw_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_yw_tstdfields = np.std(np.array(a['unres_tau_yw_turb'][tstart:tend,:,:,:]) * ustar, axis=(0,2,3))
-unres_tau_zw_tstdfields = np.std(np.array(a['unres_tau_zw_turb'][tstart:tend,1:,:,:]) * ustar, axis=(0,2,3))#Remove extra grid cell in training data, which should be the first one to keep the fluxes consistent with the defined heights
+unres_tau_xu_tstdfields = np.std(np.array(a['unres_tau_xu_tot'][tstart:tend,:,:,:-1]) * (ustar ** 2.), axis=(0,2,3))#Remove extra grid cell in training data
+unres_tau_yu_tstdfields = np.std(np.array(a['unres_tau_yu_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_zu_tstdfields = np.std(np.array(a['unres_tau_zu_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_xv_tstdfields = np.std(np.array(a['unres_tau_xv_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_yv_tstdfields = np.std(np.array(a['unres_tau_yv_tot'][tstart:tend,:,:-1,:]) * (ustar ** 2.), axis=(0,2,3))#Remove extra grid cell in training data
+unres_tau_zv_tstdfields = np.std(np.array(a['unres_tau_zv_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_xw_tstdfields = np.std(np.array(a['unres_tau_xw_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_yw_tstdfields = np.std(np.array(a['unres_tau_yw_tot'][tstart:tend,:,:,:]) * (ustar ** 2.), axis=(0,2,3))
+unres_tau_zw_tstdfields = np.std(np.array(a['unres_tau_zw_tot'][tstart:tend,1:,:,:]) * (ustar ** 2.), axis=(0,2,3))#Remove extra grid cell in training data, which should be the first one to keep the fluxes consistent with the defined heights
 
 #Write averaged fields to nc-file
 tavg_vert_prof_filepath = "/projects/1/flowsim/simulation1/lesscoarse/tavg_vert_prof.nc"
