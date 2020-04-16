@@ -45,10 +45,10 @@ utau_ref_channel = np.array(c['utau_ref'][:]) #NOTE: used friction velocity in [
 #utau_ref = 0.2 #NOTE: representative friction velocity in [m/s] for a realistic atmospheric flow, needed for rescaling below. 
 utau_ref = utau_ref_channel #Ucnomment this line to ensure velocities are denormalized in accordance with the channel flow specs
 #Specify time steps NOTE: SHOULD BE 27 TO 30 (up to MLP13, MLP16, and MLP20+) or 7 to 8 (MLP14 and MLP15), and all time steps ahead should be the used training steps. The CNN predictions should all originate from these time steps as well!
-#tstart = 27
-tstart = 26
-#tend   = 30
-tend = 29
+tstart = 27
+#tstart = 26
+tend   = 30
+#tend = 29
 #tstart = 7
 #tend   = 8
 
