@@ -457,15 +457,15 @@ def model_fn(features, labels, mode, params):
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
         #input_z        = tf.expand_dims(tf.identity(np.absolute(features['zloc_sample'] - 1.0), name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
-        input_z        = tf.expand_dims(tf.identity(features['zloc_sample'], name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
-        a8 = tf.print("input_z: ", input_z[0], output_stream=tf.logging.info, summarize=-1)
-        a9 = tf.print("input_z_shape: ", input_z.shape, output_stream=tf.logging.info, summarize=-1)
+        #input_z        = tf.expand_dims(tf.identity(features['zloc_sample'], name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
+        #a8 = tf.print("input_z: ", input_z[0], output_stream=tf.logging.info, summarize=-1)
+        #a9 = tf.print("input_z_shape: ", input_z.shape, output_stream=tf.logging.info, summarize=-1)
 
         #Vizualize inputs
         tf.summary.histogram('input_u', input_u)
         tf.summary.histogram('input_v', input_v)
         tf.summary.histogram('input_w', input_w)
-        tf.summary.histogram('input_z', input_z)
+        #tf.summary.histogram('input_z', input_z)
 
 
     else:   
@@ -484,7 +484,7 @@ def model_fn(features, labels, mode, params):
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
         #input_z        = tf.expand_dims(tf.identity(np.absolute(features['zloc_sample'][0] - 1.0), name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
-        input_z        = tf.expand_dims(tf.identity(features['zloc_sample'], name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
+        #input_z        = tf.expand_dims(tf.identity(features['zloc_sample'], name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
 
     #Define function to make input variables non-dimensionless and standardize them
     def _standardization(input_variable, mean_variable, stdev_variable, scaling_factor):
@@ -611,25 +611,25 @@ def model_fn(features, labels, mode, params):
            [
                input_u_stand, 
                _adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
-               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1]),
+               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1])],
                #_adjust_sizeinput(input_p_stand, np.s_[:,:,:,:-1])],
-               input_z],
+               #nput_z],
            'u', params)
         output_layer_v = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:,:-1,1:]), 
                input_v_stand, 
-               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:]),
+               _adjust_sizeinput(input_w_stand, np.s_[:,1:,:-1,:])],
                #_adjust_sizeinput(input_p_stand, np.s_[:,:,:-1,:])],
-               input_z],
+               #input_z],
            'v', params)
         output_layer_w = create_MLP(
            [
                _adjust_sizeinput(input_u_stand, np.s_[:,:-1,:,1:]), 
                _adjust_sizeinput(input_v_stand, np.s_[:,:-1,1:,:]), 
-               input_w_stand,
+               input_w_stand],
                #_adjust_sizeinput(input_p_stand, np.s_[:,:-1,:,:])],
-               input_z],
+               #input_z],
           'w', params)
 
     else:
@@ -638,25 +638,25 @@ def model_fn(features, labels, mode, params):
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],
-               input_z],
+               #input_z],
           'u', params)
         output_layer_v = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,    
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],  
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],    
-               input_z],
+               #input_z],
           'v', params)
         output_layer_w = create_MLP(
            [
                input_ugradx_stand, input_ugrady_stand, input_ugradz_stand,     
                input_vgradx_stand, input_vgrady_stand, input_vgradz_stand,
-               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand,
+               input_wgradx_stand, input_wgrady_stand, input_wgradz_stand],
                #input_pgradx_stand, input_pgrady_stand, input_pgradz_stand],     
-               input_z],
+               #input_z],
           'w', params)
 
     #Concatenate output layers
@@ -1031,7 +1031,8 @@ hyperparams =  {
 'n_dense1':args.n_hidden, #Neurons in hidden layer for each control volume
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
-'learning_rate':0.0001
+#'learning_rate':0.0001
+'learning_rate':0.00001
 }
 print("number of neurons in hidden layer: ", str(args.n_hidden))
 print("Checkpoint directory: ", args.checkpoint_dir)

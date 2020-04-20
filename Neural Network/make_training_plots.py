@@ -90,8 +90,8 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
 
         #Make plot for training/validation loss
         plt.figure(1)
-        plt.plot(x_train*(10**(-5)), y_train, color=colorspec[j], linestyle=':',  linewidth=1.0)
-        plt.plot(x_validation*(10**(-5)), y_validation_loss, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2.)
+        plt.plot(x_train*(10**(-5)), y_train, color=colorspec[j], linestyle=':',  linewidth=1.0, marker='o')
+        plt.plot(x_validation*(10**(-5)), y_validation_loss, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2., marker='o')
         
         if first_iteration:
             plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
@@ -113,7 +113,7 @@ def plot_tensorflow_log(log_files_training, log_files_validation, n_hidden_list,
         #Make plot for RMSE
         plt.figure(2)
 
-        plt.plot(x_validation*(10**(-5)), y_validation_rmse, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2.)
+        plt.plot(x_validation*(10**(-5)), y_validation_rmse, color=colorspec[j], label=str(n_hidden_list[j]), linewidth=2., marker='o')
         
         if first_iteration:
             plt.xlabel(r'$\rm Training\ iterations\ *\ 10^5\ [-]$', fontsize=20)
