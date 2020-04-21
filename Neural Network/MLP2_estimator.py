@@ -49,8 +49,8 @@ parser.add_argument('--inter_op_parallelism_threads', type=int, default=1, \
         help='inter_op_parallelism_threads')
 parser.add_argument('--num_steps', type=int, default=10000, \
         help='Number of steps, i.e. number of batches times number of epochs')
-#parser.add_argument('--batch_size', type=int, default=100, \
-#        help='Number of samples selected in each batch')
+parser.add_argument('--batch_size', type=int, default=100, \
+        help='Number of samples selected in each batch')
 parser.add_argument('--profile_steps', type=int, default=10000, \
         help='Every nth step, a profile measurement is performed that is stored in a JSON-file.')
 parser.add_argument('--summary_steps', type=int, default=100, \
@@ -282,27 +282,27 @@ def _parse_function(example_proto):
 
 
 #Define training input function
-def train_input_fn(filenames, samples_per_tfrecord):
+def train_input_fn(filenames, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
     #dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated.    
-    #dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over, gives problems if each batch should correspond to one vertical level(shuffles also between individual tfrecords!)
-    dataset = dataset.batch(samples_per_tfrecord, drop_remainder=False)
+    dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over, gives problems if each batch should correspond to one vertical level(shuffles also between individual tfrecords!)
+    dataset = dataset.batch(batch_size, drop_remainder=False)
     dataset = dataset.repeat()
     dataset.prefetch(1)
 
     return dataset
 
 #Define evaluation function
-def eval_input_fn(filenames, samples_per_tfrecord):
+def eval_input_fn(filenames, batch_size):
     dataset = tf.data.TFRecordDataset(filenames)
     #dataset = dataset.batch(batch_size) #Uncomment when each batch correponds to one tfrecord file
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores)
     dataset = dataset.cache()
-    dataset = dataset.batch(samples_per_tfrecord, drop_remainder=False)
+    dataset = dataset.batch(batch_size, drop_remainder=False)
     #dataset = dataset.batch(batch_size)
     dataset.prefetch(1)
 
@@ -783,10 +783,11 @@ def model_fn(features, labels, mode, params):
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 #Define settings
-#batch_size = int(args.batch_size)
+batch_size = int(args.batch_size)
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 num_labels = 6 #Number of predicted transport components for each sub-MLP
 random_seed = 1234
+files_per_snapshot = 53 #Number of tfrecords stored per time snapshot
 
 #Extract friction velocity and heights from training file (where friction velocity is needed for the denormalisation implemented within the MLP)
 training_file = nc.Dataset(args.training_filepath, 'r')
@@ -808,44 +809,38 @@ val_stepnumbers = np.array([27,28,29],dtype=np.int32)
 #Uncomment two lines below when preferential sampling is not used
 #time_numbers = np.arange(nt_available)
 #train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1) #Set aside 10% of files for validation.
-train_filenames = np.zeros((len(train_stepnumbers)*(len(heights)+50),), dtype=object)
-val_filenames   = np.zeros((len(val_stepnumbers)*len(heights),), dtype=object)
+#train_filenames = np.zeros((len(train_stepnumbers)*(len(heights)+50),), dtype=object)
+#val_filenames   = np.zeros((len(val_stepnumbers)*len(heights),), dtype=object)
+train_filenames = np.zeros((len(train_stepnumbers)*files_per_snapshot,), dtype=object) #i.e. 53 files stored per time snapshot, which already contain preferential samples
+val_filenames   = np.zeros((len(val_stepnumbers)*files_per_snapshot,), dtype=object)
 
-i=0
+k=0
 for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
 
-    k=0
-    n=0
-    for height in heights: #Loop over all vertical levels where samples are stored
+    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
 
         #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
         
-        number_added = max(max(10-2*k,1),10-2*(len(heights)-1-k))
-
-        for c in range(number_added):
-
-            if args.gradients is None:
-                train_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
-            else:
-                train_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
-            n+=1
-        k+=1
-    i+=1
-
-j=0
-for val_stepnumber in val_stepnumbers: #Generate validation filenames from selected step numbers and total steps
-
-    k=0
-    for height in heights: #Loop over all vertical levels where samples are stored
-       
         if args.gradients is None:
-            val_filenames[j*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(val_stepnumber+1, nt_total, height)
+            train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
         else:
-            val_filenames[j*len(heights)+k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(val_stepnumber+1, nt_total, height)
-       
+            train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
+
         k+=1
 
-    j+=1
+k=0
+for val_stepnumber in val_stepnumbers: #Generate training filenames from selected step numbers and total steps
+
+    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
+
+        #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
+        
+        if args.gradients is None:
+            val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
+        else:
+            val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
+
+        k+=1
 
 #Print filenames to check
 np.set_printoptions(threshold=np.inf)
@@ -859,13 +854,13 @@ print(val_filenames)
 np.random.shuffle(train_filenames)
 np.random.shuffle(val_filenames)
 
-#Calculate number of samples per tfrecord, used to ensure that each tfrecord corresponds to one batch. The calculated value is printed to check that the number of stored samples is indeed correct
-#NOTE1: this relatively complicated solution is needed because no high-level API exists to determine this
-#NOTE2: it is assumed that EACH tfrecord file contains the same number of records!!!
-samples_per_tfrecord = 0
-for record in tf.python_io.tf_record_iterator(train_filenames[0]):
-    samples_per_tfrecord += 1
-print("Samples per tfrecord: ", samples_per_tfrecord)
+##Calculate number of samples per tfrecord, used to ensure that each tfrecord corresponds to one batch. The calculated value is printed to check that the number of stored samples is indeed correct
+##NOTE1: this relatively complicated solution is needed because no high-level API exists to determine this
+##NOTE2: it is assumed that EACH tfrecord file contains the same number of records!!!
+#samples_per_tfrecord = 0
+#for record in tf.python_io.tf_record_iterator(train_filenames[0]):
+#    samples_per_tfrecord += 1
+#print("Samples per tfrecord: ", samples_per_tfrecord)
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
@@ -1031,8 +1026,8 @@ hyperparams =  {
 'n_dense1':args.n_hidden, #Neurons in hidden layer for each control volume
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
-#'learning_rate':0.0001
-'learning_rate':0.00001
+'learning_rate':0.0001
+#'learning_rate':0.00001
 }
 print("number of neurons in hidden layer: ", str(args.n_hidden))
 print("Checkpoint directory: ", args.checkpoint_dir)
@@ -1050,8 +1045,8 @@ else:
     hooks = [profiler_hook]
 
 #Train and evaluate MLP
-train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, samples_per_tfrecord), max_steps=num_steps, hooks=hooks)
-eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, samples_per_tfrecord), steps=None, name='MLP1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
+train_spec = tf.estimator.TrainSpec(input_fn=lambda:train_input_fn(train_filenames, batch_size), max_steps=num_steps, hooks=hooks)
+eval_spec = tf.estimator.EvalSpec(input_fn=lambda:eval_input_fn(val_filenames, batch_size), steps=None, name='MLP1', start_delay_secs=30, throttle_secs=0)#NOTE: throttle_secs=0 implies that for every stored checkpoint the validation error is calculated
 tf.estimator.train_and_evaluate(MLP, train_spec, eval_spec)
 
 #NOTE: MLP.predict appeared to be unsuitable to compare the predictions from the MLP to the true labels stored in the TFRecords files: the labels are discarded by the tf.estimator.Estimator in predict mode. The alternative is the 'hacky' solution implemented in the code below.
@@ -1081,7 +1076,7 @@ for val_filename in val_filenames:
     tf.reset_default_graph() #Reset the graph for each tfrecord (i.e. each flow 'snapshot')
 
     #Generate iterator to extract features and labels from tfrecords
-    iterator = eval_input_fn([val_filename], samples_per_tfrecord).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
+    iterator = eval_input_fn([val_filename], batch_size).make_initializable_iterator() #All samples present in val_filenames are used for validation once.
 
     #Define operation to extract features and labels from iterator
     fes, lbls = iterator.get_next()

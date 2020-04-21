@@ -993,133 +993,6 @@ if args.make_plots or args.make_table:
     #Close netCDF-file
     fields.close()
 
-#Define function for making horizontal cross-sections
-def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0, delta = 500):
-    #NOTE1: fourth last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: third last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
-    #NOTE3: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
-    #NOTE4: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 500m). 
-    for k in range(len(z)-1):
-        values_height = values[time_step,k,:,:]
-
-        #Make horizontal cross-sections of the values
-        plt.figure()
-        plt.pcolormesh(x, y, values_height, vmin=-0.15, vmax=0.15)
-        #plt.pcolormesh(x * delta, y * delta, values_height, vmin=-0.00015, vmax=0.00015)
-        ax = plt.gca() 
-        ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
-        cbar = plt.colorbar()
-        cbar.ax.tick_params(labelsize=16)
-        cbar.set_label(r'$\rm Subgrid\ transport\ {[m^{2}\ s^{-2}}]$',rotation=270,fontsize=20,labelpad=30)
-        plt.xlabel(r'$\rm x\ [-]$',fontsize=20)
-        plt.ylabel(r'$\rm y\ [-]$',fontsize=20)
-        #plt.xticks(fontsize=16, rotation=90)
-        plt.xticks(fontsize=16, rotation=0)
-        plt.yticks(fontsize=16, rotation=0)
-        plt.tight_layout()
-        if not is_lbl:
-            plt.savefig("Horcross_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
-        else:
-            plt.savefig("Horcross_label_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
-        plt.close()
-
-#Define function for making pdfs
-def make_pdfs_heights(values, labels, z, component, time_step = 0, delta = 500):
-    #NOTE1: third last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
-    #NOTE3: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 500m). 
-    for k in range(len(z)+1):
-        if k == len(z):
-            values_height = values[time_step,:,:,:].flatten()
-            labels_height = labels[time_step,:,:,:].flatten()
-            #range_bins = (0.6,0.6)
-        else:
-            values_height = values[time_step,k,:,:].flatten()
-            labels_height = labels[time_step,k,:,:].flatten()
-            #range_bins = (-2.0,2.0)
-
-        #Determine bins
-        num_bins = 100
-        min_val = min(values_height.min(), labels_height.min())
-        max_val = max(values_height.max(), labels_height.max())
-        bin_edges = np.linspace(min_val, max_val, num_bins)
-
-        #Make pdfs of the values and labels
-        plt.figure()
-        plt.hist(values_height, bins = bin_edges, density = True, histtype = 'step', label = 'NN')
-        plt.hist(labels_height, bins = bin_edges, density = True, histtype = 'step', label = 'reference')
-        plt.ylabel(r'$\rm Normalized\ density\ [-]$',fontsize=20)
-        plt.xlabel(r'$\rm Subgrid\ transport\ {[m^{2}\ s^{-2}]}$',fontsize=20)
-        plt.xticks(fontsize=16, rotation=90)
-        plt.yticks(fontsize=16, rotation=0)
-        plt.legend(loc='upper right')
-        plt.tight_layout()
-        if k == len(z):
-            plt.savefig("PDF_tau_" + component + ".png", dpi = 200)
-        else:
-            plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
-        plt.close()
-
-
-#Define function for making scatterplots
-def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag):
-    #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: last input of this function is a boolean that specifies wether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False).
-    for k in range(len(heights)+1):
-        if k == len(heights):
-            preds_height = preds_horavg
-            lbls_height  = lbls_horavg
-        else:
-            preds_height = preds[:,k,:,:]
-            lbls_height  = lbls[:,k,:,:]
-        preds_height = preds_height.flatten()
-        lbls_height  = lbls_height.flatten()
-        
-        #Make scatterplots of Smagorinsky/CNN fluxes versus labels
-        corrcoef = np.round(np.corrcoef(preds_height, lbls_height)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-        plt.figure()
-        plt.scatter(lbls_height, preds_height, s=6, marker='o', alpha=0.2)
-        if k == len(heights):
-            #plt.xlim([-0.004, 0.004])
-            #plt.ylim([-0.004, 0.004])
-            plt.xlim([-0.000004, 0.000004])
-            plt.ylim([-0.000004, 0.000004])
-            #plt.xlim([-0.2, 0.2])
-            #plt.ylim([-0.2, 0.2])
-        else:
-            #plt.xlim([-0.5, 0.5])
-            #plt.ylim([-0.5, 0.5])
-            #plt.xlim([-40.0, 40.0])
-            #plt.ylim([-40.0, 40.0])
-            plt.xlim([-0.0005, 0.0005])
-            plt.ylim([-0.0005, 0.0005])
-        axes = plt.gca()
-        plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
-        #plt.gca().set_aspect('equal',adjustable='box')
-        plt.xlabel(r'$\rm Actual\ subgrid\ transport\ {[m^{2}\ s^{-2}]}$',fontsize = 20)
-        if is_smag:
-            plt.ylabel(r'$\rm Smagorinsky\ subgrid\ transport\ {[m^{2}\ s^{-2}]}$',fontsize = 20)
-        else:
-            plt.ylabel(r'$\rm NN\ subgrid\ transport\ {[m^{2}\ s^{-2}]}$',fontsize = 20)
-        plt.title("ρ = " + str(corrcoef),fontsize = 20)
-        plt.axhline(c='black')
-        plt.axvline(c='black')
-        plt.xticks(fontsize = 16, rotation = 90)
-        plt.yticks(fontsize = 16, rotation = 0)
-        if is_smag:
-            if k == len(heights):
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.png", dpi = 200)
-            else:
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
-        else:
-            if k == len(heights):
-                plt.savefig("Scatter_tau_" + component + "__horavg.png", dpi = 200)
-            else:
-                plt.savefig("Scatter_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
-        plt.tight_layout()
-        plt.close()
-
 #Write all relevant correlation coefficients to a table
 if args.make_table:
     print('start making table')
@@ -1412,21 +1285,163 @@ if args.make_table:
     render_mpl_table(re_table, header_columns=0, col_width=2.0, bbox=[0.02, 0, 1, 1], corr_table = False)
     print('Finished making tables')
 
+#Define function for making horizontal cross-sections
+def make_horcross_heights(values, z, y, x, component, is_lbl, is_smag = False, time_step = 0, delta = 1):
+    #NOTE1: fifth last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: fourth last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
+    #NOTE3: thirth last input of this function is a boolean that specifies whether the Smagorinsky fluxes are plotted (True) or not (False)
+    #NOTE4: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
+    #NOTE5: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 1m, effectively not rescaling). 
+
+    #Check that component is not both specified as label and Smagorinsky value
+    if is_lbl and is_smag:
+        raise RuntimeError("Value specified as both label and Smagorinsky value, which is not possible.")
+
+    for k in range(len(z)-1):
+        values_height = values[time_step,k,:,:] / (utau_ref ** 2.)
+
+        #Make horizontal cross-sections of the values
+        plt.figure()
+        if is_smag:
+            plt.pcolormesh(x, y, values_height, vmin=-0.5, vmax=0.5)
+        else:
+            plt.pcolormesh(x, y, values_height, vmin=-5.0, vmax=5.0)
+        #plt.pcolormesh(x * delta, y * delta, values_height, vmin=-0.00015, vmax=0.00015)
+        ax = plt.gca()
+        ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        ax.xaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+        cbar = plt.colorbar()
+        cbar.ax.tick_params(labelsize=16)
+        cbar.set_label(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',rotation=270,fontsize=20,labelpad=30)
+        plt.xlabel(r'$\rm \frac{x}{\delta} \ [-]$',fontsize=20)
+        plt.ylabel(r'$\rm \frac{y}{\delta} \ [-]$',fontsize=20)
+        #plt.xticks(fontsize=16, rotation=90)
+        plt.xticks(fontsize=16, rotation=0)
+        plt.yticks(fontsize=16, rotation=0)
+        plt.tight_layout()
+        if is_lbl:
+            plt.savefig("Horcross_label_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
+        elif is_smag:
+            plt.savefig("Horcross_smag_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
+        else:
+            plt.savefig("Horcross_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
+        plt.close()
+
+#Define function for making pdfs
+def make_pdfs_heights(values, smag, labels, z, component, time_step = 0):
+    #NOTE1: third last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
+    for k in range(len(z)+1):
+        if k == len(z):
+            values_height = values[time_step,:,:,:].flatten() / (utau_ref ** 2.)
+            smag_height   = smag[time_step,:,:,:].flatten() / (utau_ref ** 2.)
+            labels_height = labels[time_step,:,:,:].flatten() / (utau_ref ** 2.)
+            #range_bins = (0.6,0.6)
+        else:
+            values_height = values[time_step,k,:,:].flatten() / (utau_ref ** 2.)
+            smag_height   = smag[time_step,k,:,:].flatten() / (utau_ref ** 2.)
+            labels_height = labels[time_step,k,:,:].flatten() / (utau_ref ** 2.)
+            #range_bins = (-2.0,2.0)
+
+        #Determine bins
+        num_bins = 100
+        min_val = min(values_height.min(), labels_height.min())
+        max_val = max(values_height.max(), labels_height.max())
+        bin_edges = np.linspace(min_val, max_val, num_bins)
+
+        #Make pdfs of the values and labels
+        plt.figure()
+        plt.hist(values_height, bins = bin_edges, density = True, histtype = 'step', label = 'ANN')
+        plt.hist(smag_height, bins = bin_edges, density = True, histtype = 'step', label = 'Smagorinsky')
+        plt.hist(labels_height, bins = bin_edges, density = True, histtype = 'step', label = 'reference')
+        ax = plt.gca()
+        ax.set_yscale('log')
+        plt.ylabel(r'$\rm Normalized\ density\ [-]$',fontsize=20)
+        plt.xlabel(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize=20)
+        plt.xticks(fontsize=16, rotation=90)
+        plt.yticks(fontsize=16, rotation=0)
+        plt.legend(loc='upper right')
+        plt.tight_layout()
+        if k == len(z):
+            plt.savefig("PDF_tau_" + component + ".png", dpi = 200)
+        else:
+            plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+        plt.close()
+
+
+#Define function for making scatterplots
+def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag):
+    #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: last input of this function is a boolean that specifies wether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False).
+    for k in range(len(heights)+1):
+        if k == len(heights):
+            preds_height = preds_horavg / (utau_ref ** 2.)
+            lbls_height  = lbls_horavg / (utau_ref ** 2.)
+        else:
+            preds_height = preds[:,k,:,:] / (utau_ref ** 2.)
+            lbls_height  = lbls[:,k,:,:] / (utau_ref ** 2.)
+        preds_height = preds_height.flatten()
+        lbls_height  = lbls_height.flatten()
+        
+        #Make scatterplots of Smagorinsky/CNN fluxes versus labels
+        corrcoef = np.round(np.corrcoef(preds_height, lbls_height)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        plt.figure()
+        plt.scatter(lbls_height, preds_height, s=6, marker='o', alpha=0.2)
+        if k == len(heights):
+            #plt.xlim([-0.004, 0.004])
+            #plt.ylim([-0.004, 0.004])
+            #plt.xlim([-0.000004, 0.000004])
+            #plt.ylim([-0.000004, 0.000004])
+            plt.xlim([-2.0, 2.0])
+            plt.ylim([-2.0, 2.0])
+        else:
+            plt.xlim([-15.0, 15.0])
+            plt.ylim([-15.0, 15.0])
+            #plt.xlim([-40.0, 40.0])
+            #plt.ylim([-40.0, 40.0])
+            #plt.xlim([-0.0005, 0.0005])
+            #plt.ylim([-0.0005, 0.0005])
+        axes = plt.gca()
+        plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
+        #plt.gca().set_aspect('equal',adjustable='box')
+        plt.xlabel(r'$\rm \frac{\tau_{wu}^{DNS}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+        if is_smag:
+            plt.ylabel(r'$\rm \frac{\tau_{wu}^{smag}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+        else:
+            plt.ylabel(r'$\rm \frac{\tau_{wu}^{ANN}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+        #plt.title("ρ = " + str(corrcoef),fontsize = 20)
+        plt.axhline(c='black')
+        plt.axvline(c='black')
+        plt.xticks(fontsize = 16, rotation = 90)
+        plt.yticks(fontsize = 16, rotation = 0)
+        if is_smag:
+            if k == len(heights):
+                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.png", dpi = 200)
+            else:
+                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
+        else:
+            if k == len(heights):
+                plt.savefig("Scatter_tau_" + component + "_horavg.png", dpi = 200)
+            else:
+                plt.savefig("Scatter_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
+        plt.tight_layout()
+        plt.close()
+
 
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
     print('start making plots')
     
     #Make PDFs of labels and MLP predictions
-    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu, zc,       'xu', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu, zc,       'yu', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu, zhc,      'zu', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv, zc,       'xv', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv, zc,       'yv', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv, zhc,      'zv', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw, zhcless,  'xw', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw, zhcless,  'yw', time_step = 0, delta = delta_height)
-    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw, zc,       'zw', time_step = 0, delta = delta_height)
+    make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0)
+    make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0)
+    make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0)
+    make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0)
+    make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0)
+    make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0)
+    make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0)
+    make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0)
+    make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0)
     
     #Make horizontal cross-sections
     #NOTE1: some transport components are adjusted to convert them in a consistent way to equal shapes.
@@ -1448,9 +1463,28 @@ if args.make_plots:
     make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta_height)
     make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta_height)
     make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xu_smag, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yu_smag, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zu_smag, zgcextra, yhc, xgcextra, 'zu', False, True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xv_smag, zhc, ygcextra, xgcextra, 'xv', False, True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yv_smag, zhc, yhc, xhc,           'yv', False, True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zv_smag, zgcextra, ygcextra, xhc, 'zv', False, True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_xw_smag, zgcextra, yhc, xgcextra, 'xw', False, True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_yw_smag, zgcextra, ygcextra, xhc, 'yw', False, True, time_step = 0, delta = delta_height)
+    make_horcross_heights(unres_tau_zw_smag, zhc, yhc, xhc,           'zw', False, True, time_step = 0, delta = delta_height)
     
     #Make scatterplots
     #NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
+    make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False)
+    make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False)
+    make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False)
+    make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False)
+    make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False)
+    make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False)
+    make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhcless, 'xw', False)
+    make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhcless, 'yw', False)
+    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False)
+    
     make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
     make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True)
     make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True)
@@ -1461,14 +1495,4 @@ if args.make_plots:
     make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', True)
     make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', True)
     #
-    make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False)
-    make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False)
-    make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False)
-    make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False)
-    make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False)
-    make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False)
-    make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhcless, 'xw', False)
-    make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhcless, 'yw', False)
-    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False)
-
     print('Finished making plots')
