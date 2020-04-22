@@ -153,7 +153,7 @@ def calculate_turbulent_fluxes(flowfields_filepath = 'training_data.nc', eddy_di
 #            smag_tau_yw[0,:,:] = 0.
 #        
         #Add one top/downstream cell to fluxes in the directions where they are located on the grid edges, assuming they are the same as the one at the bottom/upstream edge of the domain.
-        #NOTE: this should work when the horizontal directions have periodic BCs, and the vertical direction has a no-slip BC.
+        #NOTE: this should work when the horizontal directions have periodic BCs, and the vertical direction has a no-slip BC (ONLY when resolved viscous flux is not added, as is done now).
         #z-direction
         smag_tau_zu[-1,:,:] = smag_tau_zu[0,:,:]
         smag_tau_zv[-1,:,:] = smag_tau_zv[0,:,:]

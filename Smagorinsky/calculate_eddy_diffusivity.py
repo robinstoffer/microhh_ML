@@ -13,6 +13,7 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
     #Define coefficients
     cs = 0.10 #Default Smagorinsky coefficient for turbulent channel flow
     vandriest_coef = 26 #Default Van Driest damping coeffcient
+    height_channel = 2.0
 
     #Check whether at least 1 ghost cell is present in each direction
     if not (igc >= 1 and jgc >= 1 and kgc_center >= 1):
@@ -20,15 +21,17 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
 
     #Loop over gridcells to calculate the squared strain rate tensor
     for k in range(kgc_center, kend):
-        k_stag = k - 1 #Take into account that the staggered vertical dimension does not contain one ghost cell
-        dz    = zhgc[k_stag+1]- zhgc[k_stag]
+        #k_stag = k - 1 #Take into account that the staggered vertical dimension does not contain one ghost cell
+        #dz    = zhgc[k_stag+1]- zhgc[k_stag]
+        dz    = zhgc[k+1]- zhgc[k]
         dzi   = 1./dz
         dzhib = 1./(zgc[k] - zgc[k-1])
         dzhit = 1./(zgc[k+1] - zgc[k])
 
         #Incoroporate Van Driest wall damping function
-        zplus = (zgc[k] * utau_ref) / mvisc
-        damp_coef = 1 - np.exp(-zplus/vandriest_coef) #NOTE: Implement damping function also at top wall?
+        z_absdist = min(zgc[k], height_channel - zgc[k]) #Take shortest absolute distance to wall
+        zplus = (z_absdist * utau_ref) / mvisc
+        damp_coef = 1 - np.exp(-zplus/vandriest_coef)
 
         for j in range(jgc, jend):
             dy    = yhgc[j+1]- yhgc[j]
@@ -54,7 +57,7 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
                         + (((v[k,j+1,i] - v[k,j,i])*dyi) ** 2)
 
                         # dw/dz + dw/dz
-                        + (((w[k_stag+1,j,i] - w[k_stag,j,i])*dzi) ** 2)
+                        + (((w[k+1,j,i] - w[k,j,i])*dzi) ** 2)
 
                         # du/dy + dv/dx
                         + 0.125* (((u[k,j,i] - u[k,j-1,i])*dyhib + (v[k,j,i] - v[k,j,i-1])*dxhib) ** 2)
@@ -63,16 +66,16 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
                         + 0.125* (((u[k,j+1,i+1] - u[k,j,i+1])*dyhit + (v[k,j+1,i+1] - v[k,j+1,i])*dxhit) ** 2)
 
                         # du/dz + dw/dx
-                        + 0.125* (((u[k,j,i] - u[k-1,j,i])*dzhib + (w[k_stag,j,i] - w[k_stag,j,i-1])*dxhib) ** 2)
-                        + 0.125* (((u[k,j,i+1] - u[k-1,j,i+1])*dzhib + (w[k_stag,j,i+1] - w[k_stag,j,i])*dxhit) ** 2)
-                        + 0.125* (((u[k+1,j,i] - u[k,j,i])*dzhit + (w[k_stag+1,j,i] - w[k_stag+1,j,i-1])*dxhib) ** 2)
-                        + 0.125* (((u[k+1,j,i+1] - u[k,j,i+1])*dzhit + (w[k_stag+1,j,i+1] - w[k_stag+1,j,i])*dxhit) ** 2)
+                        + 0.125* (((u[k,j,i] - u[k-1,j,i])*dzhib + (w[k,j,i] - w[k,j,i-1])*dxhib) ** 2)
+                        + 0.125* (((u[k,j,i+1] - u[k-1,j,i+1])*dzhib + (w[k,j,i+1] - w[k,j,i])*dxhit) ** 2)
+                        + 0.125* (((u[k+1,j,i] - u[k,j,i])*dzhit + (w[k+1,j,i] - w[k+1,j,i-1])*dxhib) ** 2)
+                        + 0.125* (((u[k+1,j,i+1] - u[k,j,i+1])*dzhit + (w[k+1,j,i+1] - w[k+1,j,i])*dxhit) ** 2)
                         
                         # dv/dz + dw/dy
-                        + 0.125* (((v[k,j,i] - v[k-1,j,i])*dzhib + (w[k_stag,j,i] - w[k_stag,j-1,i])*dyhib) ** 2)
-                        + 0.125* (((v[k,j+1,i] - v[k-1,j+1,i])*dzhib + (w[k_stag,j+1,i] - w[k_stag,j,i])*dyhit) ** 2)
-                        + 0.125* (((v[k+1,j,i] - v[k,j,i])*dzhit + (w[k_stag+1,j,i] - w[k_stag+1,j-1,i])*dyhib) ** 2)
-                        + 0.125* (((v[k+1,j+1,i] - v[k,j+1,i])*dzhit + (w[k_stag+1,j+1,i] - w[k_stag+1,j,i])*dyhit) ** 2))
+                        + 0.125* (((v[k,j,i] - v[k-1,j,i])*dzhib + (w[k,j,i] - w[k,j-1,i])*dyhib) ** 2)
+                        + 0.125* (((v[k,j+1,i] - v[k-1,j+1,i])*dzhib + (w[k,j+1,i] - w[k,j,i])*dyhit) ** 2)
+                        + 0.125* (((v[k+1,j,i] - v[k,j,i])*dzhit + (w[k+1,j,i] - w[k+1,j-1,i])*dyhib) ** 2)
+                        + 0.125* (((v[k+1,j+1,i] - v[k,j+1,i])*dzhit + (w[k+1,j+1,i] - w[k+1,j,i])*dyhit) ** 2))
 
                 #Add a small number to avoid zero division
                 strain2[k,j,i] += float(1e-09)
@@ -92,7 +95,7 @@ def _calculate_strain2(strain2,mlen,u,v,w,igc,jgc,kgc_center,iend,jend,kend,xgc,
 
 
 def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filepath = 'eddy_diffusivity.nc'):
-    '''Calculates the dimensionless eddy diffusivity [-] required in the Smagorinsky sub-grid model to calculate the sub-grid scale turbulent fluxes. The specified input and output filepaths should be strings that indicate name and location of netCDF files. The input file should be produced by func_generate_training.py. Note that periodic BCs are assumed in the horizontal directions and it is assumed the eddy diffusivity is equal to the molecular kinematic viscosity at the bottom and top walls.'''
+    '''Calculates the dimensionless eddy diffusivity [-] required in the Smagorinsky sub-grid model to calculate the sub-grid scale turbulent fluxes. The specified input and output filepaths should be strings that indicate name and location of netCDF files. The input file should be produced by func_generate_training.py. Note that periodic BCs are assumed in the horizontal directions and it is assumed the eddy diffusivity is equal to the molecular kinematic viscosity at the bottom and top walls. For consistency however with the MLP training data however, the molecular kinematic viscosity is set to 0: the resolved viscous flux is not taken into account.'''
 
     #Check types input 
     if not isinstance(input_filepath,str):
@@ -114,9 +117,9 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
     a = nc.Dataset(input_filepath, 'r')
 
     #Get normalized molecular viscosity and friction velocity
-    mvisc_ref = float(a['mvisc_ref'][:])
+    #mvisc_ref = float(a['mvisc_ref'][:])
     #mvisc     = float(a['mvisc'][:])
-    mvisc = 0. #Don't take molecular contribution into account to be consistent with the training data of the MLP.
+    mvisc = 0. #Don't take molecular contribution into account to be consistent with the training data of the MLP, which does not include the resolved viscous flux.
     utau_ref  = float(a['utau_ref'][:])
 
     #Extract information about the grid
@@ -162,7 +165,7 @@ def calculate_eddy_diffusivity(input_filepath = 'training_data.nc', output_filep
         vc_singlefield = np.array(a['vc'][t,:,:,:])
         wc_singlefield = np.array(a['wc'][t,:,:,:])
 
-        ##QUICK AND DIRTY: RESCALE VELOCITY FIELDS WITH FRICTION VELOCITY
+        #RESCALE VELOCITY FIELDS WITH FRICTION VELOCITY TO UNDO NORMALIZATION
         uc_singlefield = uc_singlefield * utau_ref
         vc_singlefield = vc_singlefield * utau_ref
         wc_singlefield = wc_singlefield * utau_ref

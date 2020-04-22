@@ -8,12 +8,12 @@ from calculate_eddy_diffusivity import calculate_eddy_diffusivity
 from calculate_turbulent_fluxes import calculate_turbulent_fluxes
 
 #Define input/output filepaths
-#input_filepath  = '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc'
-#output_filepath_evisc = '/projects/1/flowsim/simulation1/lesscoarse/eddy_diffusivity.nc'
-#output_filepath_smag  = '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc'
-input_filepath  = '/projects/1/flowsim/simulation1/coarsehor/training_data.nc'
-output_filepath_evisc = '/projects/1/flowsim/simulation1/coarsehor/eddy_diffusivity.nc'
-output_filepath_smag  = '/projects/1/flowsim/simulation1/coarsehor/smagorinsky_fluxes.nc'
+input_filepath  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc'
+output_filepath_evisc = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/eddy_diffusivity.nc'
+output_filepath_smag  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes.nc'
+#input_filepath  = '/projects/1/flowsim/simulation1/coarsehor/training_data.nc'
+#output_filepath_evisc = '/projects/1/flowsim/simulation1/coarsehor/eddy_diffusivity.nc'
+#output_filepath_smag  = '/projects/1/flowsim/simulation1/coarsehor/smagorinsky_fluxes.nc'
 
 #Calculate eddy diffusivities
 calculate_eddy_diffusivity(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
