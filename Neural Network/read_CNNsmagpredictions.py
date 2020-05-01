@@ -211,7 +211,10 @@ def reconstruct_field(preds, x, xs_unique, y, ys_unique, z, zs_unique, tstep, ts
                 i = 0
                 for x_unique in xs_unique:
                     x_index = (x3 == x_unique)
-                    preds_rec[t,k,j,i] = preds3[x_index]
+                    if len(preds3[x_index]) > 1:
+                        preds_rec[t,k,j,i] = preds3[x_index][0] #Preferential sampling in validation set: some components are predicted more often, but simply take the first one: they should all be identical (NN does not change during evalution validation set)
+                    else:
+                        preds_rec[t,k,j,i] = preds3[x_index]
                     i += 1
                 j += 1
             k += 1
@@ -1327,6 +1330,109 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, is_smag = False, t
             plt.savefig("Horcross_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
         plt.close()
 
+#Define function for making spectra
+def make_spectra_heights(ann, smag, dns, z, component, time_step = 0):
+    #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
+    for k in range(len(z)):
+        
+        ann_height  = ann[time_step,k,:,:]  / (utau_ref ** 2.)
+        smag_height = smag[time_step,k,:,:] / (utau_ref ** 2.)
+        dns_height  = dns[time_step,k,:,:]  / (utau_ref ** 2.)
+        #range_bins = (-2.0,2.0)
+
+        #Calculate spectra
+        #ANN
+        nxc = ann_height.shape[1]
+        nyc = ann_height.shape[0]
+        fftx_ann = np.fft.rfft(ann_height,axis=1)*(1/nxc)
+        ffty_ann = np.fft.rfft(ann_height,axis=0)*(1/nyc)
+        Px_ann = fftx_ann[:,1:] * np.conjugate(fftx_ann[:,1:])
+        Py_ann = ffty_ann[1:,:] * np.conjugate(ffty_ann[1:,:])
+        if int(nxc % 2) == 0:
+            Ex_ann = np.append(2*Px_ann[:,:-1],np.reshape(Px_ann[:,-1],(nyc,1)),axis=1)
+        else:
+            Ex_ann = 2*Px_ann[:,:]
+        
+        if int(nyc % 2) == 0:
+            Ey_ann = np.append(2*Py_ann[:-1,:],np.reshape(Py_ann[-1,:],(1,nxc)),axis=0)
+        else:
+            Ey_ann = 2*Py_ann[:,:]
+
+        ann_spec_x = np.nanmean(Ex_ann,axis=0) #Average FT over direction where it was not calculated
+        ann_spec_y = np.nanmean(Ey_ann,axis=1)
+        #smag
+        nxc = smag_height.shape[1]
+        nyc = smag_height.shape[0]
+        fftx_smag = np.fft.rfft(smag_height,axis=1)*(1/nxc)
+        ffty_smag = np.fft.rfft(smag_height,axis=0)*(1/nyc)
+        Px_smag = fftx_smag[:,1:] * np.conjugate(fftx_smag[:,1:])
+        Py_smag = ffty_smag[1:,:] * np.conjugate(ffty_smag[1:,:])
+        if int(nxc % 2) == 0:
+            Ex_smag = np.append(2*Px_smag[:,:-1],np.reshape(Px_smag[:,-1],(nyc,1)),axis=1)
+        else:
+            Ex_smag = 2*Px_smag[:,:]
+        
+        if int(nyc % 2) == 0:
+            Ey_smag = np.append(2*Py_smag[:-1,:],np.reshape(Py_smag[-1,:],(1,nxc)),axis=0)
+        else:
+            Ey_smag = 2*Py_smag[:,:]
+
+        smag_spec_x = np.nanmean(Ex_smag,axis=0) #Average FT over direction where it was not calculated
+        smag_spec_y = np.nanmean(Ey_smag,axis=1)
+        #DNS
+        nxc = dns_height.shape[1]
+        nyc = dns_height.shape[0]
+        fftx_dns = np.fft.rfft(dns_height,axis=1)*(1/nxc)
+        ffty_dns = np.fft.rfft(dns_height,axis=0)*(1/nyc)
+        Px_dns = fftx_dns[:,1:] * np.conjugate(fftx_dns[:,1:])
+        Py_dns = ffty_dns[1:,:] * np.conjugate(ffty_dns[1:,:])
+        if int(nxc % 2) == 0:
+            Ex_dns = np.append(2*Px_dns[:,:-1],np.reshape(Px_dns[:,-1],(nyc,1)),axis=1)
+        else:
+            Ex_dns = 2*Px_dns[:,:]
+        
+        if int(nyc % 2) == 0:
+            Ey_dns = np.append(2*Py_dns[:-1,:],np.reshape(Py_dns[-1,:],(1,nxc)),axis=0)
+        else:
+            Ey_dns = 2*Py_dns[:,:]
+
+        dns_spec_x = np.nanmean(Ex_dns,axis=0) #Average FT over direction where it was not calculated
+        dns_spec_y = np.nanmean(Ey_dns,axis=1)
+
+        #Plot spectra
+        plt.figure()
+        plt.plot(ann_spec_x,  label = 'ANN')
+        plt.plot(smag_spec_x, label = 'Smagorinsky')
+        plt.plot(dns_spec_x,  label = 'DNS')
+        ax = plt.gca()
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        plt.ylabel(r'$\rm E \ [-]$',fontsize=20)
+        plt.xlabel(r'$\rm \kappa \ [-]$',fontsize=20)
+        plt.xticks(fontsize=16, rotation=90)
+        plt.yticks(fontsize=16, rotation=0)
+        plt.legend(loc='center right')
+        plt.tight_layout()
+        plt.savefig("Spectrax_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+        plt.close()
+        #
+        plt.figure()
+        plt.plot(ann_spec_y,  label = 'ANN')
+        plt.plot(smag_spec_y, label = 'Smagorinsky')
+        plt.plot(dns_spec_y,  label = 'DNS')
+        ax = plt.gca()
+        ax.set_yscale('log')
+        ax.set_xscale('log')
+        plt.ylabel(r'$\rm E \ [-]$',fontsize=20)
+        plt.xlabel(r'$\rm \kappa \ [-]$',fontsize=20)
+        plt.xticks(fontsize=16, rotation=90)
+        plt.yticks(fontsize=16, rotation=0)
+        plt.legend(loc='center right')
+        plt.tight_layout()
+        plt.savefig("Spectray_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+        plt.close()
+
 #Define function for making pdfs
 def make_pdfs_heights(values, smag, labels, z, component, time_step = 0):
     #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
@@ -1390,16 +1496,16 @@ def make_vertprof(values, smag, labels, z, component, time_step = 0):
         plt.close()
 
 #Define function for making scatterplots
-def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag):
-    #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: last input of this function is a boolean that specifies whether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False).
+def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag, time_step):
+    #NOTE1: third last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: second last input of this function is a boolean that specifies whether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False).
     for k in range(len(heights)+1):
         if k == len(heights):
-            preds_height = preds_horavg / (utau_ref ** 2.)
-            lbls_height  = lbls_horavg / (utau_ref ** 2.)
+            preds_height = preds_horavg[time_step,:] / (utau_ref ** 2.)
+            lbls_height  = lbls_horavg[time_step,:] / (utau_ref ** 2.)
         else:
-            preds_height = preds[:,k,:,:] / (utau_ref ** 2.)
-            lbls_height  = lbls[:,k,:,:] / (utau_ref ** 2.)
+            preds_height = preds[time_step,k,:,:] / (utau_ref ** 2.)
+            lbls_height  = lbls[time_step,k,:,:] / (utau_ref ** 2.)
         preds_height = preds_height.flatten()
         lbls_height  = lbls_height.flatten()
         
@@ -1451,6 +1557,17 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
     print('start making plots')
+    
+    #Make PDFs of labels and MLP predictions
+    make_spectra_heights(unres_tau_xu_CNN, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0)
+    make_spectra_heights(unres_tau_yu_CNN, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0)
+    make_spectra_heights(unres_tau_zu_CNN, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0)
+    make_spectra_heights(unres_tau_xv_CNN, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0)
+    make_spectra_heights(unres_tau_yv_CNN, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0)
+    make_spectra_heights(unres_tau_zv_CNN, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0)
+    make_spectra_heights(unres_tau_xw_CNN, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0)
+    make_spectra_heights(unres_tau_yw_CNN, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0)
+    make_spectra_heights(unres_tau_zw_CNN, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0)
     
     #Plot vertical profiles
     make_vertprof(unres_tau_xu_CNN_horavg, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,      'xu', time_step = 0)
@@ -1506,24 +1623,24 @@ if args.make_plots:
     
     #Make scatterplots
     #NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
-    make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False)
-    make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False)
-    make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False)
-    make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False)
-    make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False)
-    make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False)
-    make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhcless, 'xw', False)
-    make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhcless, 'yw', False)
-    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False)
+    make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhcless, 'xw', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhcless, 'yw', False, time_step = 0)
+    make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False, time_step = 0)
     
-    make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True)
-    make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True)
-    make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True)
-    make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', True)
-    make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', True)
-    make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', True)
-    make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', True)
-    make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', True)
-    make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', True)
+    make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', True, time_step = 0)
+    make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', True, time_step = 0)
     #
     print('Finished making plots')

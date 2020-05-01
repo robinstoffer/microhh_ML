@@ -49,8 +49,8 @@ parser.add_argument('--inter_op_parallelism_threads', type=int, default=1, \
         help='inter_op_parallelism_threads')
 parser.add_argument('--num_steps', type=int, default=10000, \
         help='Number of steps, i.e. number of batches times number of epochs')
-parser.add_argument('--batch_size', type=int, default=100, \
-        help='Number of samples selected in each batch')
+#parser.add_argument('--batch_size', type=int, default=100, \
+#        help='Number of samples selected in each batch')
 parser.add_argument('--profile_steps', type=int, default=10000, \
         help='Every nth step, a profile measurement is performed that is stored in a JSON-file.')
 parser.add_argument('--summary_steps', type=int, default=100, \
@@ -445,20 +445,20 @@ def model_fn(features, labels, mode, params):
     #Define identity ops for input variables, which can be used to set-up a frozen graph for inference.
     if args.gradients is None:
         input_u      = tf.identity(features['uc_sample'], name = 'input_u')
-        a1 = tf.print("input_u: ", input_u, output_stream=tf.logging.info, summarize=-1)
-        a5 = tf.print("input_u_shape: ", tf.shape(input_u), output_stream=tf.logging.info, summarize=-1)
+        #a1 = tf.print("input_u: ", input_u, output_stream=tf.logging.info, summarize=-1)
+        #a5 = tf.print("input_u_shape: ", tf.shape(input_u), output_stream=tf.logging.info, summarize=-1)
         input_v      = tf.identity(features['vc_sample'], name = 'input_v')
-        a2 = tf.print("input_v: ", input_u, output_stream=tf.logging.info, summarize=-1)
-        a6 = tf.print("input_v_shape: ", tf.shape(input_v), output_stream=tf.logging.info, summarize=-1)
+        #a2 = tf.print("input_v: ", input_u, output_stream=tf.logging.info, summarize=-1)
+        #a6 = tf.print("input_v_shape: ", tf.shape(input_v), output_stream=tf.logging.info, summarize=-1)
         input_w      = tf.identity(features['wc_sample'], name = 'input_w')
-        a3 = tf.print("input_w: ", input_u, output_stream=tf.logging.info, summarize=-1)
-        a7 = tf.print("input_w_shape: ", tf.shape(input_w), output_stream=tf.logging.info, summarize=-1)
+        #a3 = tf.print("input_w: ", input_u, output_stream=tf.logging.info, summarize=-1)
+        #a7 = tf.print("input_w_shape: ", tf.shape(input_w), output_stream=tf.logging.info, summarize=-1)
         #input_p      = tf.identity(features['pc_sample'], name = 'input_p')
         #input_utau_ref = tf.identity(utau_ref, name = 'input_utau_ref') #Allow to feed utau_ref during inference, which likely helps to achieve Re independent results.
         input_utau_ref = tf.constant(utau_ref, name = 'utau_ref')
         #input_z        = tf.expand_dims(tf.identity(np.absolute(features['zloc_sample'] - 1.0), name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
         #input_z        = tf.expand_dims(tf.identity(features['zloc_sample'], name = 'input_z'), axis=1) #Height should be the same for entire batch if batch corresponds to one vertical level
-        #a8 = tf.print("input_z: ", input_z[0], output_stream=tf.logging.info, summarize=-1)
+        #a8 = tf.print("input_z: ", input_z, output_stream=tf.logging.info, summarize=-1)
         #a9 = tf.print("input_z_shape: ", input_z.shape, output_stream=tf.logging.info, summarize=-1)
 
         #Vizualize inputs
@@ -613,7 +613,7 @@ def model_fn(features, labels, mode, params):
                _adjust_sizeinput(input_v_stand, np.s_[:,:,1:,:-1]),
                _adjust_sizeinput(input_w_stand, np.s_[:,1:,:,:-1])],
                #_adjust_sizeinput(input_p_stand, np.s_[:,:,:,:-1])],
-               #nput_z],
+               #input_z],
            'u', params)
         output_layer_v = create_MLP(
            [
@@ -783,7 +783,7 @@ def model_fn(features, labels, mode, params):
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
 #Define settings
-batch_size = int(args.batch_size)
+#batch_size = int(args.batch_size) #Uncomment when batch size is specified via input, not when it is equal to size tfrecord
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 num_labels = 6 #Number of predicted transport components for each sub-MLP
 random_seed = 1234
@@ -809,38 +809,82 @@ val_stepnumbers = np.array([27,28,29],dtype=np.int32)
 #Uncomment two lines below when preferential sampling is not used
 #time_numbers = np.arange(nt_available)
 #train_stepnumbers, val_stepnumbers = split_train_val(time_numbers, 0.1) #Set aside 10% of files for validation.
-#train_filenames = np.zeros((len(train_stepnumbers)*(len(heights)+50),), dtype=object)
-#val_filenames   = np.zeros((len(val_stepnumbers)*len(heights),), dtype=object)
-train_filenames = np.zeros((len(train_stepnumbers)*files_per_snapshot,), dtype=object) #i.e. 53 files stored per time snapshot, which already contain preferential samples
-val_filenames   = np.zeros((len(val_stepnumbers)*files_per_snapshot,), dtype=object)
+train_filenames = np.zeros((len(train_stepnumbers)*(len(heights)+50),), dtype=object)
+val_filenames   = np.zeros((len(val_stepnumbers)*(len(heights)+50),), dtype=object)
+#train_filenames = np.zeros((len(train_stepnumbers)*files_per_snapshot,), dtype=object) #i.e. 53 files stored per time snapshot, which already contain preferential samples
+#val_filenames   = np.zeros((len(val_stepnumbers)*files_per_snapshot,), dtype=object)
 
-k=0
+#Uncomment lines below when batches should consist of individual vertical levels
+#Training files
+i=0
 for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
-
-    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
-
-        #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
-        
-        if args.gradients is None:
-            train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
-        else:
-            train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
-
-        k+=1
-
-k=0
-for val_stepnumber in val_stepnumbers: #Generate training filenames from selected step numbers and total steps
-
-    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
+    k=0
+    n=0
+    for height in heights: #Loop over all vertical levels where samples are stored
 
         #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
-        
-        if args.gradients is None:
-            val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
-        else:
-            val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
 
+        number_added = max(max(10-2*k,1),10-2*(len(heights)-1-k))
+
+        for c in range(number_added):
+
+            if args.gradients is None:
+                train_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
+            else:
+                train_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(train_stepnumber+1, nt_total, height)
+            n+=1
         k+=1
+    i+=1
+
+#Validation files
+i=0
+for val_stepnumber in val_stepnumbers: #Generate validation filenames from selected step numbers and total steps
+    k=0
+    n=0
+    for height in heights: #Loop over all vertical levels where samples are stored
+
+        #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
+
+        number_added = max(max(10-2*k,1),10-2*(len(heights)-1-k))
+
+        for c in range(number_added):
+
+            if args.gradients is None:
+                val_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_height_{2}.tfrecords'.format(val_stepnumber+1, nt_total, height)
+            else:
+                val_filenames[i*(len(heights)+50)+n] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_height_{2}.tfrecords'.format(val_stepnumber+1, nt_total, height)
+            n+=1
+        k+=1
+    i+=1
+
+##Uncomment lines below when batches should not consist of individual vertical levels!
+#k=0
+#for train_stepnumber in train_stepnumbers: #Generate training filenames from selected step numbers and total steps
+#
+#    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
+#
+#        #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
+#        
+#        if args.gradients is None:
+#            train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
+#        else:
+#            train_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_file_{2}.tfrecords'.format(train_stepnumber+1, nt_total, i+1)
+#
+#        k+=1
+#
+#k=0
+#for val_stepnumber in val_stepnumbers: #Generate training filenames from selected step numbers and total steps
+#
+#    for i in range(files_per_snapshot): #Loop over all files stored per time snapshot
+#
+#        #Add preferential sampling by selecting the tfrecords close to the bottom/top walls multiple times, while selecting the tfrecords in the middle of the channel only once. This may improve the performance of the MLP close to the walls, where it matters most.
+#        
+#        if args.gradients is None:
+#            val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
+#        else:
+#            val_filenames[k] = args.input_dir + 'training_time_step_{0}_of_{1}_gradients_file_{2}.tfrecords'.format(val_stepnumber+1, nt_total, i+1)
+#
+#        k+=1
 
 #Print filenames to check
 np.set_printoptions(threshold=np.inf)
@@ -854,13 +898,14 @@ print(val_filenames)
 np.random.shuffle(train_filenames)
 np.random.shuffle(val_filenames)
 
-##Calculate number of samples per tfrecord, used to ensure that each tfrecord corresponds to one batch. The calculated value is printed to check that the number of stored samples is indeed correct
-##NOTE1: this relatively complicated solution is needed because no high-level API exists to determine this
-##NOTE2: it is assumed that EACH tfrecord file contains the same number of records!!!
-#samples_per_tfrecord = 0
-#for record in tf.python_io.tf_record_iterator(train_filenames[0]):
-#    samples_per_tfrecord += 1
-#print("Samples per tfrecord: ", samples_per_tfrecord)
+#Calculate number of samples per tfrecord, used to ensure that each tfrecord corresponds to one batch. The calculated value is printed to check that the number of stored samples is indeed correct
+#NOTE1: this relatively complicated solution is needed because no high-level API exists to determine this
+#NOTE2: it is assumed that EACH tfrecord file contains the same number of records!!!
+samples_per_tfrecord = 0
+for record in tf.python_io.tf_record_iterator(train_filenames[0]):
+    samples_per_tfrecord += 1
+print("Samples per tfrecord: ", samples_per_tfrecord)
+batch_size = samples_per_tfrecord #Set batch size equal to number of samples in tfrecord
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
