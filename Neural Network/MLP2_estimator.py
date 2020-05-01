@@ -288,7 +288,7 @@ def train_input_fn(filenames, batch_size):
     #dataset = dataset.shuffle(len(filenames)) #comment this line when cache() is done after map()
     dataset = dataset.map(lambda line:_parse_function(line), num_parallel_calls=ncores) #Parallelize map transformation using the total amount of CPU cores available.
     dataset = dataset.cache() #NOTE: The unavoidable consequence of using cache() before shuffle is that during all epochs the order of the flow fields is approximately the same (which can be alleviated by choosing a large buffer size, but that costs quite some computational effort). However, using shuffle before cache() will strongly increase the computational effort since memory becomes saturated.    
-    dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over, gives problems if each batch should correspond to one vertical level(shuffles also between individual tfrecords!)
+    #dataset = dataset.shuffle(buffer_size=10000) #Defaults to reshuffling each time the dataset is iterated over, gives problems if each batch should correspond to one vertical level(shuffles also between individual tfrecords!)
     dataset = dataset.batch(batch_size, drop_remainder=False)
     dataset = dataset.repeat()
     dataset.prefetch(1)
@@ -350,7 +350,7 @@ def create_MLP(inputs, name_MLP, params):
 #Define model function for MLP estimator
 def model_fn(features, labels, mode, params):
     '''Model function which calls create_MLP multiple times to build MLPs that each predict some of the labels. These separate MLPs are trained separately, but combined in validation and inference mode. \\
-            NOTE: this function accesses the global variables args.gradients, means_dict_avgt, stdevs_dict_avgt, utau_ref, and samples_per_tfrecord.'''
+            NOTE: this function accesses the global variables args.gradients, means_dict_avgt, stdevs_dict_avgt, utau_ref, and iter_per_epoch.'''
 
     #Define tf.constants for storing the means and stdevs of the input variables & labels, which is needed for the normalisation and subsequent denormalisation in this graph
     #NOTE: the means and stdevs for the '_upstream' and '_downstream' labels are the same. This is why each mean and stdev is repeated twice.
@@ -768,10 +768,16 @@ def model_fn(features, labels, mode, params):
     #Create training op.
     assert mode == tf.estimator.ModeKeys.TRAIN
 
+    #Exponentially decay learning rate
+    starter_learning_rate=params['learning_rate']
+    #decay_rate = params['decay_rate']
+    #learning_rate = tf.train.exponential_decay(starter_learning_rate, tf.train.get_global_step(), iter_per_epoch, decay_rate, staircase=True, name='exponential_decay_learning_rate') #Decrease learning rate in discrete intervals
+    #tf.summary.scalar('learning_rate', learning_rate) #Write to TensorBoard
+
     log_loss_training = log10(loss)
     tf.summary.scalar('log_loss', log_loss_training)
 
-    optimizer = tf.train.AdamOptimizer(params['learning_rate'])
+    optimizer = tf.train.AdamOptimizer(starter_learning_rate)
 
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
 
@@ -787,7 +793,7 @@ def model_fn(features, labels, mode, params):
 num_steps = args.num_steps #Number of steps, i.e. number of batches times number of epochs
 num_labels = 6 #Number of predicted transport components for each sub-MLP
 random_seed = 1234
-files_per_snapshot = 53 #Number of tfrecords stored per time snapshot
+#files_per_snapshot = 53 #Number of tfrecords stored per time snapshot
 
 #Extract friction velocity and heights from training file (where friction velocity is needed for the denormalisation implemented within the MLP)
 training_file = nc.Dataset(args.training_filepath, 'r')
@@ -906,6 +912,9 @@ for record in tf.python_io.tf_record_iterator(train_filenames[0]):
     samples_per_tfrecord += 1
 print("Samples per tfrecord: ", samples_per_tfrecord)
 batch_size = samples_per_tfrecord #Set batch size equal to number of samples in tfrecord
+
+#Determine number of iterations per epoch simply by calculating the number of tfrecord files in the training set (ONLY valid when each batch corresponds to one training file)
+iter_per_epoch = len(train_filenames)
 
 #Calculate means and stdevs for input variables (which is needed for the normalisation).
 #NOTE: in the code below, it is made sure that only the means and stdevs of the time steps used for training are taken into account.
@@ -1071,6 +1080,8 @@ hyperparams =  {
 'n_dense1':args.n_hidden, #Neurons in hidden layer for each control volume
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
+#'learning_rate':0.001, #With exponential decay this is only the starting learning rate
+#'decay_rate':0.993 #Uncomment only with exponential decay learning rate
 'learning_rate':0.0001
 #'learning_rate':0.00001
 }
