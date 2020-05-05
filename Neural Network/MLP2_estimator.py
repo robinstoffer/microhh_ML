@@ -770,9 +770,9 @@ def model_fn(features, labels, mode, params):
 
     #Exponentially decay learning rate
     starter_learning_rate=params['learning_rate']
-    #decay_rate = params['decay_rate']
-    #learning_rate = tf.train.exponential_decay(starter_learning_rate, tf.train.get_global_step(), iter_per_epoch, decay_rate, staircase=True, name='exponential_decay_learning_rate') #Decrease learning rate in discrete intervals
-    #tf.summary.scalar('learning_rate', learning_rate) #Write to TensorBoard
+    decay_rate = params['decay_rate']
+    learning_rate = tf.train.exponential_decay(starter_learning_rate, tf.train.get_global_step(), iter_per_epoch, decay_rate, staircase=True, name='exponential_decay_learning_rate') #Decrease learning rate in discrete intervals
+    tf.summary.scalar('learning_rate', learning_rate) #Write to TensorBoard
 
     log_loss_training = log10(loss)
     tf.summary.scalar('log_loss', log_loss_training)
@@ -1080,9 +1080,9 @@ hyperparams =  {
 'n_dense1':args.n_hidden, #Neurons in hidden layer for each control volume
 'activation_function':tf.nn.leaky_relu, #NOTE: Define new activation function based on tf.nn.leaky_relu with lambda to adjust the default value for alpha (0.2)
 'kernel_initializer':tf.initializers.he_uniform(),
-#'learning_rate':0.001, #With exponential decay this is only the starting learning rate
-#'decay_rate':0.993 #Uncomment only with exponential decay learning rate
-'learning_rate':0.0001
+'learning_rate':0.001, #With exponential decay this is only the starting learning rate
+'decay_rate':0.993 #Uncomment only with exponential decay learning rate
+#'learning_rate':0.0001
 #'learning_rate':0.00001
 }
 print("number of neurons in hidden layer: ", str(args.n_hidden))
