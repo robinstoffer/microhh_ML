@@ -330,19 +330,25 @@ class Finegrid:
         self.var['output'][variable_name]['orientation'] = bool_edge_gridcell
 
         #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
-        self.__add_ghostcells(variable_name)
+        self.__add_ghostcells(variable_name, is_boxfiltered = False)
         
-    def __add_ghostcells(self, variable_name):
+    def __add_ghostcells(self, variable_name, is_boxfiltered = False):
         """ Add ghostcells (defined as grid cells located at the downstream/top boundary and outside the domain) to fine grid for variable_name. 
             For periodic_bc, the samples at the end of the array are repeated at the beginning and vice versa.
             For zero_w_topbottom bc, the samples are extrapolated such that w=0 at the edges of the domain."""
-            
+        
+        #If boxfiltered variable is considered (is_boxfiltered = True), store in appropriate dictionary
+        if is_boxfiltered:
+            dict_name = 'boxfilter'
+        else:
+            dict_name = 'output'
+
         #Check that variable_name is a string
         if not isinstance(variable_name, str):
             raise TypeError("Specified variable_name should be a string.")
         
         #Check whether variable specified via variable_name is defined in object
-        if not variable_name in self.var['output'].keys():
+        if not variable_name in self.var[dict_name].keys():
             raise KeyError("Specified variable_name not defined in object.")
 
         #Check that ghost cells are not negative
@@ -363,19 +369,19 @@ class Finegrid:
             raise ValueError("Ghost cells need to be implemented while no periodic boundary conditions have been assumed. This has not been implemented yet.")
 
         #Read variable from object
-        s = self.var['output'][variable_name]['variable']
+        s = self.var[dict_name][variable_name]['variable']
         
         #Depending on bool_edge_gridcell, add one additional ghost cell at top/downstream boundaries independent of self.igc/jgc/kgc
         self.kgc = self.kgc_center
         bkgc = 0
         bjgc = 0
         bigc = 0
-        if self.var['output'][variable_name]['orientation'][0]:
+        if self.var[dict_name][variable_name]['orientation'][0]:
             bkgc = 1
             self.kgc = self.kgc_edge
-        if self.var['output'][variable_name]['orientation'][1]:
+        if self.var[dict_name][variable_name]['orientation'][1]:
             bjgc = 1
-        if self.var['output'][variable_name]['orientation'][2]:
+        if self.var[dict_name][variable_name]['orientation'][2]:
             bigc = 1
 
         self.siend = self.igc + self.var['grid']['itot'] + bigc
@@ -408,7 +414,7 @@ class Finegrid:
             sgc[self.skend-bkgc] = sgc[self.kgc,:,:] #Add top boundary when variable s is located on the grid_edges in the vertical direction, making sure that is satisfies the same BC.
         
         #Store new fields in object
-        self.var['output'][variable_name]['variable'] = sgc
+        self.var[dict_name][variable_name]['variable'] = sgc
         
     def __add_ghostcells_grid(self):
         '''Store new coordinates with ghost cells in object.'''
@@ -608,6 +614,9 @@ class Finegrid:
         self.var['boxfilter'][variable_name]['orientation'] = self.var['output'][variable_name]['orientation']
         variable_boxfiltered = boxfilter.boxfilter(filter_widths, finegrid = self, variable_name = variable_name, periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
         self.var['boxfilter'][variable_name]['variable'] = variable_boxfiltered.copy()
+
+        #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
+        self.__add_ghostcells(variable_name, is_boxfiltered = True)
 
 class Coarsegrid:
     """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. \\

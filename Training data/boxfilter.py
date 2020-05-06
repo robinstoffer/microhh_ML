@@ -231,10 +231,10 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
     #Read in the right coarse coordinates determined by bool_edge_gridcell.
     #z-direction
     if bool_edge_gridcell[0]:
-        zcor_f     = finegrid['grid']['zh'][finegrid.kgc:finegrid.khend]
+        zcor_f     = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend]
         dist_zf    = filter_widths[0] 
     else:
-        zcor_f     = finegrid['grid']['z'][finegrid.kgc:finegrid.kend]
+        zcor_f     = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend]
         dist_zf    = filter_widths[0]
 
     #y-direction
@@ -287,16 +287,11 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
 
     #Define filtered variable
     var_f = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
-    #weights_f = np.zeros(len(zcor_f), len(ycor_f), len(xcor_f), dtype=(object, object, object))
-    #points_indices_f = np.zeros(len(zcor_f), len(ycor_f), len(xcor_f), dtype=(object, object, object))
-
-    #Add needed ghostcells to finegrid object for the downsampling and calculation total transport
-    #finegrid = add_ghostcells_finegrid(finegrid, coarsegrid, variable_name, bool_edge_gridcell)
 
     #Loop over coordinates for box-filtering
     izc = 0
-    outside_domain = False
     for zcor_f_middle in zcor_f:
+        outside_domain = False
     #for izc in range(coarsegrid['grid']['ktot'])
         if ((np.round((zcor_f_middle - dist_zf),finegrid.sgn_digits) < 0.) or ((np.round(zcor_f_middle + dist_zf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['zsize'], finegrid.sgn_digits)))): #Don't filter when filter width extends beyond grid domain
             outside_domain = True
@@ -344,15 +339,9 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
                     weights =  weights_x[np.newaxis,np.newaxis,:]*weights_y[np.newaxis,:,np.newaxis]*weights_z[:,np.newaxis,np.newaxis]
                     var_f[izc,iyc,ixc] = np.sum(np.multiply(weights, var_finezyx))
  
-                #weights_f[izc,iyc,ixc] = (weights_z,weights_y,weights_x)
-                #points_indices_f[izc,iyc,ixc] = (points_indices_z,points_indices_y,points_indices_x)
-
                 ixc += 1
             iyc += 1
         izc += 1
     
-#    #Store downsampled variable in coarsegrid object
-#    coarsegrid['output'][variable_name] = var_f
- 
     return var_f
     
