@@ -4,6 +4,7 @@
 #Developed for Python 3!
 import numpy as np
 import downsampling_training
+import boxfilter
 import microhh_tools_robinst as tools
 import os
 
@@ -64,6 +65,7 @@ class Finegrid:
         #Define empty dictionary to store grid and variables
         self.var = {}
         self.var['output'] = {}
+        self.var['boxfilter'] = {}
         self.var['grid'] = {}
         self.var['time'] = {}
         self.var['fields'] = {}
@@ -578,6 +580,34 @@ class Finegrid:
             return self.var[name]
         else:
             raise RuntimeError('Can\'t find variable \"{}\" in object.')
+    
+    def boxfilter(self, variable_name, filter_widths):
+        
+        #Check that variable_name is a string
+        if not isinstance(variable_name, str):
+            raise TypeError("Specified variable_name should be a string.")
+        
+        #Check whether variable specified via variable_name is defined in object
+        if not variable_name in self.var['output'].keys():
+            raise KeyError("Specified variable_name not defined in finegrid object on which this coarsegrid object is based. Not possible to apply box filter.")
+
+        #Check that filter_widths is a tuple of length 3 (z,y,x) with positive floats only.
+        if not isinstance(filter_widths, tuple):
+            raise TypeError("Filter_widths should be a tuple with length 3 (z, y, x), and consist only of floats.")
+        
+        if not (len(filter_widths) == 3):
+            raise TypeError("Filter_widths should be a tuple with length 3 (z, y, x), and consist only of floats.")
+
+        if not any(isinstance(filter_width, float) for filter_width in filter_widths):
+            raise TypeError("Filter_widths should be a tuple with length 3 (z, y, x), and consist only of floats.")
+        
+        if any((filter_width <= 0.) for filter_width in filter_widths):
+            raise ValueError("Filter width must be larger than 0.")
+
+        self.var['boxfilter'][variable_name] = {}
+        self.var['boxfilter'][variable_name]['orientation'] = self.var['output'][variable_name]['orientation']
+        variable_boxfiltered = boxfilter.boxfilter(filter_widths, finegrid = self, variable_name = variable_name, periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
+        self.var['boxfilter'][variable_name]['variable'] = variable_boxfiltered.copy()
 
 class Coarsegrid:
     """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. \\

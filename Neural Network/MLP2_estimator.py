@@ -777,7 +777,8 @@ def model_fn(features, labels, mode, params):
     log_loss_training = log10(loss)
     tf.summary.scalar('log_loss', log_loss_training)
 
-    optimizer = tf.train.AdamOptimizer(starter_learning_rate)
+    #optimizer = tf.train.AdamOptimizer(starter_learning_rate)
+    optimizer = tf.train.AdamOptimizer(learning_rate)
 
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
 

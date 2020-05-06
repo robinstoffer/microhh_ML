@@ -14,10 +14,11 @@ import numpy as np
 
 #Load scripts to be tested
 #from grid_objects_training import Finegrid, Coarsegrid
-from grid_objects_training_hor import Finegrid, Coarsegrid
+#from grid_objects_training_hor import Finegrid, Coarsegrid
 from func_generate_training import generate_training_data
-from func_generate_training_hor import generate_training_data_hor
+#from func_generate_training_hor import generate_training_data_hor
 from sample_training_data_tfrecord import generate_samples
+from func_boxfilter import boxfilter_dns
 
 ##Do testing
 #coordx1 = np.array([0.25,0.75])
@@ -125,6 +126,7 @@ grid_filepath = '/projects/1/flowsim/simulation1/grid.0000000'
 #settings_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/moser600.ini'
 #grid_filepath = '/home/robinst/microhh/cases/moser600/simulation2_new/grid.0000000'
 name_training_file = 'training_data.nc'
+name_boxfilter_file = 'dns_boxfilter.nc'
 training_filepath = output_directory + name_training_file
 sampling_filepath = output_directory + 'samples_training.nc'
 means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
@@ -133,4 +135,6 @@ means_stdev_filepath = output_directory + 'means_stdevs_allfields.nc'
 #NOTE2: Resolution of high-resolution simulations is (256,384,768)
 #generate_training_data((64,48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
 #generate_training_data_hor((48,96), input_directory, output_directory, reynolds_number_tau = 590, size_samples = 5, testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_training_file)
-generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_binary = True, create_netcdf = False, store_means_stdevs = True)
+#generate_samples(output_directory, training_filepath = training_filepath, samples_filepath = sampling_filepath, means_stdev_filepath = means_stdev_filepath, create_binary = True, create_netcdf = False, store_means_stdevs = True)
+boxfilter_dns(input_directory, output_directory, reynolds_number_tau = 590, filter_widths = (0.03125,0.06544984695,0.06544984695), testing = False, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_boxfilter_file)
+#boxfilter_dns(input_directory, output_directory, reynolds_number_tau = 590, filter_widths = (1.0,1.0,1.0), testing = True, periodic_bc = (False,True,True), zero_w_topbottom = True, settings_filepath = settings_filepath, grid_filepath = grid_filepath, name_output_file = name_boxfilter_file)
