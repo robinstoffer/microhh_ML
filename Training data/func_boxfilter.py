@@ -335,45 +335,45 @@ def boxfilter_dns(input_directory, output_directory, reynolds_number_tau, filter
         create_variables = False #Make sure variables are only created once.
  
         #Store values
-        var_uboxfilt[t,:,:,:] = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
-        var_vboxfilt[t,:,:,:] = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
-        var_wboxfilt[t,:,:,:] = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend]
+        var_uboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
+        var_vboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
+        var_wboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend]
 
-        var_total_tau_xu_turb[t,:,:,:] = total_tau_xu_turb[:,:,:]
-        var_res_tau_xu_turb[t,:,:,:]   = res_tau_xu_turb[:,:,:]
-        var_unres_tau_xu_turb[t,:,:,:] = unres_tau_xu_turb[:,:,:]
+        var_total_tau_xu_turb[t-tstart,:,:,:] = total_tau_xu_turb[:,:,:]
+        var_res_tau_xu_turb[t-tstart,:,:,:]   = res_tau_xu_turb[:,:,:]
+        var_unres_tau_xu_turb[t-tstart,:,:,:] = unres_tau_xu_turb[:,:,:]
  
-        var_total_tau_xv_turb[t,:,:,:] = total_tau_xv_turb[:,:,:]
-        var_res_tau_xv_turb[t,:,:,:]   = res_tau_xv_turb[:,:,:]
-        var_unres_tau_xv_turb[t,:,:,:] = unres_tau_xv_turb[:,:,:]
+        var_total_tau_xv_turb[t-tstart,:,:,:] = total_tau_xv_turb[:,:,:]
+        var_res_tau_xv_turb[t-tstart,:,:,:]   = res_tau_xv_turb[:,:,:]
+        var_unres_tau_xv_turb[t-tstart,:,:,:] = unres_tau_xv_turb[:,:,:]
        
-        var_total_tau_xw_turb[t,:,:,:] = total_tau_xw_turb[:,:,:]
-        var_res_tau_xw_turb[t,:,:,:]   = res_tau_xw_turb[:,:,:]
-        var_unres_tau_xw_turb[t,:,:,:] = unres_tau_xw_turb[:,:,:]
+        var_total_tau_xw_turb[t-tstart,:,:,:] = total_tau_xw_turb[:,:,:]
+        var_res_tau_xw_turb[t-tstart,:,:,:]   = res_tau_xw_turb[:,:,:]
+        var_unres_tau_xw_turb[t-tstart,:,:,:] = unres_tau_xw_turb[:,:,:]
 
-        var_total_tau_yu_turb[t,:,:,:] = total_tau_yu_turb[:,:,:]
-        var_res_tau_yu_turb[t,:,:,:]   = res_tau_yu_turb[:,:,:]
-        var_unres_tau_yu_turb[t,:,:,:] = unres_tau_yu_turb[:,:,:]
+        var_total_tau_yu_turb[t-tstart,:,:,:] = total_tau_yu_turb[:,:,:]
+        var_res_tau_yu_turb[t-tstart,:,:,:]   = res_tau_yu_turb[:,:,:]
+        var_unres_tau_yu_turb[t-tstart,:,:,:] = unres_tau_yu_turb[:,:,:]
 
-        var_total_tau_yv_turb[t,:,:,:] = total_tau_yv_turb[:,:,:]
-        var_res_tau_yv_turb[t,:,:,:]   = res_tau_yv_turb[:,:,:]
-        var_unres_tau_yv_turb[t,:,:,:] = unres_tau_yv_turb[:,:,:]
+        var_total_tau_yv_turb[t-tstart,:,:,:] = total_tau_yv_turb[:,:,:]
+        var_res_tau_yv_turb[t-tstart,:,:,:]   = res_tau_yv_turb[:,:,:]
+        var_unres_tau_yv_turb[t-tstart,:,:,:] = unres_tau_yv_turb[:,:,:]
 
-        var_total_tau_yw_turb[t,:,:,:] = total_tau_yw_turb[:,:,:]
-        var_res_tau_yw_turb[t,:,:,:]   = res_tau_yw_turb[:,:,:]
-        var_unres_tau_yw_turb[t,:,:,:] = unres_tau_yw_turb[:,:,:]
+        var_total_tau_yw_turb[t-tstart,:,:,:] = total_tau_yw_turb[:,:,:]
+        var_res_tau_yw_turb[t-tstart,:,:,:]   = res_tau_yw_turb[:,:,:]
+        var_unres_tau_yw_turb[t-tstart,:,:,:] = unres_tau_yw_turb[:,:,:]
 
-        var_total_tau_zu_turb[t,:,:,:] = total_tau_zu_turb[:,:,:]
-        var_res_tau_zu_turb[t,:,:,:]   = res_tau_zu_turb[:,:,:]
-        var_unres_tau_zu_turb[t,:,:,:] = unres_tau_zu_turb[:,:,:]
+        var_total_tau_zu_turb[t-tstart,:,:,:] = total_tau_zu_turb[:,:,:]
+        var_res_tau_zu_turb[t-tstart,:,:,:]   = res_tau_zu_turb[:,:,:]
+        var_unres_tau_zu_turb[t-tstart,:,:,:] = unres_tau_zu_turb[:,:,:]
 
-        var_total_tau_zv_turb[t,:,:,:] = total_tau_zv_turb[:,:,:]
-        var_res_tau_zv_turb[t,:,:,:]   = res_tau_zv_turb[:,:,:]
-        var_unres_tau_zv_turb[t,:,:,:] = unres_tau_zv_turb[:,:,:]
+        var_total_tau_zv_turb[t-tstart,:,:,:] = total_tau_zv_turb[:,:,:]
+        var_res_tau_zv_turb[t-tstart,:,:,:]   = res_tau_zv_turb[:,:,:]
+        var_unres_tau_zv_turb[t-tstart,:,:,:] = unres_tau_zv_turb[:,:,:]
 
-        var_total_tau_zw_turb[t,:,:,:] = total_tau_zw_turb[:,:,:]
-        var_res_tau_zw_turb[t,:,:,:]   = res_tau_zw_turb[:,:,:]
-        var_unres_tau_zw_turb[t,:,:,:] = unres_tau_zw_turb[:,:,:]
+        var_total_tau_zw_turb[t-tstart,:,:,:] = total_tau_zw_turb[:,:,:]
+        var_res_tau_zw_turb[t-tstart,:,:,:]   = res_tau_zw_turb[:,:,:]
+        var_unres_tau_zw_turb[t-tstart,:,:,:] = unres_tau_zw_turb[:,:,:]
 
         #Close file
         a.close()

@@ -291,10 +291,10 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
     #Loop over coordinates for box-filtering
     izc = 0
     for zcor_f_middle in zcor_f:
-        outside_domain = False
+        outside_domainz = False
     #for izc in range(coarsegrid['grid']['ktot'])
         if ((np.round((zcor_f_middle - dist_zf),finegrid.sgn_digits) < 0.) or ((np.round(zcor_f_middle + dist_zf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['zsize'], finegrid.sgn_digits)))): #Don't filter when filter width extends beyond grid domain
-            outside_domain = True
+            outside_domainz = True
         elif bool_edge_gridcell[0]:
             weights_z, points_indices_z = generate_filtercoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_f_middle = zcor_f_middle, dist_corf = dist_zf, finegrid = finegrid, periodic_bc = periodic_bc[0], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['zsize'])
             var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_edge:finegrid.khend, :, :]
@@ -307,8 +307,9 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
         iyc = 0
 	
         for ycor_f_middle in ycor_f:
-            if ((np.round((ycor_f_middle - dist_yf),finegrid.sgn_digits) < 0.) or ((np.round(ycor_f_middle + dist_yf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['ysize'], finegrid.sgn_digits))) or outside_domain): #Don't filter when filter width extends beyond grid domain
-                outside_domain = True
+            outside_domainy = False
+            if ((np.round((ycor_f_middle - dist_yf),finegrid.sgn_digits) < 0.) or ((np.round(ycor_f_middle + dist_yf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['ysize'], finegrid.sgn_digits))) or outside_domainz): #Don't filter when filter width extends beyond grid domain
+                outside_domainy = True
             elif bool_edge_gridcell[1]:
                 weights_y, points_indices_y = generate_filtercoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_f_middle = ycor_f_middle, dist_corf = dist_yf, finegrid = finegrid, periodic_bc = periodic_bc[1], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['ysize'])
                 var_finezy = var_finez[:, finegrid.jgc:finegrid.jhend,:]
@@ -321,8 +322,9 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
             ixc = 0
 				
             for xcor_f_middle in xcor_f:
-                if ((np.round((xcor_f_middle - dist_xf),finegrid.sgn_digits) < 0.) or ((np.round(xcor_f_middle + dist_xf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['xsize'], finegrid.sgn_digits))) or outside_domain): #Don't filter when filter width extends beyond grid domain
-                    outside_domain = True
+                outside_domainx = False
+                if ((np.round((xcor_f_middle - dist_xf),finegrid.sgn_digits) < 0.) or ((np.round(xcor_f_middle + dist_xf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['xsize'], finegrid.sgn_digits))) or outside_domainy): #Don't filter when filter width extends beyond grid domain
+                    outside_domainx = True
                 elif bool_edge_gridcell[2]:
                     weights_x, points_indices_x = generate_filtercoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_f_middle = xcor_f_middle, dist_corf = dist_xf, finegrid = finegrid, periodic_bc = periodic_bc[2], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['xsize'])
                     var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.ihend]
@@ -332,7 +334,7 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
                     var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.iend]
                     var_finezyx = var_finezyx[:,:,points_indices_x]
 
-                if outside_domain:
+                if outside_domainx:
                     var_f[izc,iyc,ixc] = np.nan
                 else:
                     #Calculate downsampled variable on coarse grid using the selected points in var_finezyx and the fractions defined in the weights variables

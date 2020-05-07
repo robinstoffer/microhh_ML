@@ -86,13 +86,13 @@ fi
 
 #mkdir /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP$MLPNUM
 #cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP$MLPNUM
-mkdir /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP56
-cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP56
+mkdir /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP55
+cd /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP55
 
 #Make CNN/Smag predictions and reconstruct fields
 #python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse/means_stdevs_allfields.nc' --make_table --reconstruct_fields --make_plots
 
-python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP56/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/means_stdevs_allfields.nc' --make_plots --make_table --reconstruct_fields --make_plots
+python3 -u ../read_CNNsmagpredictions.py --prediction_file "/home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP55/MLP_predictions.nc" --training_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc' --smagorinsky_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes.nc' --stats_file '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/means_stdevs_allfields.nc' --make_table --reconstruct_fields #--make_plots
 
 #ssh -o StrictHostKeyChecking=no -f -N -p 22 -R $PORT:localhost:$PORT int3-bb.cartesius.surfsara.nl
 #XDG_RUNTIME_DIR=""
