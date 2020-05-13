@@ -163,9 +163,15 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss):
 
     #Initialize arrays for storage features importances
     if permute:
+        ksample = 0
+        jsample = 0
+        isample = 0
         u_fi = np.zeros((5,5,5), dtype = np.float64)
         v_fi = np.zeros((5,5,5), dtype = np.float64)
         w_fi = np.zeros((5,5,5), dtype = np.float64)
+        loss_permu = 0.0
+        loss_permv = 0.0
+        loss_permw = 0.0
  
     ##Initialize fields for storage transport components
     #unres_tau_xu_CNN_upstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
@@ -202,6 +208,12 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss):
     #NOTE: offset factors are defined to ensure alternate inference
     for k in range(grid.kstart,grid.kend,1):
     #for k in range(grid.kstart,grid.kstart+1,1): #FOR TESTING PURPOSES ONLY!!!
+        u_height = u[k,:,:]
+        u_height = u_height.flatten()
+        v_height = v[k,:,:]
+        v_height = v_height.flatten()
+        w_height = w[k,:,:]
+        w_height = w_height.flatten()
         for j in range(grid.jstart,grid.jend,1):
             for i in range(grid.istart,grid.iend,1):
                 
@@ -215,18 +227,117 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss):
                 #raise RuntimeError("Stop run")
 
                 if permute:
-                    #Randomly select one of two/three/four neighboring cells of sample in horizontal
-                    ksample = 0
-                    jsample = 0
-                    isample = 0
-                    input_u_val[ksample,jsample,isample] = 
+                    
+                    #u-velocity
+
+                    #Randomly select other velocity in horizontal
+                    input_u_val[(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(u_height)
+                    
+                    #Execute MLP once for selected grid box
+                    resultu = MLP.predict(input_u_val, input_v_val, input_w_val)
+                    
+                    #NOTE1: compensate indices for lack of ghost cells
+                    #NOTE2: flatten 'result' matrix to have consistent shape for output arrays
+                    resultu = resultu.flatten()
+                    i_nogc = i - grid.istart
+                    j_nogc = j - grid.jstart
+                    k_nogc = k - grid.kstart
+                    
+                    #Calculate mean squared errors, add to loss function
+                    loss_permu += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[0]) ** 2.
+                    loss_permu += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[1]) ** 2.
+                    loss_permu += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[2]) ** 2.
+                    loss_permu += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[3]) ** 2.
+                    loss_permu += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[4]) ** 2.
+                    loss_permu += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[5]) ** 2.
+                    loss_permu += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[6]) ** 2.
+                    loss_permu += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[7]) ** 2.
+                    loss_permu += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[8]) ** 2.
+                    loss_permu += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[9]) ** 2.
+                    loss_permu += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[10]) ** 2.
+                    loss_permu += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[11]) ** 2.
+                    loss_permu += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[12]) ** 2.
+                    loss_permu += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[13]) ** 2.
+                    loss_permu += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[14]) ** 2.
+                    loss_permu += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[15]) ** 2.
+                    loss_permu += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[16]) ** 2.
+                    loss_permu += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[17]) ** 2.
+                
+                    #v-velocity
+
+                    #Randomly select other velocity in horizontal
+                    input_v_val[(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(v_height)
+                    
+                    #Execute MLP once for selected grid box
+                    resultv = MLP.predict(input_u_val, input_v_val, input_w_val)
+                    
+                    #NOTE1: compensate indices for lack of ghost cells
+                    #NOTE2: flatten 'result' matrix to have consistent shape for output arrays
+                    resultv = resultv.flatten()
+                    i_nogc = i - grid.istart
+                    j_nogc = j - grid.jstart
+                    k_nogc = k - grid.kstart
+                    
+                    #Calculate mean squared errors, add to loss function
+                    loss_permv += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[0]) ** 2.
+                    loss_permv += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[1]) ** 2.
+                    loss_permv += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[2]) ** 2.
+                    loss_permv += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[3]) ** 2.
+                    loss_permv += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[4]) ** 2.
+                    loss_permv += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[5]) ** 2.
+                    loss_permv += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[6]) ** 2.
+                    loss_permv += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[7]) ** 2.
+                    loss_permv += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[8]) ** 2.
+                    loss_permv += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[9]) ** 2.
+                    loss_permv += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[10]) ** 2.
+                    loss_permv += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[11]) ** 2.
+                    loss_permv += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[12]) ** 2.
+                    loss_permv += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[13]) ** 2.
+                    loss_permv += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[14]) ** 2.
+                    loss_permv += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[15]) ** 2.
+                    loss_permv += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[16]) ** 2.
+                    loss_permv += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[17]) ** 2.
+                
+                    #w-velocity
+
+                    #Randomly select other velocity in horizontal
+                    input_w_val[(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(w_height)
+                    
+                    #Execute MLP once for selected grid box
+                    resultw = MLP.predict(input_u_val, input_v_val, input_w_val)
+                    
+                    #NOTE1: compensate indices for lack of ghost cells
+                    #NOTE2: flatten 'result' matrix to have consistent shape for output arrays
+                    resultw = resultw.flatten()
+                    i_nogc = i - grid.istart
+                    j_nogc = j - grid.jstart
+                    k_nogc = k - grid.kstart
+                    
+                    #Calculate mean squared errors, add to loss function
+                    loss_permw += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[0]) ** 2.
+                    loss_permw += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[1]) ** 2.
+                    loss_permw += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[2]) ** 2.
+                    loss_permw += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[3]) ** 2.
+                    loss_permw += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[4]) ** 2.
+                    loss_permw += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[5]) ** 2.
+                    loss_permw += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[6]) ** 2.
+                    loss_permw += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[7]) ** 2.
+                    loss_permw += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[8]) ** 2.
+                    loss_permw += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[9]) ** 2.
+                    loss_permw += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[10]) ** 2.
+                    loss_permw += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[11]) ** 2.
+                    loss_permw += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[12]) ** 2.
+                    loss_permw += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[13]) ** 2.
+                    loss_permw += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[14]) ** 2.
+                    loss_permw += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[15]) ** 2.
+                    loss_permw += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[16]) ** 2.
+                    loss_permw += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[17]) ** 2.
                 
                 else:
 
                     #Execute MLP once for selected grid box
                     result = MLP.predict(input_u_val, input_v_val, input_w_val)
 
-                    #Store results in initialized temporary arrays
                     #NOTE1: compensate indices for lack of ghost cells
                     #NOTE2: flatten 'result' matrix to have consistent shape for output arrays
                     result = result.flatten()
@@ -274,6 +385,12 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss):
                     #unres_tau_zw_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[17]
     
     if permute:
+        loss_permu = (loss_permu / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+        u_fi[ksample,jsample,isample] = loss_permu / loss[time_step]
+        loss_permv = (loss_permv / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+        v_fi[ksample,jsample,isample] = loss_permv / loss[time_step]
+        loss_permw = (loss_permw / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+        w_fi[ksample,jsample,isample] = loss_permw / loss[time_step]
         return u_fi, v_fi, w_fi
     else:
         #Take average loss function, take root, and store it in nc-file
@@ -396,7 +513,7 @@ if __name__ == '__main__':
         inference.createDimension("xgcextra", len(xgcextra))
         inference.createDimension("xhc",len(xhc))
         inference.createDimension("xhcless",len(xhcless))
-        inference.createDimension("tstep_unique",len(tstep_unique))
+        inference.createDimension("time",None)
         inference.createDimension("k",5)
         inference.createDimension("j",5)
         inference.createDimension("i",5)
@@ -414,7 +531,6 @@ if __name__ == '__main__':
         var_xgcextra     = inference.createVariable("xgcextra",     "f8", ("xgcextra",))
         var_xhc          = inference.createVariable("xhc",          "f8", ("xhc",))
         var_xhcless      = inference.createVariable("xhcless",      "f8", ("xhcless",))
-        var_tstep_unique = inference.createVariable("tstep_unique", "f8", ("tstep_unique",))
         var_k            = inference.createVariable("k",            "f8", ("k",))
         var_j            = inference.createVariable("j",            "f8", ("j",))
         var_i            = inference.createVariable("i",            "f8", ("i",))
@@ -431,15 +547,14 @@ if __name__ == '__main__':
         var_xgcextra[:]      = xgcextra
         var_xhc[:]           = xhc
         var_xhcless[:]       = xhcless
-        var_tstep_unique[:]  = tstep_unique
         var_k[:]             = np.arange(5)
         var_j[:]             = np.arange(5)
         var_i[:]             = np.arange(5)
         
         #Initialize variables for storage inference results
-        var_u_fi                      = inference.createVariable("u_fi","f8",("tstep_unique","k","j","i"))
-        var_v_fi                      = inference.createVariable("v_fi","f8",("tstep_unique","k","j","i"))
-        var_w_fi                      = inference.createVariable("w_fi","f8",("tstep_unique","k","j","i"))
+        var_u_fi                      = inference.createVariable("u_fi","f8",("time","k","j","i"))
+        var_v_fi                      = inference.createVariable("v_fi","f8",("time","k","j","i"))
+        var_w_fi                      = inference.createVariable("w_fi","f8",("time","k","j","i"))
     ##
     #var_unres_tau_xu_CNN_upstream = inference.createVariable("unres_tau_xu_CNN_upstream","f8",("tstep_unique","zc","yc","xc"))      
     #var_unres_tau_xv_CNN_upstream = inference.createVariable("unres_tau_xv_CNN_upstream","f8",("tstep_unique","zc","yhcless","xhcless"))     
