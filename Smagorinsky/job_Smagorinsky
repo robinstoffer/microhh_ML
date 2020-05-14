@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -t 1-00:00:00
-###SBATCH -t 1:00:00
+###SBATCH -t 1-00:00:00
+#SBATCH -t 1:00:00
 #SBATCH -N 1
 ###SBATCH -n 48
-###SBATCH -p short
+#SBATCH -p short
 ###SBATCH -p gpu_short
 ###SBATCH -p gpu
 
@@ -53,4 +53,4 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 
 echo 'finished doing calculations, start comparison'
 python3 -u comparison_smag_dns.py --dns_file "/projects/1/flowsim/simulation1/lesscoarse_prefsampling/dns_boxfilter_wrong.nc" --smagorinsky_file "/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes_dns.nc" --make_table --make_plots
-echo 'finished comparison
+echo 'finished comparison'

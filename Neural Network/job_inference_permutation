@@ -36,7 +36,7 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 export MLPNUM=53
 
 #Do inference
-python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --labels_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/reconstructed_fields.nc #--calc_loss
+python3 -u inference_MLP_permutation.py --training_filename /projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc --loss_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/loss.nc --inference_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/inference_permutation_test.nc --variables_filepath /home/robinst/microhh/cases/moser600/git_repository/CNN_checkpoints/real_data_MLP${MLPNUM}/ --labels_filename /home/robinst/microhh/cases/moser600/git_repository/Neural\ Network/predictions_real_data_MLP${MLPNUM}/reconstructed_fields.nc #--calc_loss
 
 #GO TO LISA WHEN USING TENSORRT FOR INFERENCE ON GPU, and execute commands below
 #convert-to-uff convert-to-uff ~/inference_firstMLP/frozen_graph/MLP1.pb -o uff/MLP1.uff -O outputs/BiasAdd

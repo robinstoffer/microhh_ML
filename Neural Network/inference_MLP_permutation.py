@@ -180,7 +180,7 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 #u-velocity
     
                 #Randomly select other velocity in horizontal
-                input_u_val[(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(u[k-b+ksample,:,:].flatten())
+                input_u_val[0,(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(u[k-b+ksample,:,:].flatten())
                 
                 #Execute MLP once for selected grid box
                 resultu = MLP.predict(input_u_val, input_v_val, input_w_val)
@@ -215,7 +215,7 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 #v-velocity
     
                 #Randomly select other velocity in horizontal
-                input_v_val[(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(v[k-b+ksample,:,:].flatten())
+                input_v_val[0,(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(v[k-b+ksample,:,:].flatten())
                 
                 #Execute MLP once for selected grid box
                 resultv = MLP.predict(input_u_val, input_v_val, input_w_val)
@@ -250,7 +250,7 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 #w-velocity
     
                 #Randomly select other velocity in horizontal
-                input_w_val[(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(w[k-b+ksample,:,:].flatten())
+                input_w_val[0,(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(w[k-b+ksample,:,:].flatten())
                 
                 #Execute MLP once for selected grid box
                 resultw = MLP.predict(input_u_val, input_v_val, input_w_val)
@@ -625,6 +625,7 @@ if __name__ == '__main__':
     #Loop over flow fields, for each time step in tstep_unique (giving 4 loops in total).
     #For each alternating grid cell, store transport components by calling the 'frozen' MLP within a tf.Session().
     for t in range(nt):
+    #for t in range(1):
 
         #Select flow fields of time step
         u_singletimestep = u[t,:,:,:-1].flatten()#Flatten and remove ghost cells in horizontal staggered dimensions to make shape consistent to arrays in MicroHH

@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import netCDF4 as nc
 #import tensorflow as tf
@@ -33,15 +34,16 @@ b = nc.Dataset(args.smagorinsky_file,'r')
 time_step = 0 #NOTE: in fact corresponds to time_step 28 from validation set
 
 #Extract smagorinsky fluxes and DNS residual fluxes.
-dns_tau_xu   = np.array(a['unres_tau_xu_turb'][time_step,:,:,:])
+#NOTE: remove -1's later!!!
+dns_tau_xu   = np.array(a['unres_tau_xu_turb'][time_step,:,:,:-1])
 dns_tau_yu   = np.array(a['unres_tau_yu_turb'][time_step,:,:,:])
 dns_tau_zu   = np.array(a['unres_tau_zu_turb'][time_step,:,:,:])
 dns_tau_xv   = np.array(a['unres_tau_xv_turb'][time_step,:,:,:])
-dns_tau_yv   = np.array(a['unres_tau_yv_turb'][time_step,:,:,:])
+dns_tau_yv   = np.array(a['unres_tau_yv_turb'][time_step,:,:-1,:])
 dns_tau_zv   = np.array(a['unres_tau_zv_turb'][time_step,:,:,:])
 dns_tau_xw   = np.array(a['unres_tau_xw_turb'][time_step,:,:,:])
 dns_tau_yw   = np.array(a['unres_tau_yw_turb'][time_step,:,:,:])
-dns_tau_zw   = np.array(a['unres_tau_zw_turb'][time_step,:,:,:])
+dns_tau_zw   = np.array(a['unres_tau_zw_turb'][time_step,:-1,:,:])
 #
 dns_tau_xu_smag  = np.array(b['smag_tau_xu'][time_step,:,:,:])
 dns_tau_yu_smag  = np.array(b['smag_tau_yu'][time_step,:,:,:])
@@ -66,12 +68,12 @@ nx = len(x)
 xh = np.array(a['xh'][:])
 
 #Extract friction velocity
-utau_ref = float(a['utau_ref'])
+utau_ref = float(a['utau_ref'][:])
 
 #NOTE: commented out code takes into account additional ghost cells that have been added to the used transport components
 #Calculate trace part of subgrid-stress, and subtract this from labels for fair comparison with Smagorinsky fluxes
 trace_train = (dns_tau_xu + dns_tau_yv + dns_tau_zw) * (1./3.)
-print('Trace_train: ' + str(trace_train))
+#print('Trace_train: ' + str(trace_train))
 dns_tau_xu_traceless = dns_tau_xu - trace_train
 dns_tau_yv_traceless = dns_tau_yv - trace_train
 dns_tau_zw_traceless = dns_tau_zw - trace_train
@@ -100,39 +102,99 @@ if args.make_table:
     corrcoef_zw_smag = np.zeros((nz+2,),dtype=np.float32)
 
     #Consider all heights over all time steps
-    corrcoef_xu_smag[0] = np.round(np.corrcoef(unres_tau_xu_smag.flatten(), unres_tau_xu_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yu_smag[0] = np.round(np.corrcoef(unres_tau_yu_smag.flatten(), unres_tau_yu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zu_smag[0] = np.round(np.corrcoef(unres_tau_zu_smag.flatten(), unres_tau_zu.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_xv_smag[0] = np.round(np.corrcoef(unres_tau_xv_smag.flatten(), unres_tau_xv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yv_smag[0] = np.round(np.corrcoef(unres_tau_yv_smag.flatten(), unres_tau_yv_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zv_smag[0] = np.round(np.corrcoef(unres_tau_zv_smag.flatten(), unres_tau_zv.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_xw_smag[0] = np.round(np.corrcoef(unres_tau_xw_smag.flatten(), unres_tau_xw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_yw_smag[0] = np.round(np.corrcoef(unres_tau_yw_smag.flatten(), unres_tau_yw.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-    corrcoef_zw_smag[0] = np.round(np.corrcoef(unres_tau_zw_smag.flatten(), unres_tau_zw_traceless.flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_xu_smag.flatten())
+    b = ma.masked_invalid(dns_tau_xu_traceless.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_xu_smag[0] = np.round(ma.corrcoef(dns_tau_xu_smag.flatten()[msk], dns_tau_xu_traceless.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_yu_smag.flatten())
+    b = ma.masked_invalid(dns_tau_yu.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_yu_smag[0] = np.round(ma.corrcoef(dns_tau_yu_smag.flatten()[msk], dns_tau_yu.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_zu_smag.flatten())
+    b = ma.masked_invalid(dns_tau_zu.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_zu_smag[0] = np.round(ma.corrcoef(dns_tau_zu_smag.flatten()[msk], dns_tau_zu.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_xv_smag.flatten())
+    b = ma.masked_invalid(dns_tau_xv.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_xv_smag[0] = np.round(ma.corrcoef(dns_tau_xv_smag.flatten()[msk], dns_tau_xv.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_yv_smag.flatten())
+    b = ma.masked_invalid(dns_tau_yv_traceless.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_yv_smag[0] = np.round(ma.corrcoef(dns_tau_yv_smag.flatten()[msk], dns_tau_yv_traceless.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_zv_smag.flatten())
+    b = ma.masked_invalid(dns_tau_zv.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_zv_smag[0] = np.round(ma.corrcoef(dns_tau_zv_smag.flatten()[msk], dns_tau_zv.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_xw_smag.flatten())
+    b = ma.masked_invalid(dns_tau_xw.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_xw_smag[0] = np.round(ma.corrcoef(dns_tau_xw_smag.flatten()[msk], dns_tau_xw.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_yw_smag.flatten())
+    b = ma.masked_invalid(dns_tau_yw.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_yw_smag[0] = np.round(ma.corrcoef(dns_tau_yw_smag.flatten()[msk], dns_tau_yw.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+    a = ma.masked_invalid(dns_tau_zw_smag.flatten())
+    b = ma.masked_invalid(dns_tau_zw.flatten())
+    msk = (~a.mask & ~b.mask)
+    corrcoef_zw_smag[0] = np.round(ma.corrcoef(dns_tau_zw_smag.flatten()[msk], dns_tau_zw_traceless.flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
  
     #Consider each individual height
     for k in range(nz+1): #+1 needed to calculate corr_coefs at top wall for appropriate components
         if k == nz: #Ensure only arrays with additional cell for top wall are accessed, put the others to NaN
             corrcoef_xu_smag[k+1] = np.nan
             corrcoef_yu_smag[k+1] = np.nan
-            corrcoef_zu_smag[k+1] = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_zu_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_zu[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_zu_smag[k+1] = np.round(ma.corrcoef(dns_tau_zu_smag[k,:,:].flatten()[msk], dns_tau_zu[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xv_smag[k+1] = np.nan
             corrcoef_yv_smag[k+1] = np.nan
-            corrcoef_zv_smag[k+1] = np.round(np.corrcoef(unres_tau_zv_smag[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_zv_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_zv[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_zv_smag[k+1] = np.round(ma.corrcoef(dns_tau_zv_smag[k,:,:].flatten()[msk], dns_tau_zv[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
             corrcoef_xw_smag[k+1] = np.nan
             corrcoef_yw_smag[k+1] = np.nan
             corrcoef_zw_smag[k+1] = np.nan
 
         else:
-            corrcoef_xu_smag[k+1] = np.round(np.corrcoef(unres_tau_xu_smag[:,k,:,:].flatten(), unres_tau_xu_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yu_smag[k+1] = np.round(np.corrcoef(unres_tau_yu_smag[:,k,:,:].flatten(), unres_tau_yu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zu_smag[k+1] = np.round(np.corrcoef(unres_tau_zu_smag[:,k,:,:].flatten(), unres_tau_zu[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xv_smag[k+1] = np.round(np.corrcoef(unres_tau_xv_smag[:,k,:,:].flatten(), unres_tau_xv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yv_smag[k+1] = np.round(np.corrcoef(unres_tau_yv_smag[:,k,:,:].flatten(), unres_tau_yv_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zv_smag[k+1] = np.round(np.corrcoef(unres_tau_zv_smag[:,k,:,:].flatten(), unres_tau_zv[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_xw_smag[k+1] = np.round(np.corrcoef(unres_tau_xw_smag[:,k,:,:].flatten(), unres_tau_xw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_yw_smag[k+1] = np.round(np.corrcoef(unres_tau_yw_smag[:,k,:,:].flatten(), unres_tau_yw[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
-            corrcoef_zw_smag[k+1] = np.round(np.corrcoef(unres_tau_zw_smag[:,k,:,:].flatten(), unres_tau_zw_traceless[:,k,:,:].flatten())[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_xu_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_xu_traceless[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_xu_smag[k+1] = np.round(ma.corrcoef(dns_tau_xu_smag[k,:,:].flatten()[msk], dns_tau_xu_traceless[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_yu_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_yu[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_yu_smag[k+1] = np.round(ma.corrcoef(dns_tau_yu_smag[k,:,:].flatten()[msk], dns_tau_yu[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_zu_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_zu[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_zu_smag[k+1] = np.round(ma.corrcoef(dns_tau_zu_smag[k,:,:].flatten()[msk], dns_tau_zu[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_xv_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_xv[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_xv_smag[k+1] = np.round(ma.corrcoef(dns_tau_xv_smag[k,:,:].flatten()[msk], dns_tau_xv[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_yv_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_yv_traceless[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_yv_smag[k+1] = np.round(ma.corrcoef(dns_tau_yv_smag[k,:,:].flatten()[msk], dns_tau_yv_traceless[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_zv_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_zv[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_zv_smag[k+1] = np.round(ma.corrcoef(dns_tau_zv_smag[k,:,:].flatten()[msk], dns_tau_zv[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_xw_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_xw[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_xw_smag[k+1] = np.round(ma.corrcoef(dns_tau_xw_smag[k,:,:].flatten()[msk], dns_tau_xw[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_yw_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_yw[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_yw_smag[k+1] = np.round(ma.corrcoef(dns_tau_yw_smag[k,:,:].flatten()[msk], dns_tau_yw[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            a = ma.masked_invalid(dns_tau_zw_smag[k,:,:].flatten())
+            b = ma.masked_invalid(dns_tau_zw_traceless[k,:,:].flatten())
+            msk = (~a.mask & ~b.mask)
+            corrcoef_zw_smag[k+1] = np.round(ma.corrcoef(dns_tau_zw_smag[k,:,:].flatten()[msk], dns_tau_zw_traceless[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
 
     #Add correlation coefficients to DataFrame
     corr_coef = np.array(
@@ -174,9 +236,9 @@ if args.make_table:
 
         #Save figure
         if corr_table:
-            fig.savefig('corr_table.png', bbox_inches='tight')
+            fig.savefig('corr_table_boxfilter.png', bbox_inches='tight')
         else:
-            fig.savefig('re_table.png', bbox_inches='tight')
+            fig.savefig('re_table_boxfilter.png', bbox_inches='tight')
 
     render_mpl_table(corr_table, header_columns=0, col_width=2.0, bbox=[0.02, 0, 1, 1], corr_table = True)
 
@@ -406,7 +468,7 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         lbls_height  = lbls_height.flatten()
         
         #Make scatterplots of Smagorinsky/CNN fluxes versus labels
-        corrcoef = np.round(np.corrcoef(preds_height, lbls_height)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+        corrcoef = np.round(ma.corrcoef(preds_height, lbls_height)[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
         plt.figure()
         plt.scatter(lbls_height, preds_height, s=6, marker='o', alpha=0.2)
         if k == len(heights):
