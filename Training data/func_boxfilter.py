@@ -198,7 +198,7 @@ def boxfilter_dns(input_directory, output_directory, reynolds_number_tau, filter
         tot_tau_zv_turb = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend] * finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend]
         tot_tau_xw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1] * finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
         tot_tau_yw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend] * finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
-        tot_tau_zw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
+        tot_tau_zw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
         #
         res_tau_xu_turb = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
         res_tau_yu_turb = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend] * finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1]
@@ -208,7 +208,7 @@ def boxfilter_dns(input_directory, output_directory, reynolds_number_tau, filter
         res_tau_zv_turb = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend] * finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend]
         res_tau_xw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1] * finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
         res_tau_yw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend] * finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
-        res_tau_zw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
+        res_tau_zw_turb = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
         #
         unres_tau_xu_turb = tot_tau_xu_turb - res_tau_xu_turb
         unres_tau_yu_turb = tot_tau_yu_turb - res_tau_yu_turb
