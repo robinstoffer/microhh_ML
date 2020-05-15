@@ -10,8 +10,8 @@ from calculate_turbulent_fluxes_dns import calculate_turbulent_fluxes_dns
 #from calculate_turbulent_fluxes import calculate_turbulent_fluxes
 
 #Define input/output filepaths
-input_filepath  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/dns_boxfilter_wrong.nc' #Only velocities and coordinates used, which are correct in this nc-file
-output_filepath_evisc = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/eddy_diffusivity_dns_1.nc'
+input_filepath  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/dns_boxfilter_temp.nc' #Only velocities and coordinates used, which are correct in this nc-file
+output_filepath_evisc = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/eddy_diffusivity_dns.nc'
 output_filepath_smag  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes_dns.nc'
 #input_filepath  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc'
 #output_filepath_evisc = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling/eddy_diffusivity.nc'
@@ -22,7 +22,7 @@ output_filepath_smag  = '/projects/1/flowsim/simulation1/lesscoarse_prefsampling
 
 #Calculate eddy diffusivities
 #calculate_eddy_diffusivity(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
-#calculate_eddy_diffusivity_dns(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
+calculate_eddy_diffusivity_dns(input_filepath = input_filepath, output_filepath = output_filepath_evisc)
 
 #Calculate turbulent fluxes
 #calculate_turbulent_fluxes(flowfields_filepath = input_filepath, eddy_diffusivity_filepath = output_filepath_evisc, output_filepath = output_filepath_smag, zero_w_topbottom = True)

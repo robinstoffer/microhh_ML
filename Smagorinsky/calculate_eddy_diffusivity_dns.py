@@ -15,6 +15,11 @@ def _calculate_strain2(strain2,mlen,u,v,w,x,y,z,xh,yh,zh,utau_ref,mvisc):
     vandriest_coef = 26 #Default Van Driest damping coeffcient
     height_channel = 2.0
 
+    #Hard-code filter widths for now
+    dxf = (2* np.pi) / 768.0
+    dyf = np.pi / 384.0
+    dzf = 2.0 / 64.0
+    
     ##Check whether at least 1 ghost cell is present in each direction
     #if not (igc >= 1 and jgc >= 1 and kgc_center >= 1):
     #    raise ValueError("There should be at least one ghost cell be present in each coordinate direction.")
@@ -45,8 +50,9 @@ def _calculate_strain2(strain2,mlen,u,v,w,x,y,z,xh,yh,zh,utau_ref,mvisc):
                 dxi   = 1./dx
                 dxhib = 1./(x[i] - x[i-1])
                 dxhit = 1./(x[i+1] - x[i])
-                
-                mlen[k,j,i]    = (damp_coef * cs * ((dx*dy*dz) ** (1/3))) ** 2
+
+                mlen[k,j,i]    = (damp_coef * cs * ((dxf*dyf*dzf) ** (1/3))) ** 2
+                #mlen[k,j,i]    = (damp_coef * cs * ((dx*dy*dz) ** (1/3))) ** 2
                 #mlen[k,j,i]    = (damp_coef * cs * ((dx**2 + dz**2 + 4*(dy**2))**0.5)) ** 2
                 #mlen[k,j,i]    = (cs * ((dx*dy*dz) ** (1/3))) ** 2 #NOTE: FOR TESTING PURPOSES NO DAMPING FUNCTION INCLUDED!
 
