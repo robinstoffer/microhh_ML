@@ -155,7 +155,7 @@ class Grid:
         self.ijcells = self.icells * self.jcells
 
 
-def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsample, isample):
+def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, k, ksample, jsample, isample):
 
     if permute:
         #Initialize losses
@@ -193,24 +193,29 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 k_nogc = k - grid.kstart
                 
                 #Calculate mean squared errors, add to loss function
-                loss_permu += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[0]) ** 2.
-                loss_permu += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[1]) ** 2.
-                loss_permu += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[2]) ** 2.
-                loss_permu += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[3]) ** 2.
-                loss_permu += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[4]) ** 2.
-                loss_permu += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[5]) ** 2.
-                loss_permu += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[6]) ** 2.
-                loss_permu += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[7]) ** 2.
-                loss_permu += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[8]) ** 2.
-                loss_permu += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[9]) ** 2.
-                loss_permu += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[10]) ** 2.
-                loss_permu += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[11]) ** 2.
-                loss_permu += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[12]) ** 2.
-                loss_permu += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[13]) ** 2.
-                loss_permu += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[14]) ** 2.
-                loss_permu += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[15]) ** 2.
-                loss_permu += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[16]) ** 2.
-                loss_permu += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[17]) ** 2.
+                if flag_only_zu_upstream:
+                    loss_permu += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[4]) ** 2.
+                elif flag_only_zu_downstream:
+                    loss_permu += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[5]) ** 2.
+                else:
+                    loss_permu += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[0]) ** 2.
+                    loss_permu += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[1]) ** 2.
+                    loss_permu += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[2]) ** 2.
+                    loss_permu += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[3]) ** 2.
+                    loss_permu += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[4]) ** 2.
+                    loss_permu += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[5]) ** 2.
+                    loss_permu += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[6]) ** 2.
+                    loss_permu += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[7]) ** 2.
+                    loss_permu += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[8]) ** 2.
+                    loss_permu += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[9]) ** 2.
+                    loss_permu += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[10]) ** 2.
+                    loss_permu += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[11]) ** 2.
+                    loss_permu += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[12]) ** 2.
+                    loss_permu += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[13]) ** 2.
+                    loss_permu += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[14]) ** 2.
+                    loss_permu += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[15]) ** 2.
+                    loss_permu += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultu[16]) ** 2.
+                    loss_permu += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultu[17]) ** 2.
             
                 #v-velocity
     
@@ -228,24 +233,29 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 k_nogc = k - grid.kstart
                 
                 #Calculate mean squared errors, add to loss function
-                loss_permv += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[0]) ** 2.
-                loss_permv += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[1]) ** 2.
-                loss_permv += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[2]) ** 2.
-                loss_permv += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[3]) ** 2.
-                loss_permv += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[4]) ** 2.
-                loss_permv += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[5]) ** 2.
-                loss_permv += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[6]) ** 2.
-                loss_permv += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[7]) ** 2.
-                loss_permv += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[8]) ** 2.
-                loss_permv += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[9]) ** 2.
-                loss_permv += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[10]) ** 2.
-                loss_permv += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[11]) ** 2.
-                loss_permv += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[12]) ** 2.
-                loss_permv += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[13]) ** 2.
-                loss_permv += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[14]) ** 2.
-                loss_permv += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[15]) ** 2.
-                loss_permv += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[16]) ** 2.
-                loss_permv += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[17]) ** 2.
+                if flag_only_zu_upstream:
+                    loss_permv += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[4]) ** 2.
+                elif flag_only_zu_downstream:
+                    loss_permv += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[5]) ** 2.
+                else:
+                    loss_permv += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[0]) ** 2.
+                    loss_permv += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[1]) ** 2.
+                    loss_permv += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[2]) ** 2.
+                    loss_permv += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[3]) ** 2.
+                    loss_permv += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[4]) ** 2.
+                    loss_permv += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[5]) ** 2.
+                    loss_permv += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[6]) ** 2.
+                    loss_permv += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[7]) ** 2.
+                    loss_permv += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[8]) ** 2.
+                    loss_permv += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[9]) ** 2.
+                    loss_permv += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[10]) ** 2.
+                    loss_permv += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[11]) ** 2.
+                    loss_permv += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[12]) ** 2.
+                    loss_permv += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[13]) ** 2.
+                    loss_permv += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[14]) ** 2.
+                    loss_permv += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[15]) ** 2.
+                    loss_permv += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultv[16]) ** 2.
+                    loss_permv += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[17]) ** 2.
             
                 #w-velocity
     
@@ -263,24 +273,29 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 k_nogc = k - grid.kstart
                 
                 #Calculate mean squared errors, add to loss function
-                loss_permw += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[0]) ** 2.
-                loss_permw += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[1]) ** 2.
-                loss_permw += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[2]) ** 2.
-                loss_permw += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[3]) ** 2.
-                loss_permw += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[4]) ** 2.
-                loss_permw += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[5]) ** 2.
-                loss_permw += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[6]) ** 2.
-                loss_permw += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[7]) ** 2.
-                loss_permw += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[8]) ** 2.
-                loss_permw += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[9]) ** 2.
-                loss_permw += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[10]) ** 2.
-                loss_permw += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[11]) ** 2.
-                loss_permw += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[12]) ** 2.
-                loss_permw += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[13]) ** 2.
-                loss_permw += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[14]) ** 2.
-                loss_permw += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[15]) ** 2.
-                loss_permw += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[16]) ** 2.
-                loss_permw += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[17]) ** 2.
+                if flag_only_zu_upstream:
+                    loss_permw += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[4]) ** 2.
+                elif flag_only_zu_downstream:
+                    loss_permw += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[5]) ** 2.
+                else:
+                    loss_permw += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[0]) ** 2.
+                    loss_permw += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[1]) ** 2.
+                    loss_permw += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[2]) ** 2.
+                    loss_permw += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[3]) ** 2.
+                    loss_permw += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[4]) ** 2.
+                    loss_permw += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[5]) ** 2.
+                    loss_permw += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[6]) ** 2.
+                    loss_permw += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[7]) ** 2.
+                    loss_permw += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[8]) ** 2.
+                    loss_permw += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[9]) ** 2.
+                    loss_permw += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[10]) ** 2.
+                    loss_permw += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[11]) ** 2.
+                    loss_permw += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[12]) ** 2.
+                    loss_permw += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[13]) ** 2.
+                    loss_permw += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[14]) ** 2.
+                    loss_permw += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[15]) ** 2.
+                    loss_permw += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - resultw[16]) ** 2.
+                    loss_permw += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultw[17]) ** 2.
             
             else:
     
@@ -295,24 +310,29 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
                 k_nogc = k - grid.kstart
                 
                 #Calculate mean squared errors, add to loss function
-                loss += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[0]) ** 2.
-                loss += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[1]) ** 2.
-                loss += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[2]) ** 2.
-                loss += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[3]) ** 2.
-                loss += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[4]) ** 2.
-                loss += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[5]) ** 2.
-                loss += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[6]) ** 2.
-                loss += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[7]) ** 2.
-                loss += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[8]) ** 2.
-                loss += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[9]) ** 2.
-                loss += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[10]) ** 2.
-                loss += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[11]) ** 2.
-                loss += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[12]) ** 2.
-                loss += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[13]) ** 2.
-                loss += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[14]) ** 2.
-                loss += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[15]) ** 2.
-                loss += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[16]) ** 2.
-                loss += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[17]) ** 2.
+                if flag_only_zu_upstream:
+                    loss += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[4]) ** 2.
+                elif flag_only_zu_downstream:
+                    loss += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[5]) ** 2.
+                else:
+                    loss += (unres_tau_xu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[0]) ** 2.
+                    loss += (unres_tau_xu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[1]) ** 2.
+                    loss += (unres_tau_yu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[2]) ** 2.
+                    loss += (unres_tau_yu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[3]) ** 2.
+                    loss += (unres_tau_zu_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[4]) ** 2.
+                    loss += (unres_tau_zu_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[5]) ** 2.
+                    loss += (unres_tau_xv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[6]) ** 2.
+                    loss += (unres_tau_xv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[7]) ** 2.
+                    loss += (unres_tau_yv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[8]) ** 2.
+                    loss += (unres_tau_yv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[9]) ** 2.
+                    loss += (unres_tau_zv_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[10]) ** 2.
+                    loss += (unres_tau_zv_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[11]) ** 2.
+                    loss += (unres_tau_xw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[12]) ** 2.
+                    loss += (unres_tau_xw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[13]) ** 2.
+                    loss += (unres_tau_yw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[14]) ** 2.
+                    loss += (unres_tau_yw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[15]) ** 2.
+                    loss += (unres_tau_zw_lbls_upstream[time_step,k_nogc,j_nogc,i_nogc]   - result[16]) ** 2.
+                    loss += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - result[17]) ** 2.
     
                 #unres_tau_xu_CNN_upstream[k_nogc,j_nogc,i_nogc]   = result[0]
                 #unres_tau_xu_CNN_downstream[k_nogc,j_nogc,i_nogc] = result[1]
@@ -340,7 +360,7 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsa
     else:
         return loss
 
-def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss):
+def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, flag_only_loglayer):
     #Makes currently use of global variables for the labels and storage of loss
     
 
@@ -401,50 +421,87 @@ def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss):
             for jsample in range(0,end_range):
                 for isample in range(0,end_range):
 
-                    result = parallel(delayed(__grid_loop)(u, v, w, grid, MLP, b, time_step, permute, loss, k, ksample, jsample, isample) for k in range(grid.kstart,grid.kend,1))
+                    if flag_only_loglayer:
+                        k = grid.kstart + 3 #Select grid height in log-layer, same as selected in publication
+                        result = __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, k, ksample, jsample, isample)
+                    else:
+                        result = parallel(delayed(__grid_loop)(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, k, ksample, jsample, isample) for k in range(grid.kstart,grid.kend,1))
                     #for k in range(grid.kstart,grid.kstart+1,1): #FOR TESTING PURPOSES ONLY!!!
                     
                     if permute:
-                        loss_permu, loss_permv, loss_permw = zip(*result)
-                        loss_permu = np.sum(loss_permu)
-                        loss_permv = np.sum(loss_permv)
-                        loss_permw = np.sum(loss_permw)
-                        loss_permu = (loss_permu / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
-                        u_fi[ksample,jsample,isample] = loss_permu / loss[time_step]
-                        loss_permv = (loss_permv / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
-                        v_fi[ksample,jsample,isample] = loss_permv / loss[time_step]
-                        loss_permw = (loss_permw / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
-                        w_fi[ksample,jsample,isample] = loss_permw / loss[time_step]
+                        if not flag_only_loglayer:
+                            loss_permu, loss_permv, loss_permw = zip(*result)
+                            loss_permu = np.sum(loss_permu)
+                            loss_permv = np.sum(loss_permv)
+                            loss_permw = np.sum(loss_permw)
+                        else:
+                            loss_permu, loss_permv, loss_permw = result
+                        #    
+                        if (flag_only_zu_upstream or flag_only_zu_downstream) and flag_only_loglayer:
+                            loss_permu = (loss_permu / (1. * 1. * grid.jtot * grid.itot)) ** 0.5
+                            u_fi[ksample,jsample,isample] = loss_permu / loss[time_step]
+                            loss_permv = (loss_permv / (1. * 1. * grid.jtot * grid.itot)) ** 0.5
+                            v_fi[ksample,jsample,isample] = loss_permv / loss[time_step]
+                            loss_permw = (loss_permw / (1. * 1. * grid.jtot * grid.itot)) ** 0.5
+                            w_fi[ksample,jsample,isample] = loss_permw / loss[time_step]
+                        elif flag_only_zu_upstream or flag_only_zu_downstream:
+                            loss_permu = (loss_permu / (1. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                            u_fi[ksample,jsample,isample] = loss_permu / loss[time_step]
+                            loss_permv = (loss_permv / (1. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                            v_fi[ksample,jsample,isample] = loss_permv / loss[time_step]
+                            loss_permw = (loss_permw / (1. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                            w_fi[ksample,jsample,isample] = loss_permw / loss[time_step]
+                        elif flag_only_loglayer:
+                            loss_permu = (loss_permu / (18. * 1. * grid.jtot * grid.itot)) ** 0.5
+                            u_fi[ksample,jsample,isample] = loss_permu / loss[time_step]
+                            loss_permv = (loss_permv / (18. * 1. * grid.jtot * grid.itot)) ** 0.5
+                            v_fi[ksample,jsample,isample] = loss_permv / loss[time_step]
+                            loss_permw = (loss_permw / (18. * 1. * grid.jtot * grid.itot)) ** 0.5
+                            w_fi[ksample,jsample,isample] = loss_permw / loss[time_step]
+                        else:
+                            loss_permu = (loss_permu / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                            u_fi[ksample,jsample,isample] = loss_permu / loss[time_step]
+                            loss_permv = (loss_permv / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                            v_fi[ksample,jsample,isample] = loss_permv / loss[time_step]
+                            loss_permw = (loss_permw / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                            w_fi[ksample,jsample,isample] = loss_permw / loss[time_step]
                     else:
                         loss = np.sum(result)
                         #Take average loss function, take root, and store it in nc-file
-                        loss = (loss / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                        if (flag_only_zu_upstream or flag_only_zu_downstream) and flag_only_loglayer:
+                            loss = (loss / (1. * 1. * grid.jtot * grid.itot)) ** 0.5
+                        elif flag_only_zu_upstream or flag_only_zu_downstream:
+                            loss = (loss / (1. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
+                        elif flag_only_loglayer:
+                            loss = (loss / (18. * 1. * grid.jtot * grid.itot)) ** 0.5
+                        else:
+                            loss = (loss / (18. * grid.ktot * grid.jtot * grid.itot)) ** 0.5
 
-        #Return featue importances or loss
-        if permute:
-            return u_fi, v_fi, w_fi
-        else:
-            return loss
+    #Return featue importances or loss
+    if permute:
+        return u_fi, v_fi, w_fi
+    else:
+        return loss
 
-        #var_unres_tau_xu_CNN_upstream[time_step,:,:,:] =  unres_tau_xu_CNN_upstream[:,:,:] 
-        #var_unres_tau_yu_CNN_upstream[time_step,:,:,:] =  unres_tau_yu_CNN_upstream[:,:,:] 
-        #var_unres_tau_zu_CNN_upstream[time_step,:,:,:] =  unres_tau_zu_CNN_upstream[:,:,:] 
-        #var_unres_tau_xv_CNN_upstream[time_step,:,:,:] =  unres_tau_xv_CNN_upstream[:,:,:] 
-        #var_unres_tau_yv_CNN_upstream[time_step,:,:,:] =  unres_tau_yv_CNN_upstream[:,:,:] 
-        #var_unres_tau_zv_CNN_upstream[time_step,:,:,:] =  unres_tau_zv_CNN_upstream[:,:,:] 
-        #var_unres_tau_xw_CNN_upstream[time_step,:,:,:] =  unres_tau_xw_CNN_upstream[:,:,:] 
-        #var_unres_tau_yw_CNN_upstream[time_step,:,:,:] =  unres_tau_yw_CNN_upstream[:,:,:] 
-        #var_unres_tau_zw_CNN_upstream[time_step,:,:,:] =  unres_tau_zw_CNN_upstream[:,:,:] 
-        ##
-        #var_unres_tau_xu_CNN_downstream[time_step,:,:,:] =  unres_tau_xu_CNN_downstream[:,:,:] 
-        #var_unres_tau_yu_CNN_downstream[time_step,:,:,:] =  unres_tau_yu_CNN_downstream[:,:,:] 
-        #var_unres_tau_zu_CNN_downstream[time_step,:,:,:] =  unres_tau_zu_CNN_downstream[:,:,:] 
-        #var_unres_tau_xv_CNN_downstream[time_step,:,:,:] =  unres_tau_xv_CNN_downstream[:,:,:] 
-        #var_unres_tau_yv_CNN_downstream[time_step,:,:,:] =  unres_tau_yv_CNN_downstream[:,:,:] 
-        #var_unres_tau_zv_CNN_downstream[time_step,:,:,:] =  unres_tau_zv_CNN_downstream[:,:,:] 
-        #var_unres_tau_xw_CNN_downstream[time_step,:,:,:] =  unres_tau_xw_CNN_downstream[:,:,:] 
-        #var_unres_tau_yw_CNN_downstream[time_step,:,:,:] =  unres_tau_yw_CNN_downstream[:,:,:] 
-        #var_unres_tau_zw_CNN_downstream[time_step,:,:,:] =  unres_tau_zw_CNN_downstream[:,:,:] 
+    #var_unres_tau_xu_CNN_upstream[time_step,:,:,:] =  unres_tau_xu_CNN_upstream[:,:,:] 
+    #var_unres_tau_yu_CNN_upstream[time_step,:,:,:] =  unres_tau_yu_CNN_upstream[:,:,:] 
+    #var_unres_tau_zu_CNN_upstream[time_step,:,:,:] =  unres_tau_zu_CNN_upstream[:,:,:] 
+    #var_unres_tau_xv_CNN_upstream[time_step,:,:,:] =  unres_tau_xv_CNN_upstream[:,:,:] 
+    #var_unres_tau_yv_CNN_upstream[time_step,:,:,:] =  unres_tau_yv_CNN_upstream[:,:,:] 
+    #var_unres_tau_zv_CNN_upstream[time_step,:,:,:] =  unres_tau_zv_CNN_upstream[:,:,:] 
+    #var_unres_tau_xw_CNN_upstream[time_step,:,:,:] =  unres_tau_xw_CNN_upstream[:,:,:] 
+    #var_unres_tau_yw_CNN_upstream[time_step,:,:,:] =  unres_tau_yw_CNN_upstream[:,:,:] 
+    #var_unres_tau_zw_CNN_upstream[time_step,:,:,:] =  unres_tau_zw_CNN_upstream[:,:,:] 
+    ##
+    #var_unres_tau_xu_CNN_downstream[time_step,:,:,:] =  unres_tau_xu_CNN_downstream[:,:,:] 
+    #var_unres_tau_yu_CNN_downstream[time_step,:,:,:] =  unres_tau_yu_CNN_downstream[:,:,:] 
+    #var_unres_tau_zu_CNN_downstream[time_step,:,:,:] =  unres_tau_zu_CNN_downstream[:,:,:] 
+    #var_unres_tau_xv_CNN_downstream[time_step,:,:,:] =  unres_tau_xv_CNN_downstream[:,:,:] 
+    #var_unres_tau_yv_CNN_downstream[time_step,:,:,:] =  unres_tau_yv_CNN_downstream[:,:,:] 
+    #var_unres_tau_zv_CNN_downstream[time_step,:,:,:] =  unres_tau_zv_CNN_downstream[:,:,:] 
+    #var_unres_tau_xw_CNN_downstream[time_step,:,:,:] =  unres_tau_xw_CNN_downstream[:,:,:] 
+    #var_unres_tau_yw_CNN_downstream[time_step,:,:,:] =  unres_tau_yw_CNN_downstream[:,:,:] 
+    #var_unres_tau_zw_CNN_downstream[time_step,:,:,:] =  unres_tau_zw_CNN_downstream[:,:,:] 
 
 if __name__ == '__main__':
     #Parse input
@@ -454,10 +511,31 @@ if __name__ == '__main__':
     parser.add_argument("--inference_filename", default="inference_reconstructed_fields.nc")
     parser.add_argument("--variables_filepath", default="", help="filepath where extracted variables from the frozen graph are located.")
     parser.add_argument("--labels_filename", default="reconstructed_fields.nc", help="file where labels are stored")
+    parser.add_argument("--only_zu_upstream", dest='only_zu_upstream', action = "store_true", help= "Specify when only zu_upstream component should be considered")
+    parser.add_argument("--only_zu_downstream", dest='only_zu_downstream', action = "store_true", help= "Specify when only zu_downstream component should be considered")
+    parser.add_argument("--only_loglayer", dest='only_loglayer', action = "store_true", help= "Specify when only log-layer should be considered")
     parser.add_argument("--calc_loss", dest='calc_loss', action = "store_true", help= "Specify when inference file does not yet contain the loss.")
     #parser.add_argument("--batch_size", default=1000)
     args = parser.parse_args()
     #batch_size = int(args.batch_size)
+
+    #Determine flags
+    if args.only_zu_upstream and args.only_zu_downstream:
+        raise RuntimeError("Not both only_zu_upstream/downstream flags can be specified at the same time.")
+    elif args.only_zu_upstream:
+        flag_only_zu_upstream = True
+        flag_only_zu_downstream = False
+    elif args.only_zu_downstream:
+        flag_only_zu_upstream = False
+        flag_only_zu_downstream = True
+    else:
+        flag_only_zu_upstream = False
+        flag_only_zu_downstream = False
+
+    if args.only_loglayer:
+        flag_only_loglayer = True
+    else:
+        flag_only_loglayer = False
 
     ###Extract flow fields and from netCDF file###
     #Specify time steps NOTE: SHOULD BE 27 TO 30 to access validation fields, CHECK WHETHER THIS IS STILL CONSISTENT!
@@ -642,11 +720,11 @@ if __name__ == '__main__':
         #Determine normal or permuted loss
         #NOTE: assignment of unresolved transports happens as a side-effect within the function below!
         if args.calc_loss:
-            loss = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = False, loss = loss) #Call for scripts based on manual implementation MLP
+            loss = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = False, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
             var_loss[t] = loss
             loss = 0.0 #Re-initialize for next time step
         else:
-            u_fi, v_fi, w_fi = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss) #Call for scripts based on manual implementation MLP
+            u_fi, v_fi, w_fi = inference_MLP(u = u_singletimestep, v = v_singletimestep, w = w_singletimestep, grid = grid, MLP = MLP, b = b, time_step = t, permute = True, loss = loss, flag_only_zu_upstream = flag_only_zu_upstream, flag_only_zu_downstream = flag_only_zu_downstream, flag_only_loglayer = flag_only_loglayer) #Call for scripts based on manual implementation MLP
             var_u_fi[t,:,:,:] = u_fi
             var_v_fi[t,:,:,:] = v_fi
             var_w_fi[t,:,:,:] = w_fi
