@@ -16,8 +16,8 @@ def _calculate_strain2(strain2,mlen,u,v,w,x,y,z,xh,yh,zh,utau_ref,mvisc):
     height_channel = 2.0
 
     #Hard-code filter widths for now
-    dxf = (2* np.pi) / 768.0
-    dyf = np.pi / 384.0
+    dxf = (2* np.pi) / 96.0
+    dyf = np.pi /48.0
     dzf = 2.0 / 64.0
     
     ##Check whether at least 1 ghost cell is present in each direction
@@ -115,7 +115,7 @@ def calculate_eddy_diffusivity_dns(input_filepath = 'dns_boxfilter.nc', output_f
     a = nc.Dataset(input_filepath, 'r')
 
     #Get molecular viscosity and friction velocity
-    mvisc = float(a['mvisc_ref'][:])
+    mvisc = float(a['mvisc'][:])
     utau_ref = float(a['utau_ref'][:])
     mvisc_smag = 0. #Don't take molecular contribution into account to be consistent with the DNS filtering, which does not include the resolved viscous flux.
 

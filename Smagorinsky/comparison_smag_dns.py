@@ -27,48 +27,48 @@ parser.add_argument('--make_plots', dest='make_plots', default=None, \
 args = parser.parse_args()
 
 ###Fetch Smagorinsky fluxes and DNS residual fluxes
-a = nc.Dataset(args.dns_file,'r')
-b = nc.Dataset(args.smagorinsky_file,'r')
+dns = nc.Dataset(args.dns_file,'r')
+smag = nc.Dataset(args.smagorinsky_file,'r')
 
 #Both files contain only one time step
 time_step = 0 #NOTE: in fact corresponds to time_step 28 from validation set
 
 #Extract smagorinsky fluxes and DNS residual fluxes.
 #NOTE: remove -1's later!!!
-dns_tau_xu   = np.array(a['unres_tau_xu_turb'][time_step,:,:,:-1])
-dns_tau_yu   = np.array(a['unres_tau_yu_turb'][time_step,:,:,:])
-dns_tau_zu   = np.array(a['unres_tau_zu_turb'][time_step,:,:,:])
-dns_tau_xv   = np.array(a['unres_tau_xv_turb'][time_step,:,:,:])
-dns_tau_yv   = np.array(a['unres_tau_yv_turb'][time_step,:,:-1,:])
-dns_tau_zv   = np.array(a['unres_tau_zv_turb'][time_step,:,:,:])
-dns_tau_xw   = np.array(a['unres_tau_xw_turb'][time_step,:,:,:])
-dns_tau_yw   = np.array(a['unres_tau_yw_turb'][time_step,:,:,:])
-dns_tau_zw   = np.array(a['unres_tau_zw_turb'][time_step,:-1,:,:])
+dns_tau_xu   = np.array(dns['unres_tau_xu_turb'][time_step,:,:,:-1])
+dns_tau_yu   = np.array(dns['unres_tau_yu_turb'][time_step,:,:,:])
+dns_tau_zu   = np.array(dns['unres_tau_zu_turb'][time_step,:,:,:])
+dns_tau_xv   = np.array(dns['unres_tau_xv_turb'][time_step,:,:,:])
+dns_tau_yv   = np.array(dns['unres_tau_yv_turb'][time_step,:,:-1,:])
+dns_tau_zv   = np.array(dns['unres_tau_zv_turb'][time_step,:,:,:])
+dns_tau_xw   = np.array(dns['unres_tau_xw_turb'][time_step,:,:,:])
+dns_tau_yw   = np.array(dns['unres_tau_yw_turb'][time_step,:,:,:])
+dns_tau_zw   = np.array(dns['unres_tau_zw_turb'][time_step,:-1,:,:])
 #
-dns_tau_xu_smag  = np.array(b['smag_tau_xu'][time_step,:,:,:])
-dns_tau_yu_smag  = np.array(b['smag_tau_yu'][time_step,:,:,:])
-dns_tau_zu_smag  = np.array(b['smag_tau_zu'][time_step,:,:,:])
-dns_tau_xv_smag  = np.array(b['smag_tau_xv'][time_step,:,:,:])
-dns_tau_yv_smag  = np.array(b['smag_tau_yv'][time_step,:,:,:])
-dns_tau_zv_smag  = np.array(b['smag_tau_zv'][time_step,:,:,:])
-dns_tau_xw_smag  = np.array(b['smag_tau_xw'][time_step,:,:,:])
-dns_tau_yw_smag  = np.array(b['smag_tau_yw'][time_step,:,:,:])
-dns_tau_zw_smag  = np.array(b['smag_tau_zw'][time_step,:,:,:])
+dns_tau_xu_smag  = np.array(smag['smag_tau_xu'][time_step,:,:,:])
+dns_tau_yu_smag  = np.array(smag['smag_tau_yu'][time_step,:,:,:])
+dns_tau_zu_smag  = np.array(smag['smag_tau_zu'][time_step,:,:,:])
+dns_tau_xv_smag  = np.array(smag['smag_tau_xv'][time_step,:,:,:])
+dns_tau_yv_smag  = np.array(smag['smag_tau_yv'][time_step,:,:,:])
+dns_tau_zv_smag  = np.array(smag['smag_tau_zv'][time_step,:,:,:])
+dns_tau_xw_smag  = np.array(smag['smag_tau_xw'][time_step,:,:,:])
+dns_tau_yw_smag  = np.array(smag['smag_tau_yw'][time_step,:,:,:])
+dns_tau_zw_smag  = np.array(smag['smag_tau_zw'][time_step,:,:,:])
 #
 #Extract coordinates
-nt = len(a.dimensions['time'])
-z  = np.array(a['z'][:])
+nt = len(dns.dimensions['time'])
+z  = np.array(dns['z'][:])
 nz = len(z)
-zh = np.array(a['zh'][:])
-y  = np.array(a['y'][:])
+zh = np.array(dns['zh'][:])
+y  = np.array(dns['y'][:])
 ny = len(y)
-yh = np.array(a['yh'][:])
-x  = np.array(a['x'][:])
+yh = np.array(dns['yh'][:])
+x  = np.array(dns['x'][:])
 nx = len(x)
-xh = np.array(a['xh'][:])
+xh = np.array(dns['xh'][:])
 
 #Extract friction velocity
-utau_ref = float(a['utau_ref'][:])
+utau_ref = float(dns['utau_ref'][:])
 
 #NOTE: commented out code takes into account additional ghost cells that have been added to the used transport components
 #Calculate trace part of subgrid-stress, and subtract this from labels for fair comparison with Smagorinsky fluxes
@@ -603,6 +603,6 @@ if args.make_plots:
     #
     
 #Close files
-a.close()
-b.close()
+dns.close()
+smag.close()
 print('Finished')

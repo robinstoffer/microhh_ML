@@ -219,6 +219,9 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_up
             
                 #v-velocity
     
+                #Recover u-velocity
+                input_u_val = np.expand_dims(u[k-b:k+b+1,j-b:j+b+1,i-b:i+b+1].flatten(), axis=0) #Flatten and expand dims arrays for MLP
+                
                 #Randomly select other velocity in horizontal
                 input_v_val[0,(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(v[k-b+ksample,:,:].flatten())
                 
@@ -258,6 +261,8 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_up
                     loss_permv += (unres_tau_zw_lbls_downstream[time_step,k_nogc,j_nogc,i_nogc] - resultv[17]) ** 2.
             
                 #w-velocity
+                #Recover v-velocity
+                input_v_val = np.expand_dims(v[k-b:k+b+1,j-b:j+b+1,i-b:i+b+1].flatten(), axis=0) #Flatten and expand dims arrays for MLP
     
                 #Randomly select other velocity in horizontal
                 input_w_val[0,(b*2+1)*(b*2+1)*ksample+(b*2+1)*jsample+isample] = np.random.choice(w[k-b+ksample,:,:].flatten())

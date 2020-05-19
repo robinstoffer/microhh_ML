@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -t 2-00:00:00
-###SBATCH -t 1:00:00
+###SBATCH -t 2-00:00:00
+#SBATCH -t 1:00:00
 #SBATCH -N 1
 ###SBATCH -n 48
-###SBATCH -p short
+#SBATCH -p short
 ###SBATCH -p gpu_short
 ###SBATCH -p gpu
 
@@ -49,8 +49,8 @@ source ~/virtualenv/firstCNN_intel_CPU/bin/activate
 #python3 generate_training_data.py
 #python3 func_generate_training.py > output_training.txt
 #python3 sample_training_data_tfrecord.py > output_sampling.txt
-python3 Smagorinsky_main.py > output_training.txt
+#python3 Smagorinsky_main.py > output_training.txt
 
-#echo 'finished doing calculations, start comparison'
-#python3 -u comparison_smag_dns.py --dns_file "/projects/1/flowsim/simulation1/lesscoarse_prefsampling/dns_boxfilter_wrong.nc" --smagorinsky_file "/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes_dns.nc" --make_table --make_plots
-#echo 'finished comparison'
+echo 'finished doing calculations, start comparison'
+python3 -u comparison_smag_dns.py --dns_file "/projects/1/flowsim/simulation1/lesscoarse_prefsampling/dns_boxfilter_wrong.nc" --smagorinsky_file "/projects/1/flowsim/simulation1/lesscoarse_prefsampling/smagorinsky_fluxes_dns.nc" --make_table --make_plots
+echo 'finished comparison'
