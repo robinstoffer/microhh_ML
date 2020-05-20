@@ -213,16 +213,13 @@ def generate_filtercoord_edgecell(cor_center, cor_f_middle, dist_corf, finegrid,
 
     return weights, points_indices_cor
 
-def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (False, False, False), periodic_bc = (False, True, True), zero_w_topbottom = True):
+def boxfilter(filter_widths, finegrid, periodic_bc = (False, True, True), zero_w_topbottom = True):
     """Function to apply box filter on fine grid. Returns the specified variable filtered on the fine grid. The inputs are as follows:
+    NOTE: IT IS IMPLICITLY ASSUMED THAT THE VARIABLES ARE ON THE SAME LOCATIONS IN THE GRID, WHILE IN OUR CASE WE DO HAVE STAGGERED GRIDS. THIS ASSUMPTION IS THEREFORE ONLY REASONABLE FOR VERY HIGH RESOLUTIONS (DNS), WHERE THE DIFFERENCES IN LOCATION ARE VERY SMALL.
     
     -filter_widths: tuple with three floats, which indicate for each spatial direction (z,y,x) the filter width
     
     -finegrid: finegrid object defined in grid_objects_training.py
-    
-    -variable_name: string that specifies the variable to calculate on the coarse grid.
-    
-    -bool_edge_gridcell: a tuple with a boolean for each spatial direction (z, y, x), indicating whether they should be aligned at the center of the grid cells (False) or the edges (True).
     
     -periodic_bc: a tuple with a boolean for each spatial direction (z, y, x), indicating  whether periodic boundary conditions are assumed (True when present, False when not present).
     
@@ -230,36 +227,20 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
 
     #Read in the right coarse coordinates determined by bool_edge_gridcell.
     #z-direction
-    if bool_edge_gridcell[0]:
-        zcor_f     = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend]
-        dist_zf    = filter_widths[0] 
-    else:
-        zcor_f     = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend]
-        dist_zf    = filter_widths[0]
+    zcor_f     = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend]
+    dist_zf    = filter_widths[0]
 
     #y-direction
-    if bool_edge_gridcell[1]:
-        ycor_f     = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend]
-        dist_yf    = filter_widths[1]
-    else:
-        ycor_f     = finegrid['grid']['y'][finegrid.jgc:finegrid.jend]
-        dist_yf    = filter_widths[1]
+    ycor_f     = finegrid['grid']['y'][finegrid.jgc:finegrid.jend]
+    dist_yf    = filter_widths[1]
 
     #x-direction
-    if bool_edge_gridcell[2]:
-        xcor_f     = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend]
-        dist_xf    = filter_widths[2]
-    else:
-        xcor_f     = finegrid['grid']['x'][finegrid.igc:finegrid.iend]
-        dist_xf    = filter_widths[2]
+    xcor_f     = finegrid['grid']['x'][finegrid.igc:finegrid.iend]
+    dist_xf    = filter_widths[2]
         
-    #Check that variable_name is a string.
-    if not isinstance(variable_name, str):
-        raise TypeError("Specified variable_name should be a string.")
-
     #Check whether variable to be filtered is contained in finegrid object associated with coarsegrid object.
-    if variable_name not in finegrid['output'].keys(): 
-        raise KeyError("Specified variable_name not defined in finegrid object on which this coarsegrid object is based.")
+    if ('u' not in finegrid['output'].keys()) or ('v' not in finegrid['output'].keys()) or ('w' not in finegrid['output'].keys()): 
+        raise KeyError("Needed variables not defined in finegrid object.")
 
     #Check whether specified period_bc satisfies needed format.
     if not isinstance(periodic_bc, tuple):
@@ -270,80 +251,110 @@ def boxfilter(filter_widths, finegrid, variable_name, bool_edge_gridcell = (Fals
             
     if not any(isinstance(flag, bool) for flag in periodic_bc):
         raise ValueError("Periodic_bc should be a tuple with length 3 (z, y, x), and consist only of booleans.")
-        
-    #Check whether specified bool_edge_gridcell satisfies needed format.
-    if not isinstance(bool_edge_gridcell, tuple):
-        raise TypeError("Bool_edge_gridcell should be a tuple with length 3 (z, y, x), and consist only of booleans.")
-        
-    if not len(bool_edge_gridcell) == 3:
-        raise ValueError("Bool_edge_gridcell should be a tuple with length 3 (z, y, x), and consist only of booleans.")
-            
-    if not any(isinstance(flag, bool) for flag in bool_edge_gridcell):
-        raise ValueError("Bool_edge_gridcell should be a tuple with length 3 (z, y, x), and consist only of booleans.")
 
     #Check that zero_w_topbottom is a boolean.
     if not isinstance(zero_w_topbottom, bool):
         raise TypeError('The zero_w_topbottom flag should be a boolean (True/False).')
 
-    #Define filtered variable
-    var_f = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    #Define filtered variables
+    finegrid['boxfilter']['u']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['v']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['w']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['uu']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['vu']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['wu']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['uv']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['vv']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['wv']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['uw']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['vw']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
+    finegrid['boxfilter']['ww']['variable'] = np.zeros((len(zcor_f), len(ycor_f), len(xcor_f)), dtype=float)
 
     #Loop over coordinates for box-filtering
-    izc = 0
+    iz = 0
     for zcor_f_middle in zcor_f:
         outside_domainz = False
     #for izc in range(coarsegrid['grid']['ktot'])
         if ((np.round((zcor_f_middle - dist_zf),finegrid.sgn_digits) < 0.) or ((np.round(zcor_f_middle + dist_zf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['zsize'], finegrid.sgn_digits)))): #Don't filter when filter width extends beyond grid domain
             outside_domainz = True
-        elif bool_edge_gridcell[0]:
-            weights_z, points_indices_z = generate_filtercoord_edgecell(cor_center = finegrid['grid']['z'][finegrid.kgc_center:finegrid.kend], cor_f_middle = zcor_f_middle, dist_corf = dist_zf, finegrid = finegrid, periodic_bc = periodic_bc[0], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['zsize'])
-            var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_edge:finegrid.khend, :, :]
-            var_finez = var_finez[points_indices_z,:,:]
         else:
             weights_z, points_indices_z = generate_filtercoord_centercell(cor_edges = finegrid['grid']['zh'][finegrid.kgc_edge:finegrid.khend], cor_f_middle = zcor_f_middle, dist_corf = dist_zf, finegrid = finegrid)
-            var_finez = finegrid['output'][variable_name]['variable'][finegrid.kgc_center:finegrid.kend, :, :]
-            var_finez = var_finez[points_indices_z,:,:]
+            #
+            var_ufinez = finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend, :, :]
+            var_ufinez = var_ufinez[points_indices_z,:,:]
+            var_vfinez = finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend, :, :]
+            var_vfinez = var_vfinez[points_indices_z,:,:]
+            var_wfinez = finegrid['output']['w']['variable'][finegrid.kgc_center:finegrid.kend, :, :]
+            var_wfinez = var_wfinez[points_indices_z,:,:]
+            #
 
-        iyc = 0
+        iy = 0
 	
         for ycor_f_middle in ycor_f:
             outside_domainy = False
             if ((np.round((ycor_f_middle - dist_yf),finegrid.sgn_digits) < 0.) or ((np.round(ycor_f_middle + dist_yf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['ysize'], finegrid.sgn_digits))) or outside_domainz): #Don't filter when filter width extends beyond grid domain
                 outside_domainy = True
-            elif bool_edge_gridcell[1]:
-                weights_y, points_indices_y = generate_filtercoord_edgecell(cor_center = finegrid['grid']['y'][finegrid.jgc:finegrid.jend], cor_f_middle = ycor_f_middle, dist_corf = dist_yf, finegrid = finegrid, periodic_bc = periodic_bc[1], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['ysize'])
-                var_finezy = var_finez[:, finegrid.jgc:finegrid.jhend,:]
-                var_finezy = var_finezy[:,points_indices_y,:]
             else:
                 weights_y, points_indices_y = generate_filtercoord_centercell(cor_edges = finegrid['grid']['yh'][finegrid.jgc:finegrid.jhend], cor_f_middle = ycor_f_middle, dist_corf = dist_yf, finegrid = finegrid)
-                var_finezy = var_finez[:, finegrid.jgc:finegrid.jend,:]
-                var_finezy = var_finezy[:,points_indices_y,:]
+                #
+                var_ufinezy = var_ufinez[:, finegrid.jgc:finegrid.jend,:]
+                var_ufinezy = var_ufinezy[:,points_indices_y,:]
+                var_vfinezy = var_vfinez[:, finegrid.jgc:finegrid.jend,:]
+                var_vfinezy = var_vfinezy[:,points_indices_y,:]
+                var_wfinezy = var_wfinez[:, finegrid.jgc:finegrid.jend,:]
+                var_wfinezy = var_wfinezy[:,points_indices_y,:]
+                #
 
-            ixc = 0
+            ix = 0
 				
             for xcor_f_middle in xcor_f:
                 outside_domainx = False
                 if ((np.round((xcor_f_middle - dist_xf),finegrid.sgn_digits) < 0.) or ((np.round(xcor_f_middle + dist_xf, finegrid.sgn_digits)) > (np.round(finegrid['grid']['xsize'], finegrid.sgn_digits))) or outside_domainy): #Don't filter when filter width extends beyond grid domain
                     outside_domainx = True
-                elif bool_edge_gridcell[2]:
-                    weights_x, points_indices_x = generate_filtercoord_edgecell(cor_center = finegrid['grid']['x'][finegrid.igc:finegrid.iend], cor_f_middle = xcor_f_middle, dist_corf = dist_xf, finegrid = finegrid, periodic_bc = periodic_bc[2], zero_w_topbottom = zero_w_topbottom, size = finegrid['grid']['xsize'])
-                    var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.ihend]
-                    var_finezyx = var_finezyx[:,:,points_indices_x]
                 else:
                     weights_x, points_indices_x = generate_filtercoord_centercell(cor_edges = finegrid['grid']['xh'][finegrid.igc:finegrid.ihend], cor_f_middle = xcor_f_middle, dist_corf = dist_xf, finegrid = finegrid)
-                    var_finezyx = var_finezy[:, :, finegrid.igc:finegrid.iend]
-                    var_finezyx = var_finezyx[:,:,points_indices_x]
+                    #
+                    var_ufinezyx = var_ufinezy[:, :, finegrid.igc:finegrid.iend]
+                    var_ufinezyx = var_ufinezyx[:,:,points_indices_x]
+                    var_vfinezyx = var_vfinezy[:, :, finegrid.igc:finegrid.iend]
+                    var_vfinezyx = var_vfinezyx[:,:,points_indices_x]
+                    var_wfinezyx = var_wfinezy[:, :, finegrid.igc:finegrid.iend]
+                    var_wfinezyx = var_wfinezyx[:,:,points_indices_x]
+                    #
 
                 if outside_domainx:
-                    var_f[izc,iyc,ixc] = np.nan
+                    finegrid['boxfilter']['u']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['v']['variable'][iz,iy,ix] = np.nan 
+                    finegrid['boxfilter']['w']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['uu']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['vu']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['wu']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['uv']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['vv']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['wv']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['uw']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['vw']['variable'][iz,iy,ix] = np.nan
+                    finegrid['boxfilter']['ww']['variable'][iz,iy,ix] = np.nan
                 else:
                     #Calculate downsampled variable on coarse grid using the selected points in var_finezyx and the fractions defined in the weights variables
                     weights =  weights_x[np.newaxis,np.newaxis,:]*weights_y[np.newaxis,:,np.newaxis]*weights_z[:,np.newaxis,np.newaxis]
-                    var_f[izc,iyc,ixc] = np.sum(np.multiply(weights, var_finezyx))
+                    finegrid['boxfilter']['u']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_ufinezyx))
+                    finegrid['boxfilter']['v']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_vfinezyx))
+                    finegrid['boxfilter']['w']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_wfinezyx))
+                    finegrid['boxfilter']['uu']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_ufinezyx ** 2.))
+                    finegrid['boxfilter']['vu']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_vfinezyx * var_ufinezyx))
+                    finegrid['boxfilter']['wu']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_wfinezyx * var_ufinezyx))
+                    finegrid['boxfilter']['uv']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_ufinezyx * var_vfinezyx))
+                    finegrid['boxfilter']['vv']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_vfinezyx ** 2.))
+                    finegrid['boxfilter']['wv']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_wfinezyx * var_vfinezyx))
+                    finegrid['boxfilter']['uw']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_ufinezyx * var_wfinezyx))
+                    finegrid['boxfilter']['vw']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_vfinezyx * var_wfinezyx))
+                    finegrid['boxfilter']['ww']['variable'][iz,iy,ix] = np.sum(np.multiply(weights, var_wfinezyx ** 2.))
+                    #
  
-                ixc += 1
-            iyc += 1
-        izc += 1
+                ix += 1
+            iy += 1
+        iz += 1
     
-    return var_f
+    return finegrid
     

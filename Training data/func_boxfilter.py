@@ -165,78 +165,54 @@ def boxfilter_dns(input_directory, output_directory, reynolds_number_tau, filter
         #finegrid['boxfilter']['w']['variable'] = w_downsampled.copy()
         #finegrid._Finegrid__add_ghostcells('w', is_boxfiltered=True)
 
-        finegrid.boxfilter('u', filter_widths)
-        print('Filtered u')
-        finegrid.boxfilter('v', filter_widths)
-        print('Filtered v')
-        finegrid.boxfilter('w', filter_widths)
-        print('Filtered w')
+        finegrid.boxfilter(filter_widths)
+        print('Boxfilter applied')
 
         ##Calculate total, filtered, and residual transport over fine grid filtered with box filter ##
         ###########################################################################
         #NOTE: interpolations strictly required not incorporated, because of the fine DNS resolution the effects of these interpolations would be small
 
-        #Initialize first arrays for total transport components and viscous transports on fine grid
-        total_tau_xu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
-        total_tau_yu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
-        total_tau_zu_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
-        total_tau_xv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
-        total_tau_yv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
-        total_tau_zv_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
-        total_tau_xw_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
-        total_tau_yw_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
-        total_tau_zw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
-        #
+        #Initialize first arrays for resolved and unresolved transports on fine grid
         res_tau_xu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
-        res_tau_yu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
-        res_tau_zu_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
-        res_tau_xv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
+        res_tau_yu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
+        res_tau_zu_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        res_tau_xv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
         res_tau_yv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
-        res_tau_zv_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
-        res_tau_xw_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
-        res_tau_yw_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
+        res_tau_zv_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
+        res_tau_xw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        res_tau_yw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
         res_tau_zw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
         #
         unres_tau_xu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
-        unres_tau_yu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
-        unres_tau_zu_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
-        unres_tau_xv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot']+1, finegrid['grid']['itot']+1), dtype=float)
+        unres_tau_yu_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
+        unres_tau_zu_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        unres_tau_xv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
         unres_tau_yv_turb = np.zeros((finegrid['grid']['ktot'],   finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
-        unres_tau_zv_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
-        unres_tau_xw_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot'],   finegrid['grid']['itot']+1), dtype=float)
-        unres_tau_yw_turb = np.zeros((finegrid['grid']['ktot']+1, finegrid['grid']['jtot']+1, finegrid['grid']['itot']), dtype=float)
+        unres_tau_zv_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
+        unres_tau_xw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
+        unres_tau_yw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'], finegrid['grid']['itot']), dtype=float)
         unres_tau_zw_turb = np.zeros((finegrid['grid']['ktot'], finegrid['grid']['jtot'],   finegrid['grid']['itot']), dtype=float)
   
         #Calculate transports
-        total_tau_xu_turb[:,:,:] = finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
-        total_tau_yu_turb[:,:,:] = finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend] * finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1]
-        total_tau_zu_turb[:,:,:] = finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend] * finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1]
-        total_tau_xv_turb[:,:,:] = finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1] * finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend]
-        total_tau_yv_turb[:,:,:] = finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
-        total_tau_zv_turb[:,:,:] = finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend] * finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend]
-        total_tau_xw_turb[:,:,:] = finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1] * finegrid['output']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
-        total_tau_yw_turb[:,:,:] = finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend] * finegrid['output']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
-        total_tau_zw_turb[:,:,:] = finegrid['output']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
+        res_tau_xu_turb[:,:,:] = finegrid['boxfilter']['u']['variable'][:,:,:] ** 2.
+        res_tau_yu_turb[:,:,:] = finegrid['boxfilter']['v']['variable'][:,:,:] * finegrid['boxfilter']['u']['variable'][:,:,:]
+        res_tau_zu_turb[:,:,:] = finegrid['boxfilter']['w']['variable'][:,:,:] * finegrid['boxfilter']['u']['variable'][:,:,:]
+        res_tau_xv_turb[:,:,:] = finegrid['boxfilter']['u']['variable'][:,:,:] * finegrid['boxfilter']['v']['variable'][:,:,:]
+        res_tau_yv_turb[:,:,:] = finegrid['boxfilter']['v']['variable'][:,:,:] ** 2.
+        res_tau_zv_turb[:,:,:] = finegrid['boxfilter']['w']['variable'][:,:,:] * finegrid['boxfilter']['v']['variable'][:,:,:]
+        res_tau_xw_turb[:,:,:] = finegrid['boxfilter']['u']['variable'][:,:,:] * finegrid['boxfilter']['w']['variable'][:,:,:]
+        res_tau_yw_turb[:,:,:] = finegrid['boxfilter']['v']['variable'][:,:,:] * finegrid['boxfilter']['w']['variable'][:,:,:]
+        res_tau_zw_turb[:,:,:] = finegrid['boxfilter']['w']['variable'][:,:,:] ** 2.
         #
-        res_tau_xu_turb[:,:,:] = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
-        res_tau_yu_turb[:,:,:] = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend] * finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1]
-        res_tau_zu_turb[:,:,:] = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend] * finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1]
-        res_tau_xv_turb[:,:,:] = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend+1] * finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.ihend]
-        res_tau_yv_turb[:,:,:] = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
-        res_tau_zv_turb[:,:,:] = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend] * finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend]
-        res_tau_xw_turb[:,:,:] = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend+1] * finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
-        res_tau_yw_turb[:,:,:] = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend+1,finegrid.igc:finegrid.iend] * finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend+1,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
-        res_tau_zw_turb[:,:,:] = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend-1,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend] ** 2.
-        #
-        unres_tau_xu_turb[:,:,:] = total_tau_xu_turb - res_tau_xu_turb
-        unres_tau_yu_turb[:,:,:] = total_tau_yu_turb - res_tau_yu_turb
-        unres_tau_zu_turb[:,:,:] = total_tau_zu_turb - res_tau_zu_turb
-        unres_tau_xv_turb[:,:,:] = total_tau_xv_turb - res_tau_xv_turb
-        unres_tau_yv_turb[:,:,:] = total_tau_yv_turb - res_tau_yv_turb
-        unres_tau_zv_turb[:,:,:] = total_tau_zv_turb - res_tau_zv_turb
-        unres_tau_xw_turb[:,:,:] = total_tau_xw_turb - res_tau_xw_turb
-        unres_tau_yw_turb[:,:,:] = total_tau_yw_turb - res_tau_yw_turb
-        unres_tau_zw_turb[:,:,:] = total_tau_zw_turb - res_tau_zw_turb
+        unres_tau_xu_turb[:,:,:] = finegrid['boxfilter']['uu']['variable'][:,:,:] - res_tau_xu_turb[:,:,:] 
+        unres_tau_yu_turb[:,:,:] = finegrid['boxfilter']['vu']['variable'][:,:,:] - res_tau_yu_turb[:,:,:]
+        unres_tau_zu_turb[:,:,:] = finegrid['boxfilter']['wu']['variable'][:,:,:] - res_tau_zu_turb[:,:,:]
+        unres_tau_xv_turb[:,:,:] = finegrid['boxfilter']['uv']['variable'][:,:,:] - res_tau_xv_turb[:,:,:]
+        unres_tau_yv_turb[:,:,:] = finegrid['boxfilter']['vv']['variable'][:,:,:] - res_tau_yv_turb[:,:,:]
+        unres_tau_zv_turb[:,:,:] = finegrid['boxfilter']['wv']['variable'][:,:,:] - res_tau_zv_turb[:,:,:]
+        unres_tau_xw_turb[:,:,:] = finegrid['boxfilter']['uw']['variable'][:,:,:] - res_tau_xw_turb[:,:,:]
+        unres_tau_yw_turb[:,:,:] = finegrid['boxfilter']['vw']['variable'][:,:,:] - res_tau_yw_turb[:,:,:]
+        unres_tau_zw_turb[:,:,:] = finegrid['boxfilter']['ww']['variable'][:,:,:] - res_tau_zw_turb[:,:,:]
 
         ##Store boxfiltered flow fields  and unresolved transports in netCDF-file ##
         ##########################################################################################
@@ -311,41 +287,41 @@ def boxfilter_dns(input_directory, output_directory, reynolds_number_tau, filter
             #var_dist_midchannel[:] = dist_midchannel[:]
  
             #Create variables for coarse fields
-            var_uboxfilt = a.createVariable("uc","f8",("time","z","y","xh"))
-            var_vboxfilt = a.createVariable("vc","f8",("time","z","yh","x"))
-            var_wboxfilt = a.createVariable("wc","f8",("time","zh","y","x"))
+            var_uboxfilt = a.createVariable("uc","f8",("time","z","y","x"))
+            var_vboxfilt = a.createVariable("vc","f8",("time","z","y","x"))
+            var_wboxfilt = a.createVariable("wc","f8",("time","z","y","x"))
  
             var_total_tau_xu_turb = a.createVariable("total_tau_xu_turb","f8",("time","z","y","x"))
             var_res_tau_xu_turb   = a.createVariable("res_tau_xu_turb","f8",("time","z","y","x"))
             var_unres_tau_xu_turb = a.createVariable("unres_tau_xu_turb","f8",("time","z","y","x"))
 
-            var_total_tau_xv_turb = a.createVariable("total_tau_xv_turb","f8",("time","z","yh","xh"))
-            var_res_tau_xv_turb   = a.createVariable("res_tau_xv_turb","f8",("time","z","yh","xh"))
-            var_unres_tau_xv_turb = a.createVariable("unres_tau_xv_turb","f8",("time","z","yh","xh"))
+            var_total_tau_xv_turb = a.createVariable("total_tau_xv_turb","f8",("time","z","y","x"))
+            var_res_tau_xv_turb   = a.createVariable("res_tau_xv_turb","f8",("time","z","y","x"))
+            var_unres_tau_xv_turb = a.createVariable("unres_tau_xv_turb","f8",("time","z","y","x"))
 
-            var_total_tau_xw_turb = a.createVariable("total_tau_xw_turb","f8",("time","zh","y","xh"))
-            var_res_tau_xw_turb   = a.createVariable("res_tau_xw_turb","f8",("time","zh","y","xh"))
-            var_unres_tau_xw_turb = a.createVariable("unres_tau_xw_turb","f8",("time","zh","y","xh"))
+            var_total_tau_xw_turb = a.createVariable("total_tau_xw_turb","f8",("time","z","y","x"))
+            var_res_tau_xw_turb   = a.createVariable("res_tau_xw_turb","f8",("time","z","y","x"))
+            var_unres_tau_xw_turb = a.createVariable("unres_tau_xw_turb","f8",("time","z","y","x"))
  
-            var_total_tau_yu_turb = a.createVariable("total_tau_yu_turb","f8",("time","z","yh","xh"))
-            var_res_tau_yu_turb   = a.createVariable("res_tau_yu_turb","f8",("time","z","yh","xh"))
-            var_unres_tau_yu_turb = a.createVariable("unres_tau_yu_turb","f8",("time","z","yh","xh"))
+            var_total_tau_yu_turb = a.createVariable("total_tau_yu_turb","f8",("time","z","y","x"))
+            var_res_tau_yu_turb   = a.createVariable("res_tau_yu_turb","f8",("time","z","y","x"))
+            var_unres_tau_yu_turb = a.createVariable("unres_tau_yu_turb","f8",("time","z","y","x"))
  
             var_total_tau_yv_turb = a.createVariable("total_tau_yv_turb","f8",("time","z","y","x"))
             var_res_tau_yv_turb   = a.createVariable("res_tau_yv_turb","f8",("time","z","y","x"))
             var_unres_tau_yv_turb = a.createVariable("unres_tau_yv_turb","f8",("time","z","y","x"))
 
-            var_total_tau_yw_turb = a.createVariable("total_tau_yw_turb","f8",("time","zh","yh","x"))
-            var_res_tau_yw_turb   = a.createVariable("res_tau_yw_turb","f8",("time","zh","yh","x"))
-            var_unres_tau_yw_turb = a.createVariable("unres_tau_yw_turb","f8",("time","zh","yh","x"))
+            var_total_tau_yw_turb = a.createVariable("total_tau_yw_turb","f8",("time","z","y","x"))
+            var_res_tau_yw_turb   = a.createVariable("res_tau_yw_turb","f8",("time","z","y","x"))
+            var_unres_tau_yw_turb = a.createVariable("unres_tau_yw_turb","f8",("time","z","y","x"))
  
-            var_total_tau_zu_turb = a.createVariable("total_tau_zu_turb","f8",("time","zh","y","xh"))
-            var_res_tau_zu_turb   = a.createVariable("res_tau_zu_turb","f8",("time","zh","y","xh"))
-            var_unres_tau_zu_turb = a.createVariable("unres_tau_zu_turb","f8",("time","zh","y","xh"))
+            var_total_tau_zu_turb = a.createVariable("total_tau_zu_turb","f8",("time","z","y","x"))
+            var_res_tau_zu_turb   = a.createVariable("res_tau_zu_turb","f8",("time","z","y","x"))
+            var_unres_tau_zu_turb = a.createVariable("unres_tau_zu_turb","f8",("time","z","y","x"))
  
-            var_total_tau_zv_turb = a.createVariable("total_tau_zv_turb","f8",("time","zh","yh","x"))
-            var_res_tau_zv_turb   = a.createVariable("res_tau_zv_turb","f8",("time","zh","yh","x"))
-            var_unres_tau_zv_turb = a.createVariable("unres_tau_zv_turb","f8",("time","zh","yh","x"))
+            var_total_tau_zv_turb = a.createVariable("total_tau_zv_turb","f8",("time","z","y","x"))
+            var_res_tau_zv_turb   = a.createVariable("res_tau_zv_turb","f8",("time","z","y","x"))
+            var_unres_tau_zv_turb = a.createVariable("unres_tau_zv_turb","f8",("time","z","y","x"))
 
             var_total_tau_zw_turb = a.createVariable("total_tau_zw_turb","f8",("time","z","y","x"))
             var_res_tau_zw_turb   = a.createVariable("res_tau_zw_turb","f8",("time","z","y","x"))
@@ -354,43 +330,43 @@ def boxfilter_dns(input_directory, output_directory, reynolds_number_tau, filter
         create_variables = False #Make sure variables are only created once.
  
         #Store values
-        var_uboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['u']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.ihend]
-        var_vboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['v']['variable'][finegrid.kgc_center:finegrid.kend,finegrid.jgc:finegrid.jhend,finegrid.igc:finegrid.iend]
-        var_wboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['w']['variable'][finegrid.kgc_edge:finegrid.khend,finegrid.jgc:finegrid.jend,finegrid.igc:finegrid.iend]
+        var_uboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['u']['variable'][:,:,:]
+        var_vboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['v']['variable'][:,:,:]
+        var_wboxfilt[t-tstart,:,:,:] = finegrid['boxfilter']['w']['variable'][:,:,:]
 
-        var_total_tau_xu_turb[t-tstart,:,:,:] = total_tau_xu_turb[:,:,:]
+        var_total_tau_xu_turb[t-tstart,:,:,:] = finegrid['boxfilter']['uu']['variable'][:,:,:]
         var_res_tau_xu_turb[t-tstart,:,:,:]   = res_tau_xu_turb[:,:,:]
         var_unres_tau_xu_turb[t-tstart,:,:,:] = unres_tau_xu_turb[:,:,:]
  
-        var_total_tau_xv_turb[t-tstart,:,:,:] = total_tau_xv_turb[:,:,:]
+        var_total_tau_xv_turb[t-tstart,:,:,:] = finegrid['boxfilter']['uv']['variable'][:,:,:]
         var_res_tau_xv_turb[t-tstart,:,:,:]   = res_tau_xv_turb[:,:,:]
         var_unres_tau_xv_turb[t-tstart,:,:,:] = unres_tau_xv_turb[:,:,:]
        
-        var_total_tau_xw_turb[t-tstart,:,:,:] = total_tau_xw_turb[:,:,:]
+        var_total_tau_xw_turb[t-tstart,:,:,:] = finegrid['boxfilter']['uw']['variable'][:,:,:]
         var_res_tau_xw_turb[t-tstart,:,:,:]   = res_tau_xw_turb[:,:,:]
         var_unres_tau_xw_turb[t-tstart,:,:,:] = unres_tau_xw_turb[:,:,:]
 
-        var_total_tau_yu_turb[t-tstart,:,:,:] = total_tau_yu_turb[:,:,:]
+        var_total_tau_yu_turb[t-tstart,:,:,:] = finegrid['boxfilter']['vu']['variable'][:,:,:]
         var_res_tau_yu_turb[t-tstart,:,:,:]   = res_tau_yu_turb[:,:,:]
         var_unres_tau_yu_turb[t-tstart,:,:,:] = unres_tau_yu_turb[:,:,:]
 
-        var_total_tau_yv_turb[t-tstart,:,:,:] = total_tau_yv_turb[:,:,:]
+        var_total_tau_yv_turb[t-tstart,:,:,:] = finegrid['boxfilter']['vv']['variable'][:,:,:]
         var_res_tau_yv_turb[t-tstart,:,:,:]   = res_tau_yv_turb[:,:,:]
         var_unres_tau_yv_turb[t-tstart,:,:,:] = unres_tau_yv_turb[:,:,:]
 
-        var_total_tau_yw_turb[t-tstart,:,:,:] = total_tau_yw_turb[:,:,:]
+        var_total_tau_yw_turb[t-tstart,:,:,:] = finegrid['boxfilter']['vw']['variable'][:,:,:]
         var_res_tau_yw_turb[t-tstart,:,:,:]   = res_tau_yw_turb[:,:,:]
         var_unres_tau_yw_turb[t-tstart,:,:,:] = unres_tau_yw_turb[:,:,:]
 
-        var_total_tau_zu_turb[t-tstart,:,:,:] = total_tau_zu_turb[:,:,:]
+        var_total_tau_zu_turb[t-tstart,:,:,:] = finegrid['boxfilter']['wu']['variable'][:,:,:]
         var_res_tau_zu_turb[t-tstart,:,:,:]   = res_tau_zu_turb[:,:,:]
         var_unres_tau_zu_turb[t-tstart,:,:,:] = unres_tau_zu_turb[:,:,:]
 
-        var_total_tau_zv_turb[t-tstart,:,:,:] = total_tau_zv_turb[:,:,:]
+        var_total_tau_zv_turb[t-tstart,:,:,:] = finegrid['boxfilter']['wv']['variable'][:,:,:]
         var_res_tau_zv_turb[t-tstart,:,:,:]   = res_tau_zv_turb[:,:,:]
         var_unres_tau_zv_turb[t-tstart,:,:,:] = unres_tau_zv_turb[:,:,:]
 
-        var_total_tau_zw_turb[t-tstart,:,:,:] = total_tau_zw_turb[:,:,:]
+        var_total_tau_zw_turb[t-tstart,:,:,:] = finegrid['boxfilter']['ww']['variable'][:,:,:]
         var_res_tau_zw_turb[t-tstart,:,:,:]   = res_tau_zw_turb[:,:,:]
         var_unres_tau_zw_turb[t-tstart,:,:,:] = unres_tau_zw_turb[:,:,:]
 

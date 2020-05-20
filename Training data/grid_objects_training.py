@@ -587,16 +587,8 @@ class Finegrid:
         else:
             raise RuntimeError('Can\'t find variable \"{}\" in object.')
     
-    def boxfilter(self, variable_name, filter_widths):
+    def boxfilter(self, filter_widths):
         
-        #Check that variable_name is a string
-        if not isinstance(variable_name, str):
-            raise TypeError("Specified variable_name should be a string.")
-        
-        #Check whether variable specified via variable_name is defined in object
-        if not variable_name in self.var['output'].keys():
-            raise KeyError("Specified variable_name not defined in finegrid object on which this coarsegrid object is based. Not possible to apply box filter.")
-
         #Check that filter_widths is a tuple of length 3 (z,y,x) with positive floats only.
         if not isinstance(filter_widths, tuple):
             raise TypeError("Filter_widths should be a tuple with length 3 (z, y, x), and consist only of floats.")
@@ -610,13 +602,38 @@ class Finegrid:
         if any((filter_width <= 0.) for filter_width in filter_widths):
             raise ValueError("Filter width must be larger than 0.")
 
-        self.var['boxfilter'][variable_name] = {}
-        self.var['boxfilter'][variable_name]['orientation'] = self.var['output'][variable_name]['orientation']
-        variable_boxfiltered = boxfilter.boxfilter(filter_widths, finegrid = self, variable_name = variable_name, periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
-        self.var['boxfilter'][variable_name]['variable'] = variable_boxfiltered.copy()
+        self.var['boxfilter']['u'] = {}
+        self.var['boxfilter']['v'] = {}
+        self.var['boxfilter']['w'] = {}
+        self.var['boxfilter']['uu'] = {}
+        self.var['boxfilter']['vu'] = {}
+        self.var['boxfilter']['wu'] = {}
+        self.var['boxfilter']['uv'] = {}
+        self.var['boxfilter']['vv'] = {}
+        self.var['boxfilter']['wv'] = {}
+        self.var['boxfilter']['uw'] = {}
+        self.var['boxfilter']['vw'] = {}
+        self.var['boxfilter']['ww'] = {}
+        #
+        self.var['boxfilter']['u']['orientation'] = (False, False, False)
+        self.var['boxfilter']['v']['orientation'] = (False, False, False)
+        self.var['boxfilter']['w']['orientation'] = (False, False, False)
+        self.var['boxfilter']['uu']['orientation'] = (False, False, False)
+        self.var['boxfilter']['vu']['orientation'] = (False, False, False)
+        self.var['boxfilter']['wu']['orientation'] = (False, False, False)
+        self.var['boxfilter']['uv']['orientation'] = (False, False, False)
+        self.var['boxfilter']['vv']['orientation'] = (False, False, False)
+        self.var['boxfilter']['wv']['orientation'] = (False, False, False)
+        self.var['boxfilter']['uw']['orientation'] = (False, False, False)
+        self.var['boxfilter']['vw']['orientation'] = (False, False, False)
+        self.var['boxfilter']['ww']['orientation'] = (False, False, False)
+        #
+        self = boxfilter.boxfilter(filter_widths, finegrid = self, periodic_bc = self.periodic_bc, zero_w_topbottom = self.zero_w_topbottom)
 
-        #Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
-        self.__add_ghostcells(variable_name, is_boxfiltered = True)
+        ##Add ghostcells depending on the order used for the spatial interpolation, add 1 additonal cell on downstream/top boundaries
+        #self.__add_ghostcells('u', is_boxfiltered = True)
+        #self.__add_ghostcells('v', is_boxfiltered = True)
+        #self.__add_ghostcells('w', is_boxfiltered = True)
 
 class Coarsegrid:
     """ Returns a single object that defines a coarse grid based on a corresponding finegrid_object (instance of Finegrid class) and the dimensions of the new grid. \\
