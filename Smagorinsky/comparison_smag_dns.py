@@ -35,15 +35,15 @@ time_step = 0 #NOTE: in fact corresponds to time_step 28 from validation set
 
 #Extract smagorinsky fluxes and DNS residual fluxes.
 #NOTE: remove -1's later!!!
-dns_tau_xu   = np.array(dns['unres_tau_xu_turb'][time_step,:,:,:-1])
+dns_tau_xu   = np.array(dns['unres_tau_xu_turb'][time_step,:,:,:])
 dns_tau_yu   = np.array(dns['unres_tau_yu_turb'][time_step,:,:,:])
 dns_tau_zu   = np.array(dns['unres_tau_zu_turb'][time_step,:,:,:])
 dns_tau_xv   = np.array(dns['unres_tau_xv_turb'][time_step,:,:,:])
-dns_tau_yv   = np.array(dns['unres_tau_yv_turb'][time_step,:,:-1,:])
+dns_tau_yv   = np.array(dns['unres_tau_yv_turb'][time_step,:,:,:])
 dns_tau_zv   = np.array(dns['unres_tau_zv_turb'][time_step,:,:,:])
 dns_tau_xw   = np.array(dns['unres_tau_xw_turb'][time_step,:,:,:])
 dns_tau_yw   = np.array(dns['unres_tau_yw_turb'][time_step,:,:,:])
-dns_tau_zw   = np.array(dns['unres_tau_zw_turb'][time_step,:-1,:,:])
+dns_tau_zw   = np.array(dns['unres_tau_zw_turb'][time_step,:,:,:])
 #
 dns_tau_xu_smag  = np.array(smag['smag_tau_xu'][time_step,:,:,:])
 dns_tau_yu_smag  = np.array(smag['smag_tau_yu'][time_step,:,:,:])
@@ -58,12 +58,15 @@ dns_tau_zw_smag  = np.array(smag['smag_tau_zw'][time_step,:,:,:])
 #Extract coordinates
 nt = len(dns.dimensions['time'])
 z  = np.array(dns['z'][:])
+zextra = np.insert(z,0,-z[0], axis=0)
 nz = len(z)
 zh = np.array(dns['zh'][:])
 y  = np.array(dns['y'][:])
+yextra = np.insert(y,0,-y[0], axis=0)
 ny = len(y)
 yh = np.array(dns['yh'][:])
 x  = np.array(dns['x'][:])
+xextra = np.insert(x,0,-x[0], axis=0)
 nx = len(x)
 xh = np.array(dns['xh'][:])
 
@@ -245,23 +248,18 @@ if args.make_table:
     print('Finished making tables')
 
 #Define function for making horizontal cross-sections
-def make_horcross_heights(values, z, y, x, component, is_lbl, is_smag = False, time_step = 0, delta = 1):
-    #NOTE1: fifth last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: fourth last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
-    #NOTE3: thirth last input of this function is a boolean that specifies whether the Smagorinsky fluxes are plotted (True) or not (False)
-    #NOTE4: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
-    #NOTE5: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 1m, effectively not rescaling). 
-
-    #Check that component is not both specified as label and Smagorinsky value
-    if is_lbl and is_smag:
-        raise RuntimeError("Value specified as both label and Smagorinsky value, which is not possible.")
+def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0):
+    #NOTE1: fourth last input of this function is a string indicating the name of the component being plotted.
+    #NOTE2: third last input of this function is a boolean that specifies whether the labels (True) or the NN predictions are being plotted.
+    #NOTE3: the second last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
+    #NOTE4: the last input of this function is an integer specifying the channel half with [in meter] used to rescale the horizontal dimensions (by default 1m, effectively not rescaling). 
 
     for k in range(len(z)-1):
-        values_height = values[time_step,k,:,:] / (utau_ref ** 2.)
+        values_height = values[k,:,:] / (utau_ref ** 2.)
 
         #Make horizontal cross-sections of the values
         plt.figure()
-        if is_smag:
+        if not is_lbl:
             plt.pcolormesh(x, y, values_height, vmin=-0.5, vmax=0.5)
         else:
             plt.pcolormesh(x, y, values_height, vmin=-5.0, vmax=5.0)
@@ -279,44 +277,29 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, is_smag = False, t
         plt.yticks(fontsize=16, rotation=0)
         plt.tight_layout()
         if is_lbl:
-            plt.savefig("Horcross_label_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
-        elif is_smag:
-            plt.savefig("Horcross_smag_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
+            plt.savefig("Horcross_box_dns_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
         else:
-            plt.savefig("Horcross_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
+            plt.savefig("Horcross_box_smag_tau_" + component + "_" + str((z[k]+z[k+1])/2.) + ".png", dpi = 200)
         plt.close()
 
 #Define function for making spectra
-def make_spectra_heights(ann, smag, dns, z, component, time_step = 0):
+def make_spectra_heights(smag, dns, z, component, time_step = 0):
     #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
     #NOTE2: last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
     for k in range(len(z)):
         
-        ann_height  = ann[time_step,k,:,:]  / (utau_ref ** 2.)
-        smag_height = smag[time_step,k,:,:] / (utau_ref ** 2.)
-        dns_height  = dns[time_step,k,:,:]  / (utau_ref ** 2.)
+
+        #ann_height  = ann[k,:,:]  / (utau_ref ** 2.)
+        smag_height = smag[k,:,:] / (utau_ref ** 2.)
+        dns_height  = dns[k,:,:]  / (utau_ref ** 2.)
         #range_bins = (-2.0,2.0)
 
-        #Calculate spectra
-        #ANN
-        nxc = ann_height.shape[1]
-        nyc = ann_height.shape[0]
-        fftx_ann = np.fft.rfft(ann_height,axis=1)*(1/nxc)
-        ffty_ann = np.fft.rfft(ann_height,axis=0)*(1/nyc)
-        Px_ann = fftx_ann[:,1:] * np.conjugate(fftx_ann[:,1:])
-        Py_ann = ffty_ann[1:,:] * np.conjugate(ffty_ann[1:,:])
-        if int(nxc % 2) == 0:
-            Ex_ann = np.append(2*Px_ann[:,:-1],np.reshape(Px_ann[:,-1],(nyc,1)),axis=1)
-        else:
-            Ex_ann = 2*Px_ann[:,:]
-        
-        if int(nyc % 2) == 0:
-            Ey_ann = np.append(2*Py_ann[:-1,:],np.reshape(Py_ann[-1,:],(1,nxc)),axis=0)
-        else:
-            Ey_ann = 2*Py_ann[:,:]
+        #Hard-code removal of Nan-values for zu component
+        if component == 'zu':
+            smag_height = smag_height[9:-9,10:-10]
+            dns_height = dns_height[9:-9,10:-10]
 
-        ann_spec_x = np.nanmean(Ex_ann,axis=0) #Average FT over direction where it was not calculated
-        ann_spec_y = np.nanmean(Ey_ann,axis=1)
+        #Calculate spectra
         #smag
         nxc = smag_height.shape[1]
         nyc = smag_height.shape[0]
@@ -358,8 +341,8 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step = 0):
 
         #Plot spectra
         plt.figure()
-        plt.plot(ann_spec_x,  label = 'ANN')
-        #plt.plot(smag_spec_x, label = 'Smagorinsky')
+        #plt.plot(ann_spec_x,  label = 'ANN')
+        plt.plot(smag_spec_x, label = 'Smagorinsky')
         plt.plot(dns_spec_x,  label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
@@ -374,8 +357,8 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step = 0):
         plt.close()
         #
         plt.figure()
-        plt.plot(ann_spec_y,  label = 'ANN')
-        #plt.plot(smag_spec_y, label = 'Smagorinsky')
+        #plt.plot(ann_spec_y,  label = 'ANN')
+        plt.plot(smag_spec_y, label = 'Smagorinsky')
         plt.plot(dns_spec_y,  label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
@@ -390,36 +373,55 @@ def make_spectra_heights(ann, smag, dns, z, component, time_step = 0):
         plt.close()
 
 #Define function for making pdfs
-def make_pdfs_heights(values, smag, labels, z, component, time_step = 0):
+def make_pdfs_heights(smag, labels, z, component, time_step = 0):
     #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
     #NOTE2: last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
     for k in range(len(z)+1):
         if k == len(z):
-            values_height = values[time_step,:,:,:].flatten() / (utau_ref ** 2.)
-            smag_height   = smag[time_step,:,:,:].flatten() / (utau_ref ** 2.)
-            labels_height = labels[time_step,:,:,:].flatten() / (utau_ref ** 2.)
+            #values_height = values[:,:,:] / (utau_ref ** 2.)
+            smag_height   = smag[:,:,:] / (utau_ref ** 2.)
+            labels_height = labels[:,:,:] / (utau_ref ** 2.)
             #range_bins = (0.6,0.6)
+            
+            #Hard-code removal of Nan-values for zu component
+            if component == 'zu':
+                smag_height = smag_height[23:-23,9:-9,10:-10]
+                labels_height = labels_height[23:-23,9:-9,10:-10]
+
+            #Flatten array
+            smag_height = smag_height.flatten()
+            labels_height = labels_height.flatten()
+
         else:
-            values_height = values[time_step,k,:,:].flatten() / (utau_ref ** 2.)
-            smag_height   = smag[time_step,k,:,:].flatten() / (utau_ref ** 2.)
-            labels_height = labels[time_step,k,:,:].flatten() / (utau_ref ** 2.)
+            #values_height = values[k,:,:] / (utau_ref ** 2.)
+            smag_height   = smag[k,:,:] / (utau_ref ** 2.)
+            labels_height = labels[k,:,:] / (utau_ref ** 2.)
             #range_bins = (-2.0,2.0)
 
+            #Hard-code removal of Nan-values for zu component
+            if component == 'zu':
+                smag_height = smag_height[9:-9,10:-10]
+                labels_height = labels_height[9:-9,10:-10]
+        
+            #Flatten array
+            smag_height = smag_height.flatten()
+            labels_height = labels_height.flatten()
+        
         #Determine bins
         num_bins = 100
-        min_val = min(values_height.min(), labels_height.min())
-        max_val = max(values_height.max(), labels_height.max())
+        min_val = min(smag_height.min(), labels_height.min())
+        max_val = max(smag_height.max(), labels_height.max())
         bin_edges = np.linspace(min_val, max_val, num_bins)
 
         #Make pdfs of the values and labels
         plt.figure()
-        plt.hist(values_height, bins = bin_edges, density = True, histtype = 'step', label = 'ANN')
-        #plt.hist(smag_height, bins = bin_edges, density = True, histtype = 'step', label = 'Smagorinsky')
+        #plt.hist(values_height, bins = bin_edges, density = True, histtype = 'step', label = 'ANN')
+        plt.hist(smag_height, bins = bin_edges, density = True, histtype = 'step', label = 'Smagorinsky')
         plt.hist(labels_height, bins = bin_edges, density = True, histtype = 'step', label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
-        ax.set_ylim(bottom=0.008)
-        ax.set_xlim(left=-10, right=10)
+        ax.set_ylim(bottom=0.0008)
+        ax.set_xlim(left=-20, right=20)
         plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=20)
         plt.xlabel(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
@@ -427,21 +429,21 @@ def make_pdfs_heights(values, smag, labels, z, component, time_step = 0):
         plt.legend(loc='upper right')
         plt.tight_layout()
         if k == len(z):
-            plt.savefig("PDF_tau_" + component + ".png", dpi = 200)
+            plt.savefig("PDF_box_tau_" + component + ".png", dpi = 200)
         else:
-            plt.savefig("PDF_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
+            plt.savefig("PDF_box_tau_" + component + "_" + str(z[k]) + ".png", dpi = 200)
         plt.close()
 
 #Define function for making pdfs
-def make_vertprof(values, smag, labels, z, component, time_step = 0):
+def make_vertprof(smag, labels, z, component, time_step = 0):
     #NOTE1: second last input of this function is a string indicating the name of the component being plotted.
     #last input of this function is an integer specifying which validation time step stored in the nc-file is plotted (by default the first one, which now corresponds to time step 28 used for validation).
 
     #Make vertical profile
     plt.figure()
-    plt.plot(z, values[time_step,:] / (utau_ref ** 2.), label = 'ANN', marker = 'o', markersize = 2.0)
-    #plt.plot(z, smag[time_step,:] / (utau_ref ** 2.), label = 'Smagorinsky', marker = 'o', markersize = 2.0)
-    plt.plot(z, labels[time_step,:] / (utau_ref ** 2.), label = 'DNS', marker = 'o', markersize = 2.0)
+    #plt.plot(z, values[:] / (utau_ref ** 2.), label = 'ANN', marker = 'o', markersize = 2.0)
+    plt.plot(z, smag[:] / (utau_ref ** 2.), label = 'Smagorinsky', marker = 'o', markersize = 2.0)
+    plt.plot(z, labels[:] / (utau_ref ** 2.), label = 'DNS', marker = 'o', markersize = 2.0)
     #ax = plt.gca()
     #ax.set_yscale('log')
     plt.ylabel(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize=20)
@@ -450,20 +452,20 @@ def make_vertprof(values, smag, labels, z, component, time_step = 0):
     plt.yticks(fontsize=16, rotation=0)
     plt.legend(loc='upper left')
     plt.tight_layout()
-    plt.savefig("vertprof_tau_" + component + ".png", dpi = 200)
+    plt.savefig("vertprof_box_tau_" + component + ".png", dpi = 200)
     plt.close()
 
 #Define function for making scatterplots
-def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, is_smag, time_step):
+def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, component, time_step):
     #NOTE1: third last input of this function is a string indicating the name of the component being plotted.
-    #NOTE2: second last input of this function is a boolean that specifies whether the Smagorinsky fluxes are being plotted (True) or the CNN fluxes (False).
     for k in range(len(heights)+1):
         if k == len(heights):
-            preds_height = preds_horavg[time_step,:] / (utau_ref ** 2.)
-            lbls_height  = lbls_horavg[time_step,:] / (utau_ref ** 2.)
+            preds_height = preds_horavg[:] / (utau_ref ** 2.)
+            lbls_height  = lbls_horavg[:] / (utau_ref ** 2.)
         else:
-            preds_height = preds[time_step,k,:,:] / (utau_ref ** 2.)
-            lbls_height  = lbls[time_step,k,:,:] / (utau_ref ** 2.)
+            preds_height = preds[k,:,:] / (utau_ref ** 2.)
+            lbls_height  = lbls[k,:,:] / (utau_ref ** 2.)
+
         preds_height = preds_height.flatten()
         lbls_height  = lbls_height.flatten()
         
@@ -489,25 +491,16 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
         plt.plot(axes.get_xlim(),axes.get_ylim(),'b--')
         #plt.gca().set_aspect('equal',adjustable='box')
         plt.xlabel(r'$\rm \frac{\tau_{wu}^{DNS}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
-        if is_smag:
-            plt.ylabel(r'$\rm \frac{\tau_{wu}^{smag}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
-        else:
-            plt.ylabel(r'$\rm \frac{\tau_{wu}^{ANN}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
+        plt.ylabel(r'$\rm \frac{\tau_{wu}^{smag}}{u_{\tau}^2} \,\ {[-]}$',fontsize = 20)
         #plt.title("ρ = " + str(corrcoef),fontsize = 20)
         plt.axhline(c='black')
         plt.axvline(c='black')
         plt.xticks(fontsize = 16, rotation = 90)
         plt.yticks(fontsize = 16, rotation = 0)
-        if is_smag:
-            if k == len(heights):
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.png", dpi = 200)
-            else:
-                plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
+        if k == len(heights):
+            plt.savefig("Scatter_Smagorinsky_tau_" + component + "_horavg.png", dpi = 200)
         else:
-            if k == len(heights):
-                plt.savefig("Scatter_tau_" + component + "_horavg.png", dpi = 200)
-            else:
-                plt.savefig("Scatter_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
+            plt.savefig("Scatter_Smagorinsky_tau_" + component + "_" + str(heights[k]) + ".png", dpi = 200)
         plt.tight_layout()
         plt.close()
 
@@ -515,91 +508,93 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
 #Call function multiple times to make all plots for smagorinsky and CNN
 if args.make_plots:
     print('start making plots')
+
+    #Average fields in horizontal directions for some of the plots
+    #dns_tau_xu_horavg = np.nanmean(dns_tau_xu, axis=(1,2), keepdims=False)
+    #dns_tau_yu_horavg = np.nanmean(dns_tau_yu, axis=(1,2), keepdims=False)
+    dns_tau_zu_horavg = np.nanmean(dns_tau_zu, axis=(1,2), keepdims=False)
+    #dns_tau_xv_horavg = np.nanmean(dns_tau_xv, axis=(1,2), keepdims=False)
+    #dns_tau_yv_horavg = np.nanmean(dns_tau_yv, axis=(1,2), keepdims=False)
+    #dns_tau_zv_horavg = np.nanmean(dns_tau_zv, axis=(1,2), keepdims=False)
+    #dns_tau_xw_horavg = np.nanmean(dns_tau_xw, axis=(1,2), keepdims=False)
+    #dns_tau_yw_horavg = np.nanmean(dns_tau_yw, axis=(1,2), keepdims=False)
+    #dns_tau_zw_horavg = np.nanmean(dns_tau_zw, axis=(1,2), keepdims=False)
+    #dns_tau_xu_smag_horavg = np.nanmean(dns_tau_xu_smag, axis=(1,2), keepdims=False)
+    #dns_tau_yu_smag_horavg = np.nanmean(dns_tau_yu_smag, axis=(1,2), keepdims=False)
+    dns_tau_zu_smag_horavg = np.nanmean(dns_tau_zu_smag, axis=(1,2), keepdims=False)
+    #dns_tau_xv_smag_horavg = np.nanmean(dns_tau_xv_smag, axis=(1,2), keepdims=False)
+    #dns_tau_yv_smag_horavg = np.nanmean(dns_tau_yv_smag, axis=(1,2), keepdims=False)
+    #dns_tau_zv_smag_horavg = np.nanmean(dns_tau_zv_smag, axis=(1,2), keepdims=False)
+    #dns_tau_xw_smag_horavg = np.nanmean(dns_tau_xw_smag, axis=(1,2), keepdims=False)
+    #dns_tau_yw_smag_horavg = np.nanmean(dns_tau_yw_smag, axis=(1,2), keepdims=False)
+    #dns_tau_zw_smag_horavg = np.nanmean(dns_tau_zw_smag, axis=(1,2), keepdims=False)
     
-    ##Make spectra of labels and MLP predictions
-    #make_spectra_heights(unres_tau_xu_CNN, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0)
-    #make_spectra_heights(unres_tau_yu_CNN, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0)
-    #make_spectra_heights(unres_tau_zu_CNN, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0)
-    #make_spectra_heights(unres_tau_xv_CNN, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0)
-    #make_spectra_heights(unres_tau_yv_CNN, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0)
-    #make_spectra_heights(unres_tau_zv_CNN, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0)
-    #make_spectra_heights(unres_tau_xw_CNN, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0)
-    #make_spectra_heights(unres_tau_yw_CNN, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0)
-    #make_spectra_heights(unres_tau_zw_CNN, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0)
+    #Make spectra of labels and MLP predictions
+    #make_spectra_heights(dns_tau_xu_smag, dns_tau_xu, z,       'xu', time_step = 0)
+    #make_spectra_heights(dns_tau_yu_smag, dns_tau_yu, z,       'yu', time_step = 0)
+    #make_spectra_heights(dns_tau_zu_smag, dns_tau_zu, zh,      'zu', time_step = 0)
+    #make_spectra_heights(dns_tau_xv_smag, dns_tau_xv, z,       'xv', time_step = 0)
+    #make_spectra_heights(dns_tau_yv_smag, dns_tau_yv, z,       'yv', time_step = 0)
+    #make_spectra_heights(dns_tau_zv_smag, dns_tau_zv, zh,      'zv', time_step = 0)
+    #make_spectra_heights(dns_tau_xw_smag, dns_tau_xw, zh,      'xw', time_step = 0)
+    #make_spectra_heights(dns_tau_yw_smag, dns_tau_yw, zh,      'yw', time_step = 0)
+    #make_spectra_heights(dns_tau_zw_smag, dns_tau_zw, z,       'zw', time_step = 0)
     #
     ##Plot vertical profiles
-    #make_vertprof(unres_tau_xu_CNN_horavg, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,      'xu', time_step = 0)
-    #make_vertprof(unres_tau_yu_CNN_horavg, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,      'yu', time_step = 0)
-    #make_vertprof(unres_tau_zu_CNN_horavg, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc,     'zu', time_step = 0)
-    #make_vertprof(unres_tau_xv_CNN_horavg, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,      'xv', time_step = 0)
-    #make_vertprof(unres_tau_yv_CNN_horavg, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,      'yv', time_step = 0)
-    #make_vertprof(unres_tau_zv_CNN_horavg, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc,     'zv', time_step = 0)
-    #make_vertprof(unres_tau_xw_CNN_horavg, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', time_step = 0)
-    #make_vertprof(unres_tau_yw_CNN_horavg, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', time_step = 0)
-    #make_vertprof(unres_tau_zw_CNN_horavg, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,      'zw', time_step = 0)
+    #make_vertprof(dns_tau_xu_smag_horavg, dns_tau_xu_horavg, z,      'xu', time_step = 0)
+    #make_vertprof(dns_tau_yu_smag_horavg, dns_tau_yu_horavg, z,      'yu', time_step = 0)
+    #make_vertprof(dns_tau_zu_smag_horavg, dns_tau_zu_horavg, zh,     'zu', time_step = 0)
+    #make_vertprof(dns_tau_xv_smag_horavg, dns_tau_xv_horavg, z,      'xv', time_step = 0)
+    #make_vertprof(dns_tau_yv_smag_horavg, dns_tau_yv_horavg, z,      'yv', time_step = 0)
+    #make_vertprof(dns_tau_zv_smag_horavg, dns_tau_zv_horavg, zh,     'zv', time_step = 0)
+    #make_vertprof(dns_tau_xw_smag_horavg, dns_tau_xw_horavg, zh,     'xw', time_step = 0)
+    #make_vertprof(dns_tau_yw_smag_horavg, dns_tau_yw_horavg, zh,     'yw', time_step = 0)
+    #make_vertprof(dns_tau_zw_smag_horavg, dns_tau_zw_horavg, z,      'zw', time_step = 0)
 
     ##Make PDFs of labels and MLP predictions
-    #make_pdfs_heights(unres_tau_xu_CNN, unres_tau_xu_smag, unres_tau_xu, zc,       'xu', time_step = 0)
-    #make_pdfs_heights(unres_tau_yu_CNN, unres_tau_yu_smag, unres_tau_yu, zc,       'yu', time_step = 0)
-    #make_pdfs_heights(unres_tau_zu_CNN, unres_tau_zu_smag, unres_tau_zu, zhc,      'zu', time_step = 0)
-    #make_pdfs_heights(unres_tau_xv_CNN, unres_tau_xv_smag, unres_tau_xv, zc,       'xv', time_step = 0)
-    #make_pdfs_heights(unres_tau_yv_CNN, unres_tau_yv_smag, unres_tau_yv, zc,       'yv', time_step = 0)
-    #make_pdfs_heights(unres_tau_zv_CNN, unres_tau_zv_smag, unres_tau_zv, zhc,      'zv', time_step = 0)
-    #make_pdfs_heights(unres_tau_xw_CNN, unres_tau_xw_smag, unres_tau_xw, zhcless,  'xw', time_step = 0)
-    #make_pdfs_heights(unres_tau_yw_CNN, unres_tau_yw_smag, unres_tau_yw, zhcless,  'yw', time_step = 0)
-    #make_pdfs_heights(unres_tau_zw_CNN, unres_tau_zw_smag, unres_tau_zw, zc,       'zw', time_step = 0)
+    #make_pdfs_heights(dns_tau_xu_smag, dns_tau_xu, z,       'xu', time_step = 0)
+    #make_pdfs_heights(dns_tau_yu_smag, dns_tau_yu, z,       'yu', time_step = 0)
+    make_pdfs_heights(dns_tau_zu_smag, dns_tau_zu, zh,      'zu', time_step = 0)
+    #make_pdfs_heights(dns_tau_xv_smag, dns_tau_xv, z,       'xv', time_step = 0)
+    #make_pdfs_heights(dns_tau_yv_smag, dns_tau_yv, z,       'yv', time_step = 0)
+    #make_pdfs_heights(dns_tau_zv_smag, dns_tau_zv, zh,      'zv', time_step = 0)
+    #make_pdfs_heights(dns_tau_xw_smag, dns_tau_xw, zh,      'xw', time_step = 0)
+    #make_pdfs_heights(dns_tau_yw_smag, dns_tau_yw, zh,      'yw', time_step = 0)
+    #make_pdfs_heights(dns_tau_zw_smag, dns_tau_zw, z,       'zw', time_step = 0)
     
     ##Make horizontal cross-sections
     ##NOTE1: some transport components are adjusted to convert them in a consistent way to equal shapes.
-    #make_horcross_heights(unres_tau_xu, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu, zgcextra, yhc, xgcextra, 'zu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv, zhc, ygcextra, xgcextra, 'xv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv, zhc, yhc, xhc,           'yv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv, zgcextra, ygcextra, xhc, 'zv', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw, zgcextra, yhc, xgcextra, 'xw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw, zgcextra, ygcextra, xhc, 'yw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw, zhc, yhc, xhc,           'zw', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xu_CNN, zhc, yhc, xhc,           'xu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu_CNN, zhc, ygcextra, xgcextra, 'yu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu_CNN, zgcextra, yhc, xgcextra, 'zu', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv_CNN, zhc, ygcextra, xgcextra, 'xv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv_CNN, zhc, yhc, xhc,           'yv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv_CNN, zgcextra, ygcextra, xhc, 'zv', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw_CNN, zgcextra, yhc, xgcextra, 'xw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw_CNN, zgcextra, ygcextra, xhc, 'yw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw_CNN, zhc, yhc, xhc,           'zw', False, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xu_smag, zhc, yhc, xhc,           'xu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yu_smag, zhc, ygcextra, xgcextra, 'yu', True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zu_smag, zgcextra, yhc, xgcextra, 'zu', False, True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xv_smag, zhc, ygcextra, xgcextra, 'xv', False, True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yv_smag, zhc, yhc, xhc,           'yv', False, True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zv_smag, zgcextra, ygcextra, xhc, 'zv', False, True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_xw_smag, zgcextra, yhc, xgcextra, 'xw', False, True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_yw_smag, zgcextra, ygcextra, xhc, 'yw', False, True, time_step = 0, delta = delta_height)
-    #make_horcross_heights(unres_tau_zw_smag, zhc, yhc, xhc,           'zw', False, True, time_step = 0, delta = delta_height)
+    #make_horcross_heights(dns_tau_xu, zh, yh, xh,       'xu', True, time_step = 0)
+    #make_horcross_heights(dns_tau_yu, zh, yextra, xextra, 'yu', True, time_step = 0)
+    #make_horcross_heights(dns_tau_zu, zextra, yh, xextra, 'zu', True, time_step = 0)
+    #make_horcross_heights(dns_tau_xv, zh, yextra, xextra, 'xv', True, time_step = 0)
+    #make_horcross_heights(dns_tau_yv, zh, yh, xh,       'yv', True, time_step = 0)
+    #make_horcross_heights(dns_tau_zv, zextra, yextra, xh, 'zv', True, time_step = 0)
+    #make_horcross_heights(dns_tau_xw, zextra, yh, xextra, 'xw', True, time_step = 0)
+    #make_horcross_heights(dns_tau_yw, zextra, yextra, xh, 'yw', True, time_step = 0)
+    #make_horcross_heights(dns_tau_zw, zh, yh, xh,       'zw', True, time_step = 0)
+    #make_horcross_heights(dns_tau_xu_smag, zh, yh, xh,       'xu', False, time_step = 0)
+    #make_horcross_heights(dns_tau_yu_smag, zh, yextra, xextra, 'yu', False, time_step = 0)
+    #make_horcross_heights(dns_tau_zu_smag, zextra, yh, xextra, 'zu', False, time_step = 0)
+    #make_horcross_heights(dns_tau_xv_smag, zh, yextra, xextra, 'xv', False, time_step = 0)
+    #make_horcross_heights(dns_tau_yv_smag, zh, yh, xh,       'yv', False, time_step = 0)
+    #make_horcross_heights(dns_tau_zv_smag, zextra, yextra, xh, 'zv', False, time_step = 0)
+    #make_horcross_heights(dns_tau_xw_smag, zextra, yh, xextra, 'xw', False, time_step = 0)
+    #make_horcross_heights(dns_tau_yw_smag, zextra, yextra, xh, 'yw', False, time_step = 0)
+    #make_horcross_heights(dns_tau_zw_smag, zh, yh, xh,       'zw', False, time_step = 0)
     #
     ##Make scatterplots
     ##NOTE: some transport components are adjusted to convert them in a consistent way to equal shapes.
-    #make_scatterplot_heights(unres_tau_xu_CNN, unres_tau_xu, unres_tau_xu_CNN_horavg, unres_tau_xu_horavg, zc,  'xu', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_yu_CNN, unres_tau_yu, unres_tau_yu_CNN_horavg, unres_tau_yu_horavg, zc,  'yu', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_zu_CNN, unres_tau_zu, unres_tau_zu_CNN_horavg, unres_tau_zu_horavg, zhc, 'zu', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_xv_CNN, unres_tau_xv, unres_tau_xv_CNN_horavg, unres_tau_xv_horavg, zc,  'xv', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_yv_CNN, unres_tau_yv, unres_tau_yv_CNN_horavg, unres_tau_yv_horavg, zc,  'yv', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_zv_CNN, unres_tau_zv, unres_tau_zv_CNN_horavg, unres_tau_zv_horavg, zhc, 'zv', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_xw_CNN, unres_tau_xw, unres_tau_xw_CNN_horavg, unres_tau_xw_horavg, zhcless, 'xw', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_yw_CNN, unres_tau_yw, unres_tau_yw_CNN_horavg, unres_tau_yw_horavg, zhcless, 'yw', False, time_step = 0)
-    #make_scatterplot_heights(unres_tau_zw_CNN, unres_tau_zw, unres_tau_zw_CNN_horavg, unres_tau_zw_horavg, zc,  'zw', False, time_step = 0)
     #
-    #make_scatterplot_heights(unres_tau_xu_smag, unres_tau_xu, unres_tau_xu_smag_horavg, unres_tau_xu_horavg, zc,  'xu', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_yu_smag, unres_tau_yu, unres_tau_yu_smag_horavg, unres_tau_yu_horavg, zc,  'yu', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_zu_smag, unres_tau_zu, unres_tau_zu_smag_horavg, unres_tau_zu_horavg, zhc, 'zu', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_xv_smag, unres_tau_xv, unres_tau_xv_smag_horavg, unres_tau_xv_horavg, zc,  'xv', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_yv_smag, unres_tau_yv, unres_tau_yv_smag_horavg, unres_tau_yv_horavg, zc,  'yv', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_zv_smag, unres_tau_zv, unres_tau_zv_smag_horavg, unres_tau_zv_horavg, zhc, 'zv', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_xw_smag, unres_tau_xw, unres_tau_xw_smag_horavg, unres_tau_xw_horavg, zhcless, 'xw', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_yw_smag, unres_tau_yw, unres_tau_yw_smag_horavg, unres_tau_yw_horavg, zhcless, 'yw', True, time_step = 0)
-    #make_scatterplot_heights(unres_tau_zw_smag, unres_tau_zw, unres_tau_zw_smag_horavg, unres_tau_zw_horavg, zc,  'zw', True, time_step = 0)
+    #make_scatterplot_heights(dns_tau_xu_smag, dns_tau_xu, dns_tau_xu_smag_horavg, dns_tau_xu_horavg, z,  'xu', time_step = 0)
+    #make_scatterplot_heights(dns_tau_yu_smag, dns_tau_yu, dns_tau_yu_smag_horavg, dns_tau_yu_horavg, z,  'yu', time_step = 0)
+    make_scatterplot_heights(dns_tau_zu_smag, dns_tau_zu, dns_tau_zu_smag_horavg, dns_tau_zu_horavg, zh, 'zu', time_step = 0)
+    #make_scatterplot_heights(dns_tau_xv_smag, dns_tau_xv, dns_tau_xv_smag_horavg, dns_tau_xv_horavg, z,  'xv', time_step = 0)
+    #make_scatterplot_heights(dns_tau_yv_smag, dns_tau_yv, dns_tau_yv_smag_horavg, dns_tau_yv_horavg, z,  'yv', time_step = 0)
+    #make_scatterplot_heights(dns_tau_zv_smag, dns_tau_zv, dns_tau_zv_smag_horavg, dns_tau_zv_horavg, zh, 'zv', time_step = 0)
+    #make_scatterplot_heights(dns_tau_xw_smag, dns_tau_xw, dns_tau_xw_smag_horavg, dns_tau_xw_horavg, zh, 'xw', time_step = 0)
+    #make_scatterplot_heights(dns_tau_yw_smag, dns_tau_yw, dns_tau_yw_smag_horavg, dns_tau_yw_horavg, zh, 'yw', time_step = 0)
+    #make_scatterplot_heights(dns_tau_zw_smag, dns_tau_zw, dns_tau_zw_smag_horavg, dns_tau_zw_horavg, z,  'zw', time_step = 0)
     #
     
 #Close files
