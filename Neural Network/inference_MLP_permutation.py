@@ -515,7 +515,7 @@ if __name__ == '__main__':
     parser.add_argument("--loss_filename", default="loss.nc")
     parser.add_argument("--inference_filename", default="inference_reconstructed_fields.nc")
     parser.add_argument("--variables_filepath", default="", help="filepath where extracted variables from the frozen graph are located.")
-    parser.add_argument("--labels_filename", default="reconstructed_fields.nc", help="file where labels are stored")
+    #parser.add_argument("--labels_filename", default="reconstructed_fields.nc", help="file where labels are stored")
     parser.add_argument("--only_zu_upstream", dest='only_zu_upstream', action = "store_true", help= "Specify when only zu_upstream component should be considered")
     parser.add_argument("--only_zu_downstream", dest='only_zu_downstream', action = "store_true", help= "Specify when only zu_downstream component should be considered")
     parser.add_argument("--only_loglayer", dest='only_loglayer', action = "store_true", help= "Specify when only log-layer should be considered")
@@ -543,38 +543,38 @@ if __name__ == '__main__':
         flag_only_loglayer = False
 
     ###Extract flow fields and from netCDF file###
-    #Specify time steps NOTE: SHOULD BE 27 TO 30 to access validation fields, CHECK WHETHER THIS IS STILL CONSISTENT!
+    #Specify time steps NOTE: SHOULD BE 27 TO 30 to access validation fields (30 to 99 for test fields), CHECK WHETHER THIS IS STILL CONSISTENT!
     #NOTE: flow fields were normalized stored, UNDO first normalisation!
-    tstart = 27
-    tend   = 30
+    tstart = 30
+    tend   = 99
     tstep_unique = np.arange(tstart, tend)
     nt = tend - tstart
     #
     flowfields = nc.Dataset(args.training_filename)
-    labels     = nc.Dataset(args.labels_filename)
+    #labels     = nc.Dataset(args.labels_filename)
     utau_ref_channel = np.array(flowfields['utau_ref'][:],dtype='f4')
     u = np.array(flowfields['uc'][tstart:tend,:,:,:]) * utau_ref_channel
     v = np.array(flowfields['vc'][tstart:tend,:,:,:]) * utau_ref_channel
     w = np.array(flowfields['wc'][tstart:tend,:,:,:]) * utau_ref_channel
     #
-    unres_tau_xu_lbls_upstream = np.array(labels['unres_tau_xu_lbls_upstream'])
-    unres_tau_yu_lbls_upstream = np.array(labels['unres_tau_yu_lbls_upstream'])
-    unres_tau_zu_lbls_upstream = np.array(labels['unres_tau_zu_lbls_upstream'])
-    unres_tau_xv_lbls_upstream = np.array(labels['unres_tau_xv_lbls_upstream'])
-    unres_tau_yv_lbls_upstream = np.array(labels['unres_tau_yv_lbls_upstream'])
-    unres_tau_zv_lbls_upstream = np.array(labels['unres_tau_zv_lbls_upstream'])
-    unres_tau_xw_lbls_upstream = np.array(labels['unres_tau_xw_lbls_upstream'])
-    unres_tau_yw_lbls_upstream = np.array(labels['unres_tau_yw_lbls_upstream'])
-    unres_tau_zw_lbls_upstream = np.array(labels['unres_tau_zw_lbls_upstream'])
-    unres_tau_xu_lbls_downstream = np.array(labels['unres_tau_xu_lbls_downstream'])
-    unres_tau_yu_lbls_downstream = np.array(labels['unres_tau_yu_lbls_downstream'])
-    unres_tau_zu_lbls_downstream = np.array(labels['unres_tau_zu_lbls_downstream'])
-    unres_tau_xv_lbls_downstream = np.array(labels['unres_tau_xv_lbls_downstream'])
-    unres_tau_yv_lbls_downstream = np.array(labels['unres_tau_yv_lbls_downstream'])
-    unres_tau_zv_lbls_downstream = np.array(labels['unres_tau_zv_lbls_downstream'])
-    unres_tau_xw_lbls_downstream = np.array(labels['unres_tau_xw_lbls_downstream'])
-    unres_tau_yw_lbls_downstream = np.array(labels['unres_tau_yw_lbls_downstream'])
-    unres_tau_zw_lbls_downstream = np.array(labels['unres_tau_zw_lbls_downstream'])
+    unres_tau_xu_lbls_upstream = np.array(flowfields['unres_tau_xu_tot'][tstart:tend,:,:,:-1])   * (utau_ref_channel ** 2.) 
+    unres_tau_yu_lbls_upstream = np.array(flowfields['unres_tau_yu_tot'])[tstart:tend,:,:-1,:-1] * (utau_ref_channel ** 2.)
+    unres_tau_zu_lbls_upstream = np.array(flowfields['unres_tau_zu_tot'])[tstart:tend,:-1,:,:-1] * (utau_ref_channel ** 2.)
+    unres_tau_xv_lbls_upstream = np.array(flowfields['unres_tau_xv_tot'])[tstart:tend,:,:-1,:-1] * (utau_ref_channel ** 2.)
+    unres_tau_yv_lbls_upstream = np.array(flowfields['unres_tau_yv_tot'])[tstart:tend,:,:-1,:]   * (utau_ref_channel ** 2.)
+    unres_tau_zv_lbls_upstream = np.array(flowfields['unres_tau_zv_tot'])[tstart:tend,:-1,:-1,:] * (utau_ref_channel ** 2.)
+    unres_tau_xw_lbls_upstream = np.array(flowfields['unres_tau_xw_tot'])[tstart:tend,:-1,:,:-1] * (utau_ref_channel ** 2.)
+    unres_tau_yw_lbls_upstream = np.array(flowfields['unres_tau_yw_tot'])[tstart:tend,:-1,:-1,:] * (utau_ref_channel ** 2.)
+    unres_tau_zw_lbls_upstream = np.array(flowfields['unres_tau_zw_tot'])[tstart:tend,:-1,:,:]   * (utau_ref_channel ** 2.)
+    unres_tau_xu_lbls_downstream = np.array(flowfields['unres_tau_xu_tot'])[tstart:tend,:,:,1:]  * (utau_ref_channel ** 2.)
+    unres_tau_yu_lbls_downstream = np.array(flowfields['unres_tau_yu_tot'])[tstart:tend,:,1:,:-1]* (utau_ref_channel ** 2.)
+    unres_tau_zu_lbls_downstream = np.array(flowfields['unres_tau_zu_tot'])[tstart:tend,1:,:,:-1]* (utau_ref_channel ** 2.)
+    unres_tau_xv_lbls_downstream = np.array(flowfields['unres_tau_xv_tot'])[tstart:tend,:,:-1,1:]* (utau_ref_channel ** 2.)
+    unres_tau_yv_lbls_downstream = np.array(flowfields['unres_tau_yv_tot'])[tstart:tend,:,1:,:]  * (utau_ref_channel ** 2.)
+    unres_tau_zv_lbls_downstream = np.array(flowfields['unres_tau_zv_tot'])[tstart:tend,1:,:-1,:]* (utau_ref_channel ** 2.)
+    unres_tau_xw_lbls_downstream = np.array(flowfields['unres_tau_xw_tot'])[tstart:tend,:-1,:,1:]* (utau_ref_channel ** 2.)
+    unres_tau_yw_lbls_downstream = np.array(flowfields['unres_tau_yw_tot'])[tstart:tend,:-1,1:,:]* (utau_ref_channel ** 2.)
+    unres_tau_zw_lbls_downstream = np.array(flowfields['unres_tau_zw_tot'])[tstart:tend,1:,:,:]  * (utau_ref_channel ** 2.)
 
     #Extract coordinates, shape fields, and ghost cells
     zc       = np.array(flowfields['zc'][:])

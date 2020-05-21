@@ -147,16 +147,18 @@ if args.make_table:
         if k == nz: #Ensure only arrays with additional cell for top wall are accessed, put the others to NaN
             corrcoef_xu_smag[k+1] = np.nan
             corrcoef_yu_smag[k+1] = np.nan
-            a = ma.masked_invalid(dns_tau_zu_smag[k,:,:].flatten())
-            b = ma.masked_invalid(dns_tau_zu[k,:,:].flatten())
-            msk = (~a.mask & ~b.mask)
-            corrcoef_zu_smag[k+1] = np.round(ma.corrcoef(dns_tau_zu_smag[k,:,:].flatten()[msk], dns_tau_zu[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            #a = ma.masked_invalid(dns_tau_zu_smag[k,:,:].flatten())
+            #b = ma.masked_invalid(dns_tau_zu[k,:,:].flatten())
+            #msk = (~a.mask & ~b.mask)
+            #corrcoef_zu_smag[k+1] = np.round(ma.corrcoef(dns_tau_zu_smag[k,:,:].flatten()[msk], dns_tau_zu[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zu_smag[k+1] = np.nan
             corrcoef_xv_smag[k+1] = np.nan
             corrcoef_yv_smag[k+1] = np.nan
-            a = ma.masked_invalid(dns_tau_zv_smag[k,:,:].flatten())
-            b = ma.masked_invalid(dns_tau_zv[k,:,:].flatten())
-            msk = (~a.mask & ~b.mask)
-            corrcoef_zv_smag[k+1] = np.round(ma.corrcoef(dns_tau_zv_smag[k,:,:].flatten()[msk], dns_tau_zv[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            #a = ma.masked_invalid(dns_tau_zv_smag[k,:,:].flatten())
+            #b = ma.masked_invalid(dns_tau_zv[k,:,:].flatten())
+            #msk = (~a.mask & ~b.mask)
+            #corrcoef_zv_smag[k+1] = np.round(ma.corrcoef(dns_tau_zv_smag[k,:,:].flatten()[msk], dns_tau_zv[k,:,:].flatten()[msk])[0,1],3) #Calculate, extract, and round off Pearson correlation coefficient from correlation matrix
+            corrcoef_zv_smag[k+1] = np.nan
             corrcoef_xw_smag[k+1] = np.nan
             corrcoef_yw_smag[k+1] = np.nan
             corrcoef_zw_smag[k+1] = np.nan
@@ -262,7 +264,7 @@ def make_horcross_heights(values, z, y, x, component, is_lbl, time_step = 0):
         if not is_lbl:
             plt.pcolormesh(x, y, values_height, vmin=-0.5, vmax=0.5)
         else:
-            plt.pcolormesh(x, y, values_height, vmin=-5.0, vmax=5.0)
+            plt.pcolormesh(x, y, values_height, vmin=-0.5, vmax=0.5)
         #plt.pcolormesh(x * delta, y * delta, values_height, vmin=-0.00015, vmax=0.00015)
         ax = plt.gca()
         ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
@@ -420,8 +422,8 @@ def make_pdfs_heights(smag, labels, z, component, time_step = 0):
         plt.hist(labels_height, bins = bin_edges, density = True, histtype = 'step', label = 'DNS')
         ax = plt.gca()
         ax.set_yscale('log')
-        ax.set_ylim(bottom=0.0008)
-        ax.set_xlim(left=-20, right=20)
+        ax.set_ylim(bottom=0.00008)
+        ax.set_xlim(left=-5, right=5)
         plt.ylabel(r'$\rm Probability\ density\ [-]$',fontsize=20)
         plt.xlabel(r'$\rm \frac{\tau_{wu}}{u_{\tau}^2} \ [-]$',fontsize=20)
         plt.xticks(fontsize=16, rotation=90)
@@ -481,8 +483,10 @@ def make_scatterplot_heights(preds, lbls, preds_horavg, lbls_horavg, heights, co
             plt.xlim([-2.0, 2.0])
             plt.ylim([-2.0, 2.0])
         else:
-            plt.xlim([-15.0, 15.0])
-            plt.ylim([-15.0, 15.0])
+            plt.xlim([-2.0, 2.0])
+            plt.ylim([-2.0, 2.0])
+            #plt.xlim([-15.0, 15.0])
+            #plt.ylim([-15.0, 15.0])
             #plt.xlim([-40.0, 40.0])
             #plt.ylim([-40.0, 40.0])
             #plt.xlim([-0.0005, 0.0005])
@@ -532,7 +536,7 @@ if args.make_plots:
     #Make spectra of labels and MLP predictions
     #make_spectra_heights(dns_tau_xu_smag, dns_tau_xu, z,       'xu', time_step = 0)
     #make_spectra_heights(dns_tau_yu_smag, dns_tau_yu, z,       'yu', time_step = 0)
-    make_spectra_heights(dns_tau_zu_smag, dns_tau_zu, z,      'zu', time_step = 0)
+    #make_spectra_heights(dns_tau_zu_smag, dns_tau_zu, z,      'zu', time_step = 0)
     #make_spectra_heights(dns_tau_xv_smag, dns_tau_xv, z,       'xv', time_step = 0)
     #make_spectra_heights(dns_tau_yv_smag, dns_tau_yv, z,       'yv', time_step = 0)
     #make_spectra_heights(dns_tau_zv_smag, dns_tau_zv, z,      'zv', time_step = 0)
@@ -543,7 +547,7 @@ if args.make_plots:
     ##Plot vertical profiles
     #make_vertprof(dns_tau_xu_smag_horavg, dns_tau_xu_horavg, z,      'xu', time_step = 0)
     #make_vertprof(dns_tau_yu_smag_horavg, dns_tau_yu_horavg, z,      'yu', time_step = 0)
-    make_vertprof(dns_tau_zu_smag_horavg, dns_tau_zu_horavg, z,     'zu', time_step = 0)
+    #make_vertprof(dns_tau_zu_smag_horavg, dns_tau_zu_horavg, z,     'zu', time_step = 0)
     #make_vertprof(dns_tau_xv_smag_horavg, dns_tau_xv_horavg, z,      'xv', time_step = 0)
     #make_vertprof(dns_tau_yv_smag_horavg, dns_tau_yv_horavg, z,      'yv', time_step = 0)
     #make_vertprof(dns_tau_zv_smag_horavg, dns_tau_zv_horavg, z,     'zv', time_step = 0)
