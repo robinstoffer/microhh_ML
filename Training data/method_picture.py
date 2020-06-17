@@ -7,7 +7,7 @@ mpl.use('Agg') #Prevent that Matplotlib uses Tk, which is not configured for the
 #mpl.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}", r"\usepackage[utf8]{inputenc}"]#,r"\usepackage{dvipng}"]
 import matplotlib.pyplot as plt
 
-training_data = nc.Dataset('/projects/1/flowsim/simulation1/lesscoarse/training_data.nc','r')
+training_data = nc.Dataset('/projects/1/flowsim/simulation1/lesscoarse_prefsampling/training_data.nc','r')
 highres_data = nc.Dataset('/projects/1/flowsim/simulation1/u.nc','r')
 highres_coord_data = nc.Dataset('/projects/1/flowsim/simulation1/v.nc','r')
 #delta = 1500 #Half-channel width in [m], 500 m is representative for a realistic ABL
@@ -122,7 +122,7 @@ plt.xlim(0, xhc[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r"c) $\frac{1}{\Delta x \Delta y \Delta z} \int_{\partial\Omega_{u \mathbf{k}}^{in}} (u u - \frac{1}{\nu} \frac{\partial u}{\partial x}) \mathrm{d}\mathbf{x'}$", loc='center', fontsize=20, y=1.08)
+plt.title(r"c) $\frac{1}{\Delta x \Delta y \Delta z} \int_{\partial\Omega_{u \mathbf{k}}^{in}} (u u - \nu \frac{\partial u}{\partial x}) \mathrm{d}\mathbf{x'}$", loc='center', fontsize=20, y=1.08)
 #plt.title(r'c) Total turbulent transport', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_total_transport.png',bbox_inches='tight')
@@ -140,7 +140,7 @@ plt.xlim(0, xhc[-1])
 #plt.ylim(0, 36)
 plt.xticks(fontsize = 16, rotation = 0)
 plt.yticks(fontsize = 16, rotation = 0)
-plt.title(r'd) $\frac{\overline{u}^{\mathbf{k}} + \overline{u}^{\mathbf{k} - \mathbf{e_u}}}{2}$' " " r'$\frac{\overline{u}^{\mathbf{k}} + \overline{u}^{\mathbf{k} - \mathbf{e_u }}}{2} - \frac{1}{\nu} \frac{\overline{u}^{\mathbf{k}} - \overline{u}^{\mathbf{k} - \mathbf{e_u} }}{\Delta x}$', loc='center', fontsize=20, y=1.08)
+plt.title(r'd) $\frac{\overline{u}^{\mathbf{k}} + \overline{u}^{\mathbf{k} - \mathbf{e_u}}}{2}$' " " r'$\frac{\overline{u}^{\mathbf{k}} + \overline{u}^{\mathbf{k} - \mathbf{e_u }}}{2} - \nu \frac{\overline{u}^{\mathbf{k}} - \overline{u}^{\mathbf{k} - \mathbf{e_u} }}{\Delta x}$', loc='center', fontsize=20, y=1.08)
 #plt.title(r'd) Resolved turbulent transport', loc='center', fontsize=20)
 plt.tight_layout()
 plt.savefig('method_res_transport.png',bbox_inches='tight')

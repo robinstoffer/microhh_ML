@@ -368,7 +368,6 @@ def __grid_loop(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_up
 def inference_MLP(u, v, w, grid, MLP, b, time_step, permute, loss, flag_only_zu_upstream, flag_only_zu_downstream, flag_only_loglayer):
     #Makes currently use of global variables for the labels and storage of loss
     
-
     ##Initialize fields for storage transport components
     #unres_tau_xu_CNN_upstream = np.zeros((len(zc),len(yc),len(xc)), dtype = np.float64)
     #unres_tau_xv_CNN_upstream = np.zeros((len(zc),len(yhcless),len(xhcless)), dtype = np.float64)

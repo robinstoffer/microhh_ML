@@ -80,7 +80,7 @@ for k in k_ind:
     u_fi_height = u_fi[k,:,:]
 
     plt.figure()
-    plt.pcolormesh(i_ind,j_ind,u_fi_height, vmin=1.0, vmax=2.5, cmap=plt.get_cmap('jet'))
+    plt.pcolormesh(i_ind,j_ind,u_fi_height, vmin=1.0, vmax=2.5, cmap=plt.get_cmap('Blues'))
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(FormatStrFormatter('%1i'))
@@ -88,8 +88,8 @@ for k in k_ind:
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=16)
     cbar.set_label('Permutation importance [-]',rotation=270,fontsize=20,labelpad=30)
-    plt.xlabel('i')
-    plt.ylabel('j')
+    plt.xlabel('i', fontsize=16)
+    plt.ylabel('j', fontsize=16)
     plt.xticks(i_ticks, fontsize=16, rotation=0)
     plt.yticks(j_ticks, fontsize=16, rotation=0)
     plt.tight_layout()
@@ -104,7 +104,7 @@ for k in k_ind:
     v_fi_height = v_fi[k,:,:]
 
     plt.figure()
-    plt.pcolormesh(iv_ind,jv_ind,v_fi_height, vmin=1.0, vmax=1.5, cmap=plt.get_cmap('jet'))
+    plt.pcolormesh(iv_ind,jv_ind,v_fi_height, vmin=1.0, vmax=1.5, cmap=plt.get_cmap('Blues'))
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(FormatStrFormatter('%1i'))
@@ -112,8 +112,8 @@ for k in k_ind:
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=16)
     cbar.set_label('Permutation importance [-]',rotation=270,fontsize=20,labelpad=30)
-    plt.xlabel('i')
-    plt.ylabel('j')
+    plt.xlabel('i', fontsize=16)
+    plt.ylabel('j', fontsize=16)
     plt.xticks(iv_ticks, fontsize=16, rotation=0)
     plt.yticks(jv_ticks, fontsize=16, rotation=0)
     plt.tight_layout()
@@ -131,7 +131,7 @@ for k in kw_ind:
     w_fi_height = w_fi[k_ind,:,:]
 
     plt.figure()
-    plt.pcolormesh(iw_ind,j_ind, w_fi_height, vmin=1.0, vmax=2.2, cmap=plt.get_cmap('jet'))
+    plt.pcolormesh(iw_ind,j_ind, w_fi_height, vmin=1.0, vmax=2.2, cmap=plt.get_cmap('Blues'))
 
     ax = plt.gca()
     ax.xaxis.set_major_formatter(FormatStrFormatter('%1i'))
@@ -139,8 +139,8 @@ for k in kw_ind:
     cbar = plt.colorbar()
     cbar.ax.tick_params(labelsize=16)
     cbar.set_label('Permutation importance [-]',rotation=270,fontsize=20,labelpad=30)
-    plt.xlabel('i')
-    plt.ylabel('j')
+    plt.xlabel('i', fontsize=16)
+    plt.ylabel('j', fontsize=16)
     plt.xticks(iw_ticks, fontsize=16, rotation=0)
     plt.yticks(j_ticks, fontsize=16, rotation=0)
     plt.tight_layout()
