@@ -238,11 +238,12 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
         #ugradz,ugrady,ugradx = np.gradient(uc_singlefield,zgc,ygc,xhgc,edge_order=2)
 
         #Calculate means and stdevs according to store_means_stdevs flag
+        #NOTE: remove ghost cells when calculating the means+stdevs
         if store_means_stdevs:
-            mean_uc[t] = np.mean(uc_singlefield)
-            mean_vc[t] = np.mean(vc_singlefield)
-            mean_wc[t] = np.mean(wc_singlefield)
-            mean_pc[t] = np.mean(pc_singlefield)
+            mean_uc[t] = np.mean(uc_singlefield[kgc_center:kend,jgc:jend,igc:iend])
+            mean_vc[t] = np.mean(vc_singlefield[kgc_center:kend,jgc:jend,igc:iend])
+            mean_wc[t] = np.mean(wc_singlefield[kgc_edge:khend,jgc:jend,igc:iend])
+            mean_pc[t] = np.mean(pc_singlefield[kgc_center:kend,jgc:jend,igc:iend])
             #mean_ugradx[t] = np.mean(ugradx)
             #mean_ugrady[t] = np.mean(ugrady)
             #mean_ugradz[t] = np.mean(ugradz)
@@ -256,20 +257,20 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             #mean_pgrady[t] = np.mean(pgrady)
             #mean_pgradz[t] = np.mean(pgradz)
             #
-            mean_unres_tau_xu[t] = np.mean(unres_tau_xu_singlefield)
+            mean_unres_tau_xu[t] = np.mean(unres_tau_xu_singlefield[:,:,1:])
             mean_unres_tau_yu[t] = np.mean(unres_tau_yu_singlefield)
             mean_unres_tau_zu[t] = np.mean(unres_tau_zu_singlefield)
             mean_unres_tau_xv[t] = np.mean(unres_tau_xv_singlefield)
-            mean_unres_tau_yv[t] = np.mean(unres_tau_yv_singlefield)
+            mean_unres_tau_yv[t] = np.mean(unres_tau_yv_singlefield[:,1:,:])
             mean_unres_tau_zv[t] = np.mean(unres_tau_zv_singlefield)
             mean_unres_tau_xw[t] = np.mean(unres_tau_xw_singlefield)
             mean_unres_tau_yw[t] = np.mean(unres_tau_yw_singlefield)
-            mean_unres_tau_zw[t] = np.mean(unres_tau_zw_singlefield)
+            mean_unres_tau_zw[t] = np.mean(unres_tau_zw_singlefield[1:,:,:])
             #
-            stdev_uc[t] = np.std(uc_singlefield)
-            stdev_vc[t] = np.std(vc_singlefield)
-            stdev_wc[t] = np.std(wc_singlefield)
-            stdev_pc[t] = np.std(pc_singlefield)
+            stdev_uc[t] = np.std(uc_singlefield[kgc_center:kend,jgc:jend,igc:iend])
+            stdev_vc[t] = np.std(vc_singlefield[kgc_center:kend,jgc:jend,igc:iend])
+            stdev_wc[t] = np.std(wc_singlefield[kgc_edge:khend,jgc:jend,igc:iend])
+            stdev_pc[t] = np.std(pc_singlefield[kgc_center:kend,jgc:jend,igc:iend])
             #stdev_ugradx[t] = np.std(ugradx)
             #stdev_ugrady[t] = np.std(ugrady)
             #stdev_ugradz[t] = np.std(ugradz)
@@ -283,15 +284,15 @@ def generate_samples(output_directory, training_filepath = 'training_data.nc', s
             #stdev_pgrady[t] = np.std(pgrady)
             #stdev_pgradz[t] = np.std(pgradz)
             #
-            stdev_unres_tau_xu[t] = np.std(unres_tau_xu_singlefield)
+            stdev_unres_tau_xu[t] = np.std(unres_tau_xu_singlefield[:,:,1:])
             stdev_unres_tau_yu[t] = np.std(unres_tau_yu_singlefield)
             stdev_unres_tau_zu[t] = np.std(unres_tau_zu_singlefield)
             stdev_unres_tau_xv[t] = np.std(unres_tau_xv_singlefield)
-            stdev_unres_tau_yv[t] = np.std(unres_tau_yv_singlefield)
+            stdev_unres_tau_yv[t] = np.std(unres_tau_yv_singlefield[:,1:,:])
             stdev_unres_tau_zv[t] = np.std(unres_tau_zv_singlefield)
             stdev_unres_tau_xw[t] = np.std(unres_tau_xw_singlefield)
             stdev_unres_tau_yw[t] = np.std(unres_tau_yw_singlefield)
-            stdev_unres_tau_zw[t] = np.std(unres_tau_zw_singlefield)
+            stdev_unres_tau_zw[t] = np.std(unres_tau_zw_singlefield[1:,:,:])
 
         #UNDO normalisation with utau_ref such that the samples contain non-normalized inputs (it is needed that the MLP takes non-normalized inputs when implemented in MicroHH).
         #NOTE: on purpose done after the means and stdevs are calculated, as these should correspond to the normalized inputs. The normalisation with utau_ref is done again in the MLP!
