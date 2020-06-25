@@ -11,7 +11,7 @@ cd ~/microhh/cases/moser600/git_repository/Neural\ Network
 
 #Load modules new environment
 module purge
-module load surf-devel
+#module load surf-devel
 module load 2019
 #module load intel/2018b
 module load netCDF/4.6.1-intel-2018b
