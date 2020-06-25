@@ -113,7 +113,6 @@ from func_boxfilter import boxfilter_dns
 #print('Volume integral p finegrid: ' + str(volume_finegrid_p))
 #print('Volume integral p coarsegrid: ' + str(volume_coarsegrid_p))
 
-
 input_directory = '/projects/1/flowsim/simulation1/'
 #output_directory = '/projects/1/flowsim/simulation1/coarsehor/'
 #output_directory = '/projects/1/flowsim/simulation1/lesscoarse/'
