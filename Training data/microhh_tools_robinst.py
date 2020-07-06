@@ -142,8 +142,6 @@ class Read_statistics:
     def __repr__(self):
         return 'Available variables:\n{}'.format(', '.join(self.names.keys()))
 
-
-
 def read_restart_file(path, itot, jtot, ktot, endian='little'):
     """ Read a MicroHH restart file into a 3D (or 2D if ktot=1) numpy array 
         The returned array has the dimensions ordered as [z,y,x] """
